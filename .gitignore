@@ -1,0 +1,33 @@
+## .gitignore
+## John Stanton-Geddes
+## 2013-07-22
+
+## Ignore ALL files except specified scripts and text files. 
+## This resolves problem with intermediate bioinformatic (...fastq.gz) being 
+## added when I don't want to track them.
+
+*
+
+# Don't ignore subdirectories, so we can recurse into them
+!*/
+# but ignore planning directory as these are random files kept locally...
+planning/
+# and ignore data/ directory as these files are large and not amenable for version control. 
+# canonical data files will be stored and made accessible elsewhere (e.g. Amazon S3)
+data/
+
+
+# Don't ignore .gitignore
+!.gitignore
+
+# Don't ignore R, python, perl, bash scripts, text, latex and markdown files
+!*.R
+!*.Rmd
+!*.Rsw
+!*.py
+!*.pl
+!*.sh
+!*.md
+!*.txt
+!*.tex
+
