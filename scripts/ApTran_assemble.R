@@ -134,7 +134,7 @@ for (j in 1:length(clippedR1)) {
 Normalize reads using khmer
 
 
-```{r diginorm}
+```{r diginorm, eval=FALSE}
 # set PYTHONPATH to khmer module
 system("export PYTHONPATH=/opt/software/khmer/python")
 
@@ -162,9 +162,12 @@ for (s in notCombined) {
 message("Start diginorm on notCombined reads: ", Sys.time())
 system("/opt/software/khmer/scripts/normalize-by-median.py -R diginorm-paired.out -p -C 20 -k 20 -N 4 -x 4e9 --loadhash ../data/merged/Ap-diginorm-C20k20.kh --savehash ../data/merged/Ap-diginorm-C20k20.kh ../data/merged/*.notCombined.fastq.out")
 message("Done with diginorm on notCombined reads: ", Sys.time())
+```
 
-# Trim likely erroneous k-mers. Note that this will orphan some reads with poor quality partners
-message("Trim errorneous k-mers: ", Sys.time())
+Trim likely erroneous k-mers. Note that this will orphan some reads with poor quality partners
+
+```{r diginorm_trim, eval=FALSE}
+message("Trim erroneous k-mers: ", Sys.time())
 system("/opt/software/khmer/scripts/filter-abund.py -V ../data/merged/Ap-diginorm-C20k20.kh *.keep")
 
 # Separate orphaned from still-paired reads in .notCombined.fastq.out.keep.abundfilt
@@ -175,14 +178,13 @@ dnlist <- list.files()
 for (n in dn) {
     system(paste("/opt/software/khmer/scripts/extract-paired-reads.py ", n, sep=""))
 }
-
 ```
 
- Move final normalized fastq files to diginorm directory and remove intermediate files
+Move final normalized fastq files to diginorm directory and remove intermediate files
 
-```{r diginorm_cleanup}
+```{r diginorm_cleanup, eval=FALSE}
 message("Move final files and clean-up: ", Sys.time())
-system("mv *.abundfilt ../data/diginorm/")
+system("mv *.extendedFrags.fastq.out.keep.abundfilt ../data/diginorm/")
 system("mv *.abundfilt.pe ../data/diginorm/")
 system("mv *.abundfilt.se ../data/diginorm/")
 
@@ -196,7 +198,7 @@ Use Trinity for transcriptome assembly.
 Requires reads split into 'left' and 'right' files.
 Combine all *.notCombined into reads 1 and 2
 
-```{r trinity}
+```{r trinity_prep, eval=FALSE}
 # make directory for Trinity output
 system("mkdir -p ../results/trinity")
 trinitydir <- "../results/trinity/"
@@ -206,8 +208,12 @@ diginormlist <- list.files(diginormdir)
 (pe <- diginormlist[grep("A[r2]{1,2}-...notCombined.fastq.out.keep.abundfilt.pe", diginormlist)])
 
 for (p in pe) {
-    system(paste("/opt/software/khmer/scripts/split-paired-reads.py ", diginormdir, p, " > ", p, sep=""))
+    system(paste("/opt/software/khmer/scripts/split-paired-reads.py ", diginormdir, p, sep=""))
 }
+
+# move split files
+system(paste("mv A*.abundfilt.pe.1 ", diginormdir, sep=""))
+system(paste("mv A*.abundfilt.pe.2 ", diginormdir, sep=""))
 
 # concatenate files into left and right
 system(paste("cat ", diginormdir, "*.1 > ", diginormdir, "Ap-r1.fq", sep=""))
@@ -217,8 +223,14 @@ system(paste("cat ", diginormdir, "*.2 > ", diginormdir, "Ap-r2.fq", sep=""))
 system(paste("cat ", diginormdir, "*.notCombined.fastq.out.keep.abundfilt.se >> ", diginormdir, "Ap-r1.fq", sep=""))
 # add single-end extendedFrags to one file
 system(paste("cat ", diginormdir, "*.extendedFrags.fastq.keep.abundfilt >> ", diginormdir, "Ap-r1.fq", sep=""))
+```
 
-# run Trinity
+Run Trinity
+
+```{r trinity}
+diginormdir <- "../data/diginorm/"
+trinitydir <- "../results/trinity/"
+
 system(paste("Trinity.pl --seqType fq --JM 50G --left ", diginormdir, "Ap-r1.fq --right ", diginormdir, "Ap-r2.fq --output ", trinitydir, sep=""))
 
 # summary statistics
