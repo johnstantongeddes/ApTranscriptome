@@ -236,3 +236,28 @@ system(paste("Trinity.pl --seqType fq --JM 50G --left ", diginormdir, "Ap-r1.fq 
 # summary statistics
 system(paste("python assemstats2.py 100 ", trinitydir, "Trinity.fasta", sep=""))
 ```
+
+
+Yay! Trinity assembly completed.
+
+## Evaluate assembly
+
+To evaluate assembly, blast transcripts against known spike-in reads
+
+```{r evaluate_assembly}
+# load spike-in fasta file
+library(Biostrings)
+spikein <- "../data/sim/known-sim.fasta"
+spikeinfa <- readDNAStringSet(spikein)
+length(names(spikeinfa))
+
+# make BLAST database from spike-in fasta
+system(paste("makeblastdb -dbtype nucl -in ", spikein, sep=""))
+
+# BLAST assembled transcripts against database
+transcripts <- "../results/trinity/Trinity.fasta"
+system(paste("blastn -query ", transcripts, " -db ", spikein, " -outfmt 6 -out blast_spikein.txt",sep=""))
+
+# evaluate
+#system(paste("Rscript sim-assembly-eval.R ", transcripts, " blast_spikein.txt", sep=""))
+```
