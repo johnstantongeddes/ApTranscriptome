@@ -167,9 +167,9 @@ message("Done with diginorm on A22 notCombined reads: ", Sys.time())
 Trim low abundance parts of high coverage reads - these are likely erroneous.
 Note that this will orphan some reads with poor quality partners
 
-```{r diginorm_trim, eval=TRUE}
+```{r A22_diginorm_trim, eval=TRUE}
 message("Trim low abundance k-mers: ", Sys.time())
-system("/opt/software/khmer/scripts/filter-abund.py -V ../data/merged/A22-diginorm-C20k20.kh A22-.*.keep")
+system("/opt/software/khmer/scripts/filter-abund.py -V ../data/merged/A22-diginorm-C20k20.kh *.keep$")
 
 # Separate orphaned from still-paired reads in .notCombined.fastq.out.keep.abundfilt
 message("Separate orphaned from still-paired reads: ", Sys.time())
@@ -179,9 +179,18 @@ dnlist <- list.files()
 for (n in dn) {
     system(paste("/opt/software/khmer/scripts/extract-paired-reads.py ", n, sep=""))
 }
+
+# Move final files and cleanup
+message("Move final files and clean-up: ", Sys.time())
+system("mv *.extendedFrags.fastq.out.keep.abundfilt ../data/diginorm/")
+system("mv *.abundfilt.pe ../data/diginorm/")
+system("mv *.abundfilt.se ../data/diginorm/")
+
+system("rm *.keep")
+system("rm *notCombined.fastq.out.keep.abundfilt$")
 ```
 
-Repeat diginorm for Ar
+**Repeat diginorm for Ar colony**
 
 
 Normalize reads separately for samples from each colony using [khmer](https://github.com/ged-lab/khmer) software
@@ -216,7 +225,7 @@ Note that this will orphan some reads with poor quality partners
 
 ```{r Ar_diginorm_trim, eval=TRUE}
 message("Trim low abundance k-mers: ", Sys.time())
-system("/opt/software/khmer/scripts/filter-abund.py -V ../data/merged/Ar-diginorm-C20k20.kh Ar-.*.keep")
+system("/opt/software/khmer/scripts/filter-abund.py -V ../data/merged/Ar-diginorm-C20k20.kh *.keep")
 
 # Separate orphaned from still-paired reads in .notCombined.fastq.out.keep.abundfilt
 message("Separate orphaned from still-paired reads: ", Sys.time())
@@ -226,20 +235,16 @@ dnlist <- list.files()
 for (n in dn) {
     system(paste("/opt/software/khmer/scripts/extract-paired-reads.py ", n, sep=""))
 }
-```
 
-
-Move final normalized fastq files to diginorm directory and remove intermediate files
-
-```{r diginorm_cleanup, eval=TRUE}
+# Move final files and cleanup
 message("Move final files and clean-up: ", Sys.time())
 system("mv *.extendedFrags.fastq.out.keep.abundfilt ../data/diginorm/")
 system("mv *.abundfilt.pe ../data/diginorm/")
 system("mv *.abundfilt.se ../data/diginorm/")
 
 system("rm *.keep")
+system("rm *notCombined.fastq.out.keep.abundfilt$")
 ```
-
 
 ## Transcriptome assembly
 
