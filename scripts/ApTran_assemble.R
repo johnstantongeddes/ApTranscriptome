@@ -31,7 +31,7 @@ Use these simluated reads to evaluate assembly at end.
 Fasta file of known mRNA transcripts for simulated reads with known expression values.
 I use a file with 1000 *Arabidopsis* mRNA transcripts downloaded from [European Nucleotide Archive](http://www.ebi.ac.uk/ena/home) 
 
-```{r simulate}
+```{r simulate, eval=FALSE}
 knownfasta <- "../data/ena.fasta"
 system("mkdir -p ../data/sim")
 simout <- "../data/sim"
@@ -76,7 +76,7 @@ system("mv known-sim-frags.fasta ../data/sim")
 
 Clip adapter sequence from reads and trim poor quality reads using Trim_Galore
 
-```{r trimclip}
+```{r trimclip, eval=FALSE}
 # Data directory 
 datadir <- "/home/data/Aphaeno_transcriptome/130509_SN1073_0326_BD25DAACXX/Project_Stanton-Geddes_Project_001"
 # Directory to store results
@@ -107,7 +107,7 @@ system(paste("trim_galore --quality 20 --phred33 --fastqc_args '--o", clipdir, "
 
 With standard insert size of 200 bp and 2 x 100bp paired-end sequencing, many paired-reads are overlapping. FLASH attempts to merge paired-end reads when possible.
 
-```{r FLASH}
+```{r FLASH, eval=FALSE}
 # make new directory for merged reads
 system("mkdir -p ../data/merged")
 mergedir <- "../data/merged/"
@@ -143,13 +143,15 @@ system("mkdir -p ../data/diginorm")
 diginormdir <- "../data/diginorm/"
 
 # run `normalize-by-median` for extendedFragments with coverage threshold and kmer of 20. -N 4 -x 3e9 allocates up to 12GB RAM. 
+
 message("Start diginorm on A22 extendedFrags: ", Sys.time())
-system("/opt/software/khmer/scripts/normalize-by-median.py -R diginorm.out -C 20 -k 20 -N 4 -x 3e9 --savehash ../data/merged/A22-diginorm-C20k20.kh ../data/merged/A22*.extendedFrags.fastq")
-message("Done with diginorm on extendedFrags: ", Sys.time())
+system("/opt/software/khmer/scripts/normalize-by-median.py -R diginorm.out -C 20 -k 20 -N 4 -x 3e9 --savehash ../data/diginorm/A22-diginorm-C20k20.kh ../data/merged/A22*.extendedFrags.fastq")
+message("Done with diginorm on A22 extendedFrags: ", Sys.time())
 
 # to run `normalize-by-median` for notCombined reads, need to add Illumina 1.3 style tags /1 or /2 to reads
 
 # list of trimclipped samples
+mergedir <- "../data/merged/"
 mergedlist <- list.files(mergedir)
 (notCombined <- mergedlist[grep("A22-...notCombined", mergedlist)])
 
@@ -159,8 +161,9 @@ for (s in notCombined) {
 }
 
 # run `normalize-by-median`. load hash of previously saved read filtering
-message("Start diginorm on notCombined reads: ", Sys.time())
-system("/opt/software/khmer/scripts/normalize-by-median.py -R diginorm-paired.out -p -C 20 -k 20 -N 4 -x 4e9 --loadhash ../data/merged/A22-diginorm-C20k20.kh --savehash ../data/merged/A22-diginorm-C20k20.kh ../data/merged/A22*.notCombined.fastq.out")
+message("Start diginorm on A22 notCombined reads: ", Sys.time())
+system("/opt/software/khmer/scripts/normalize-by-median.py -R diginorm-paired.out -p -C 20 -k 20 -N 4 -x 4e9 --loadhash ../data/diginorm/A22-diginorm-C20k20.kh --savehash ../data/diginorm/A22-diginorm-C20k20.kh ../data/merged/A22*.notCombined.fastq.out")
+
 message("Done with diginorm on A22 notCombined reads: ", Sys.time())
 ```
 
@@ -169,10 +172,10 @@ Note that this will orphan some reads with poor quality partners
 
 ```{r A22_diginorm_trim, eval=TRUE}
 message("Trim low abundance k-mers: ", Sys.time())
-system("/opt/software/khmer/scripts/filter-abund.py -V ../data/merged/A22-diginorm-C20k20.kh *.keep$")
+system("/opt/software/khmer/scripts/filter-abund.py -V ../data/diginorm/A22-diginorm-C20k20.kh *.keep")
 
 # Separate orphaned from still-paired reads in .notCombined.fastq.out.keep.abundfilt
-message("Separate orphaned from still-paired reads: ", Sys.time())
+message("Separate orphaned from still-paired A22 reads: ", Sys.time())
 dnlist <- list.files()
 (dn <- dnlist[grep("A22-...notCombined.fastq.out.keep.abundfilt", dnlist)])
 
@@ -181,13 +184,14 @@ for (n in dn) {
 }
 
 # Move final files and cleanup
-message("Move final files and clean-up: ", Sys.time())
-system("mv *.extendedFrags.fastq.out.keep.abundfilt ../data/diginorm/")
-system("mv *.abundfilt.pe ../data/diginorm/")
-system("mv *.abundfilt.se ../data/diginorm/")
 
-system("rm *.keep")
-system("rm *notCombined.fastq.out.keep.abundfilt$")
+message("Move final files and clean-up: ", Sys.time())
+
+system("mv *.extendedFrags.fastq.keep.abundfilt ../data/diginorm/")
+system("mv *.abundfilt.[ps]e ../data/diginorm/")
+
+system("mv *.keep ../data/diginorm/")
+system("mv *notCombined.fastq.out.keep.abundfilt ../data/diginorm/")
 ```
 
 **Repeat diginorm for Ar colony**
@@ -200,12 +204,13 @@ Normalize reads separately for samples from each colony using [khmer](https://gi
 
 # run `normalize-by-median` for extendedFragments with coverage threshold and kmer of 20. -N 4 -x 3e9 allocates up to 12GB RAM. 
 message("Start diginorm on Ar extendedFrags: ", Sys.time())
-system("/opt/software/khmer/scripts/normalize-by-median.py -R diginorm.out -C 20 -k 20 -N 4 -x 3e9 --savehash ../data/merged/Ar-diginorm-C20k20.kh ../data/merged/Ar*.extendedFrags.fastq")
-message("Done with diginorm on extendedFrags: ", Sys.time())
+system("/opt/software/khmer/scripts/normalize-by-median.py -R diginorm.out -C 20 -k 20 -N 4 -x 3e9 --savehash ../data/diginorm/Ar-diginorm-C20k20.kh ../data/merged/Ar*.extendedFrags.fastq")
+message("Done with diginorm on Ar extendedFrags: ", Sys.time())
 
 # to run `normalize-by-median` for notCombined reads, need to add Illumina 1.3 style tags /1 or /2 to reads
 
 # list of trimclipped samples
+mergedir <- "../data/merged/"
 mergedlist <- list.files(mergedir)
 (notCombined <- mergedlist[grep("Ar-...notCombined", mergedlist)])
 
@@ -216,16 +221,16 @@ for (s in notCombined) {
 
 # run `normalize-by-median`. load hash of previously saved read filtering
 message("Start diginorm on notCombined reads: ", Sys.time())
-system("/opt/software/khmer/scripts/normalize-by-median.py -R diginorm-paired.out -p -C 20 -k 20 -N 4 -x 4e9 --loadhash ../data/merged/Ar-diginorm-C20k20.kh --savehash ../data/merged/Ar-diginorm-C20k20.kh ../data/merged/Ar*.notCombined.fastq.out")
+system("/opt/software/khmer/scripts/normalize-by-median.py -R diginorm-paired.out -p -C 20 -k 20 -N 4 -x 4e9 --loadhash ../data/diginorm/Ar-diginorm-C20k20.kh --savehash ../data/diginorm/Ar-diginorm-C20k20.kh ../data/merged/Ar*.notCombined.fastq.out")
 message("Done with diginorm on Ar notCombined reads: ", Sys.time())
 ```
 
-Trim low abundance parts of high coverage reads - these are likely erroneous.
+Trim low abundance parts of high coverage reads - these are likely erroneous. 
 Note that this will orphan some reads with poor quality partners
 
 ```{r Ar_diginorm_trim, eval=TRUE}
 message("Trim low abundance k-mers: ", Sys.time())
-system("/opt/software/khmer/scripts/filter-abund.py -V ../data/merged/Ar-diginorm-C20k20.kh *.keep")
+system("/opt/software/khmer/scripts/filter-abund.py -V ../data/diginorm/Ar-diginorm-C20k20.kh *.keep")
 
 # Separate orphaned from still-paired reads in .notCombined.fastq.out.keep.abundfilt
 message("Separate orphaned from still-paired reads: ", Sys.time())
@@ -237,13 +242,14 @@ for (n in dn) {
 }
 
 # Move final files and cleanup
-message("Move final files and clean-up: ", Sys.time())
-system("mv *.extendedFrags.fastq.out.keep.abundfilt ../data/diginorm/")
-system("mv *.abundfilt.pe ../data/diginorm/")
-system("mv *.abundfilt.se ../data/diginorm/")
 
-system("rm *.keep")
-system("rm *notCombined.fastq.out.keep.abundfilt$")
+message("Move final files and clean-up: ", Sys.time())
+
+system("mv *.extendedFrags.fastq.keep.abundfilt ../data/diginorm/")
+system("mv *.abundfilt.[ps]e ../data/diginorm/")
+
+system("mv *.keep ../data/diginorm")
+system("mv *notCombined.fastq.out.keep.abundfilt ../data/diginorm/")
 ```
 
 ## Transcriptome assembly
@@ -253,13 +259,10 @@ Requires reads split into 'left' and 'right' files.
 Combine all *.notCombined into reads 1 and 2
 
 ```{r trinity_prep, eval=FALSE}
-# make directory for Trinity output
-system("mkdir -p ../results/trinity")
-trinitydir <- "../results/trinity/"
-
 # split paired-end .notCombined reads that passed through digital normalization
+diginormdir <- "../data/diginorm/"
 diginormlist <- list.files(diginormdir)
-(pe <- diginormlist[grep("A[r2]{1,2}-...notCombined.fastq.out.keep.abundfilt.pe", diginormlist)])
+(pe <- diginormlist[grep("A[r2]{1,2}-...notCombined.fastq.out.keep.abundfilt.pe$", diginormlist)])
 
 for (p in pe) {
     system(paste("/opt/software/khmer/scripts/split-paired-reads.py ", diginormdir, p, sep=""))
@@ -268,13 +271,21 @@ for (p in pe) {
 # move split files
 system(paste("mv A*.abundfilt.pe.1 ", diginormdir, sep=""))
 system(paste("mv A*.abundfilt.pe.2 ", diginormdir, sep=""))
-```
 
+# add paired-end tag to 'extendedFrags.fastq.keep.abundfilt' for Trinity
+eflist <- list.files(diginormdir)
+(extendedFrags <- eflist[grep("extendedFrags.fastq.keep.abundfilt", eflist)])
+
+# loop across files, adding tags
+for (e in extendedFrags) {
+    system(paste("python add-illumina-tags.py ", diginormdir, e, " 1 > ", diginormdir, e, ".tag", sep=""))
+}
+```
 
 
 Run Trinity
 
-```{r A22-trinity}
+```{r A22-trinity, eval=TRUE}
 diginormdir <- "../data/diginorm/"
 A22trinitydir <- paste("../results/A22-trinity", Sys.Date(), sep="-")
 system(paste("mkdir -p ", A22trinitydir, sep=""))
@@ -287,9 +298,9 @@ system(paste("cat ", diginormdir, "A22*.2 > ", A22trinitydir, "/A22-r2.fq", sep=
 system(paste("cat ", diginormdir, "A22*.notCombined.fastq.out.keep.abundfilt.se >> ", A22trinitydir, "/A22-r1.fq", sep=""))
 
 # add single-end extendedFrags to one file
-system(paste("cat ", diginormdir, "*.extendedFrags.fastq.keep.abundfilt >> ", A22trinitydir, "/A22-r1.fq", sep=""))
+system(paste("cat ", diginormdir, "A22*.extendedFrags.fastq.keep.abundfilt.tag >> ", A22trinitydir, "/A22-r1.fq", sep=""))
 
-system(paste("Trinity.pl --seqType fq --JM 50G --left ", A22trinitydir, "A22-r1.fq --right ", A22trinitydir, "A22-r2.fq --output ", A22trinitydir, sep=""))
+system(paste("Trinity.pl --seqType fq --JM 50G --left ", A22trinitydir, "/A22-r1.fq --right ", A22trinitydir, "/A22-r2.fq --output ", A22trinitydir, sep=""))
 
 # summary statistics
 system(paste("python assemstats2.py 100 ", A22trinitydir, "Trinity.fasta", sep=""))
@@ -297,7 +308,7 @@ system(paste("python assemstats2.py 100 ", A22trinitydir, "Trinity.fasta", sep="
 
 Trinity assembly completed for A22!
 
-```{r Ar-trinity}
+```{r Ar-trinity, eval=FALSE}
 diginormdir <- "../data/diginorm/"
 Artrinitydir <- paste("../results/Ar-trinity", Sys.Date(), sep="-")
 system(paste("mkdir -p ", Artrinitydir, sep=""))
@@ -310,9 +321,11 @@ system(paste("cat ", diginormdir, "Ar*.2 > ", Artrinitydir, "/Ar-r2.fq", sep="")
 system(paste("cat ", diginormdir, "Ar*.notCombined.fastq.out.keep.abundfilt.se >> ", Artrinitydir, "/Ar-r1.fq", sep=""))
 
 # add single-end extendedFrags to one file
-system(paste("cat ", diginormdir, "*.extendedFrags.fastq.keep.abundfilt >> ", Artrinitydir, "/Ar-r1.fq", sep=""))
+system(paste("cat ", diginormdir, "Ar*.extendedFrags.fastq.keep.abundfilt.tag >> ", Artrinitydir, "/Ar-r1.fq", sep=""))
 
-system(paste("Trinity.pl --seqType fq --JM 50G --left ", Artrinitydir, "Ar-r1.fq --right ", Artrinitydir, "Ar-r2.fq --output ", Artrinitydir, sep=""))
+message("Start Trinity assembly for Ar: ", Sys.time())
+
+system(paste("Trinity.pl --seqType fq --JM 50G --left ", Artrinitydir, "/Ar-r1.fq --right ", Artrinitydir, "/Ar-r2.fq --output ", Artrinitydir, sep=""))
 
 # summary statistics
 system(paste("python assemstats2.py 100 ", Artrinitydir, "Trinity.fasta", sep=""))
