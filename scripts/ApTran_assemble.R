@@ -14,12 +14,18 @@ Requires the following programs installed and available on path:
 
 
 ```{r setup}
+# Global settings
 options(stringAsFactors=FALSE)
 
+# Load libraries
 library(ggplot2)
 library(knitr)
+library(Biostrings)
+
+# knitr options
 opts_chunk$set(cache=TRUE)
 
+# Load personal functions
 source("assemble_functions.R")
 ```
 
@@ -285,7 +291,7 @@ for (e in extendedFrags) {
 
 Run Trinity
 
-```{r A22-trinity, eval=TRUE}
+```{r A22-trinity, eval=FALSE}
 diginormdir <- "../data/diginorm/"
 A22trinitydir <- paste("../results/A22-trinity", Sys.Date(), sep="-")
 system(paste("mkdir -p ", A22trinitydir, sep=""))
@@ -333,14 +339,37 @@ system(paste("python assemstats2.py 100 ", Artrinitydir, "Trinity.fasta", sep=""
 
 Yay! Trinity assembly completed for Ar!
 
+Remove intermediate files and compress final fastq files to save disk space
+
+```{r assembly_cleanup, eval=FALSE}
+# Keep only files directly needed for Trinity assembly
+setwd(mergedir)
+system("ls | grep -P 'A.*.notCombined.fastq$' | xargs -d'\n' rm")
+
+setwd("../diginorm")
+system("ls | grep -P 'A.*.abundfilt$' | xargs -d'\n' rm")
+system("ls | grep -P 'A.*.extendedFrags.fastq.keep$' | xargs -d'\n' rm")
+system("ls | grep -P 'A.*.extendedFrags.fastq.keep.abundfilt$' | xargs -d'\n' rm")
+
+system("ls | grep -P 'A.*.notCombined.fastq.out.keep.abundfilt.pe$' | xargs -d'\n' rm")
+
+
+# compress diginorm directory
+setwd("../")
+system("tar -czf diginorm_fastq.tar.gz diginorm")
+
+# remove directories
+system("rm -rf diginorm merged trimclip")
+
+setwd("../scripts")
+```
 
 ## Evaluate assembly
 
 To evaluate assembly, blast transcripts against known spike-in reads
 
-```{r evaluate_assembly, eval=FALSE}
+```{r evaluate_assembly, eval=TRUE}
 # load spike-in fasta file
-library(Biostrings)
 spikein <- "../data/sim/known-sim.fasta"
 spikeinfa <- readDNAStringSet(spikein)
 length(names(spikeinfa))
@@ -353,5 +382,43 @@ transcripts <- "../results/trinity/Trinity.fasta"
 system(paste("blastn -query ", transcripts, " -db ", spikein, " -outfmt 6 -out blast_spikein.txt",sep=""))
 
 # evaluate
-#system(paste("Rscript sim-assembly-eval.R ", transcripts, " blast_spikein.txt", sep=""))
+blastout <- "blast_spikein.txt"
+assembly.spikein.eval(spikein, blastout)
 ```
+
+## Transcriptome filtering
+
+Reduce redundant contigs by running
+
+* [uclust](http://drive5.com/usearch/manual/uclust_algo.html) to cluster similar sequences with 90% similarity 
+* [CAP3](http://genome.cshlp.org/content/9/9/868.long) to merge contigs that overlap by with similarity 
+
+```{r cap3}
+
+## Cluster and assemble for A22
+
+# cap3. allow gap up to 20 bp (-a 20) and require 90% similarity (-p 90)
+system(paste("cap3 ", A22trinitydir, "Trinity.fasta -f 20 -a 20 -k 0 -p 90 -o 100 > ", A22trinitydir, "Trinity_cap3.fasta", sep=""))
+
+## uclust. sort then cluster
+system(paste("uclust --sort ", A22trinitydir, "Trinity_cap3.fasta --output ", A22trinitydir,"Trinity_cap3_sorted.fasta", sep=""))
+system(paste("uclust --input ", A22trinitydir, "Trinity_cap3_sorted.fasta --uc ", A22trinitydir,"Trinity_cap3_uclust.fasta --id 0.90", sep=""))
+
+
+
+# cap3. allow gap up to 20 bp (-a 20) and require 90% similarity (-p 90)
+system(paste("cap3 ", Artrinitydir, "test.fasta -f 20 -a 20 -k 0 -p 90 -o 100 > ", Artrinitydir, "test_cap3.out", sep=""))
+
+# concatenate merged 'contigs' and unassembled 'singlets'
+system(paste("cat ", Artrinitydir, "test.fasta.cap.contigs ", Artrinitydir, "test.fasta.cap.singlets > ", Artrinitydir, "test_cap3.fasta", sep=""))
+
+## uclust. sort then cluster
+system(paste("uclust --sort ", A22trinitydir, "test_cap3.fasta --output ", A22trinitydir,"test_cap3_sorted.fasta", sep=""))
+system(paste("uclust --input ", A22trinitydir, "test_cap3_sorted.fasta --uc ", A22trinitydir,"test_cap3_uclust.fasta --id 0.90", sep=""))
+
+
+
+```
+
+
+## Identify thermally response genes
