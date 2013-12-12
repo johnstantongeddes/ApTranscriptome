@@ -11,9 +11,11 @@ Requires the following programs installed and available on path:
   - requires [cutadapt](https://code.google.com/p/cutadapt/) and [FastQC](http://www.bioinformatics.babraham.ac.uk/projects/fastqc/)
 * [khmer](https://github.com/ged-lab/khmer) to perform digital normalization and filtering
 * [Trinity](http://trinityrnaseq.sourceforge.net/) for transcriptome assembly
+* [CAP3](http://seq.cs.iastate.edu/cap3.html) for removing chimeric sequences and merging redundant sequences
+* [sailfish](http://www.cs.cmu.edu/~ckingsf/software/sailfish/index.html) for expression Quantification
 
 
-```{r setup}
+```{r setup, echo=FALSE}
 # Global settings
 options(stringAsFactors=FALSE)
 
@@ -21,6 +23,7 @@ options(stringAsFactors=FALSE)
 library(ggplot2)
 library(knitr)
 library(Biostrings)
+library(stringr)
 
 # knitr options
 opts_chunk$set(cache=TRUE)
@@ -140,7 +143,7 @@ for (j in 1:length(clippedR1)) {
 Normalize reads separately for samples from each colony using [khmer](https://github.com/ged-lab/khmer) software
 
 
-```{r A22_diginorm, eval=TRUE}
+```{r A22_diginorm, eval=FALSE}
 # set PYTHONPATH to khmer module
 system("export PYTHONPATH=/opt/software/khmer/python")
 
@@ -176,7 +179,7 @@ message("Done with diginorm on A22 notCombined reads: ", Sys.time())
 Trim low abundance parts of high coverage reads - these are likely erroneous.
 Note that this will orphan some reads with poor quality partners
 
-```{r A22_diginorm_trim, eval=TRUE}
+```{r A22_diginorm_trim, eval=FALSE}
 message("Trim low abundance k-mers: ", Sys.time())
 system("/opt/software/khmer/scripts/filter-abund.py -V ../data/diginorm/A22-diginorm-C20k20.kh *.keep")
 
@@ -206,7 +209,7 @@ system("mv *notCombined.fastq.out.keep.abundfilt ../data/diginorm/")
 Normalize reads separately for samples from each colony using [khmer](https://github.com/ged-lab/khmer) software
 
 
-```{r Ar_diginorm, eval=TRUE}
+```{r Ar_diginorm, eval=FALSE}
 
 # run `normalize-by-median` for extendedFragments with coverage threshold and kmer of 20. -N 4 -x 3e9 allocates up to 12GB RAM. 
 message("Start diginorm on Ar extendedFrags: ", Sys.time())
@@ -234,7 +237,7 @@ message("Done with diginorm on Ar notCombined reads: ", Sys.time())
 Trim low abundance parts of high coverage reads - these are likely erroneous. 
 Note that this will orphan some reads with poor quality partners
 
-```{r Ar_diginorm_trim, eval=TRUE}
+```{r Ar_diginorm_trim, eval=FALSE}
 message("Trim low abundance k-mers: ", Sys.time())
 system("/opt/software/khmer/scripts/filter-abund.py -V ../data/diginorm/Ar-diginorm-C20k20.kh *.keep")
 
@@ -358,8 +361,8 @@ system("ls | grep -P 'A.*.notCombined.fastq.out.keep.abundfilt.pe$' | xargs -d'\
 setwd("../")
 system("tar -czf diginorm_fastq.tar.gz diginorm")
 
-# remove directories
-system("rm -rf diginorm merged trimclip")
+# remove merged and diginorm directories. keep trimclip for expression quantification
+system("rm -rf diginorm merged")
 
 setwd("../scripts")
 ```
@@ -368,7 +371,7 @@ setwd("../scripts")
 
 To evaluate assembly, blast transcripts against known spike-in reads
 
-```{r evaluate_assembly, eval=TRUE}
+```{r evaluate_assembly, eval=FALSE}
 # load spike-in fasta file
 spikein <- "../data/sim/known-sim.fasta"
 spikeinfa <- readDNAStringSet(spikein)
@@ -377,48 +380,187 @@ length(names(spikeinfa))
 # make BLAST database from spike-in fasta
 system(paste("makeblastdb -dbtype nucl -in ", spikein, sep=""))
 
-# BLAST assembled transcripts against database
-transcripts <- "../results/trinity/Trinity.fasta"
+# BLAST A22 assembled transcripts (including spike-in reads) against database
+transcripts <- "../results/A22-trinity-2013-12-08/Trinity.fasta"
 system(paste("blastn -query ", transcripts, " -db ", spikein, " -outfmt 6 -out blast_spikein.txt",sep=""))
 
 # evaluate
 blastout <- "blast_spikein.txt"
-assembly.spikein.eval(spikein, blastout)
+suppressWarnings(assembly.spikein.eval(spikein, blastout))
 ```
 
 ## Transcriptome filtering
 
 Reduce redundant contigs by running
 
-* [uclust](http://drive5.com/usearch/manual/uclust_algo.html) to cluster similar sequences with 90% similarity 
 * [CAP3](http://genome.cshlp.org/content/9/9/868.long) to merge contigs that overlap by with similarity 
 
-```{r cap3}
+```{r cap3, eval=TRUE}
 
 ## Cluster and assemble for A22
+A22Tr <- "../results/A22-trinity-2013-12-08/"
 
-# cap3. allow gap up to 20 bp (-a 20) and require 90% similarity (-p 90)
-system(paste("cap3 ", A22trinitydir, "Trinity.fasta -f 20 -a 20 -k 0 -p 90 -o 100 > ", A22trinitydir, "Trinity_cap3.fasta", sep=""))
+# CAP3. allow gap up to 20 bp (-a 20) and require 98% similarity (-p 98)
+system(paste("cap3 ", A22Tr, "Trinity.fasta -f 20 -a 20 -k 0 -p 98 -o 100 > ", A22Tr, "Trinity_cap3.out", sep=""))
 
-## uclust. sort then cluster
-system(paste("uclust --sort ", A22trinitydir, "Trinity_cap3.fasta --output ", A22trinitydir,"Trinity_cap3_sorted.fasta", sep=""))
-system(paste("uclust --input ", A22trinitydir, "Trinity_cap3_sorted.fasta --uc ", A22trinitydir,"Trinity_cap3_uclust.fasta --id 0.90", sep=""))
-
-
-
-# cap3. allow gap up to 20 bp (-a 20) and require 90% similarity (-p 90)
-system(paste("cap3 ", Artrinitydir, "test.fasta -f 20 -a 20 -k 0 -p 90 -o 100 > ", Artrinitydir, "test_cap3.out", sep=""))
-
-# concatenate merged 'contigs' and unassembled 'singlets'
-system(paste("cat ", Artrinitydir, "test.fasta.cap.contigs ", Artrinitydir, "test.fasta.cap.singlets > ", Artrinitydir, "test_cap3.fasta", sep=""))
-
-## uclust. sort then cluster
-system(paste("uclust --sort ", A22trinitydir, "test_cap3.fasta --output ", A22trinitydir,"test_cap3_sorted.fasta", sep=""))
-system(paste("uclust --input ", A22trinitydir, "test_cap3_sorted.fasta --uc ", A22trinitydir,"test_cap3_uclust.fasta --id 0.90", sep=""))
+# concatenate merged 'contigs' and unassembled 'singlets' from CAP3
+system(paste("cat ", A22Tr, "Trinity.fasta.cap.contigs ", A22Tr, "Trinity.fasta.cap.singlets > ", A22Tr, "A22_trinity_cap3.fasta", sep=""))
 
 
+## Cluster and assemble for Ar
+ArTr <- "../results/Ar-trinity-2013-12-08/"
 
+# CAP3. allow gap up to 20 bp (-a 20) and require 98% similarity (-p 98)
+system(paste("cap3 ", ArTr, "Trinity.fasta -f 20 -a 20 -k 0 -p 98 -o 100 > ", ArTr, "Trinity_cap3.out", sep=""))
+
+# concatenate merged 'contigs' and unassembled 'singlets' from CAP3
+system(paste("cat ", ArTr, "Trinity.fasta.cap.contigs ", ArTr, "Trinity.fasta.cap.singlets > ", ArTr, "Ar_trinity_cap3.fasta", sep=""))
 ```
 
+**Evaluate filtered assembly**
+
+Repeat above analysis, BLASTing transcripts against known spike-in reads.
+
+
+
+```{r evaluate_filtered_assembly, eval=TRUE}
+# BLAST assembled transcripts against database
+spikein <- "../data/sim/known-sim.fasta"
+cap3.transcripts <- "../results/A22-trinity-2013-12-08/A22_trinity_cap3.fasta"
+system(paste("blastn -query ", cap3.transcripts, " -db ", spikein, " -outfmt 6 -out blast_spikein_cap3.txt",sep=""))
+
+# evaluate
+blastcap3 <- "blast_spikein_cap3.txt"
+assembly.spikein.eval(spikein, blastcap3)
+```
+No effect on recovery of *in silico* reads.
+
+## Remove 'spike-in' contigs from A22 assembly.
+
+```{r remove_insilico}
+# remove contigs that match in silico transcripts from assembly
+# read blastn file
+suppressWarnings(blast.res <- read.blast("../results/blast_spikein_cap3_results/blast_spikein_cap3.txt"))
+                                         
+# transcripts to remove:
+query.id.names <- unique(blast.res$query.id)
+length(unique(query.id.names))
+
+# load Trinity assembly
+assem <- readDNAStringSet("../results/A22-trinity-2013-12-08/A22_trinity_cap3.fasta")
+length(assem)
+assem.names <- names(assem)
+
+# strip CAP3 suffix
+assem.names.sub <- str_split_fixed(assem.names, pattern = " ", n=3)[,1]
+length(assem.names.sub)
+
+# remove transcripts identified by BLAST
+head(query.id.names)
+locs <- which(assem.names.sub %in% query.id.names==TRUE)
+length(locs)
+
+assem.sub <- assem[-locs, ]
+length(assem.sub)
+
+# check
+if(length(assem.sub) != length(assem)-length(locs)) stop("Failed to correctly remove in silico transcripts")
+
+# write fasta file
+writeXStringSet(assem.sub, filepath = "../results/A22-trinity-2013-12-08/A22_trinity_cap3_clean.fasta", format="fasta")
+```
 
 ## Identify thermally response genes
+
+Quantify gene expression using sailfish
+
+```{r A22_expression}
+# set up paths
+system("export PATH=/opt/software/Sailfish-0.6.2-Linux_x86-64/bin:$PATH")
+
+# make directories for results
+system("mkdir -p ../results/A22-expression")
+A22exp <- "../results/A22-expression/"
+
+# build the index
+system(paste("LD_LIBRARY_PATH=/opt/software/Sailfish-0.6.2-Linux_x86-64/lib sailfish index -t ../results/A22-trinity-2013-12-08/A22_trinity_cap3_clean.fasta -o ", A22exp, "/index -k 20 -p 4", sep=""))
+
+
+# quantify expression using trimclip reads
+# run separately for each sample
+
+clipdir <- "../data/trimclip" 
+
+# List of samples
+samplist <- list.files(clipdir)
+(clippedR1 <- samplist[grep("A22-..-R1_val_1.fq$", samplist)])
+(clippedR2 <- samplist[grep("A22-..-R2_val_2.fq$", samplist)])
+
+# loop across each sample and quantify expression. 
+
+samples <- c("A22-00", "A22-03", "A22-07", "A22-10", "A22-14", "A22-17", "A22-21", "A22-24", "A22-28", "A22-31", "A22-35", "A22-38")
+length(samples)
+
+for (j in 1:length(samples)) {
+    quantdir <- paste(samples[j], "_quant", sep="")
+    sampR1 <- paste(clipdir, clippedR1[j], sep="")
+    sampR2 <- paste(clipdir, clippedR2[j], sep="")
+        
+    system(paste("LD_LIBRARY_PATH=/opt/software/Sailfish-0.6.2-Linux_x86-64/lib sailfish quant -i ", A22exp, "/index -o ", A22exp, quantdir, " --reads ", sampR1, " ", sampR2, " -p 4", sep=""))
+
+    message("Done with expression quantification for sample ", samples[j], ": ", Sys.time())
+}
+```
+
+Done with expression quantification for A22.
+
+Start expression quantification for Ar.
+
+```{r Ar_expression}
+# make directories for results
+system("mkdir -p ../results/Ar-expression")
+Arexp <- "../results/Ar-expression/"
+
+# build the index
+system(paste("LD_LIBRARY_PATH=/opt/software/Sailfish-0.6.2-Linux_x86-64/lib sailfish index -t ../results/Ar-trinity-2013-12-08/Ar_trinity_cap3.fasta -o ", Arexp, "/index -k 20 -p 4", sep=""))
+
+
+# quantify expression using trimclip reads
+# run separately for each sample
+
+clipdir <- "../data/trimclip" 
+
+# List of samples
+samplist <- list.files(clipdir)
+(clippedR1 <- samplist[grep("Ar-..-R1_val_1.fq$", samplist)])
+(clippedR2 <- samplist[grep("Ar-..-R2_val_2.fq$", samplist)])
+
+# loop across each sample and quantify expression. 
+
+samples <- c("Ar-00", "Ar-03", "Ar-07", "Ar-10", "Ar-14", "Ar-17", "Ar-21", "Ar-24", "Ar-28", "Ar-31", "Ar-35", "Ar-38")
+length(samples)
+
+for (j in 1:length(samples)) {
+    quantdir <- paste(samples[j], "_quant", sep="")
+    sampR1 <- paste(clipdir, clippedR1[j], sep="")
+    sampR2 <- paste(clipdir, clippedR2[j], sep="")
+        
+    system(paste("LD_LIBRARY_PATH=/opt/software/Sailfish-0.6.2-Linux_x86-64/lib sailfish quant -i ", Arexp, "/index -o ", Arexp, quantdir, " --reads ", sampR1, " ", sampR2, " -p 4", sep=""))
+
+    message("Done with expression quantification for sample ", samples[j], ": ", Sys.time())
+}
+```
+
+## Ortholog identification
+
+Use best-reciprocal `tblastx` to identify orthologs between the two transcriptome assemblies
+
+## Annotation
+
+Annotate transcriptomes using blast2GO
+
+```{r session}
+sessionInfo()
+
+purl("ApTran_assemble.Rmd", output = "ApTran_assemble_source.R", documentation=2)
+```

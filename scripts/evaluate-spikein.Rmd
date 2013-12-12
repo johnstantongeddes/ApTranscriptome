@@ -1,0 +1,25 @@
+## Check 'spike-in' 
+
+Evaluate whether any BLAST hits to 'spike-in' reads from Trinity transcriptome assembly using all reads, but *not* including *in silico spike-in reads`
+
+
+```{r evaluate_assembly, eval=TRUE}
+# load spike-in fasta file
+spikein <- "../data/sim/known-sim.fasta"
+spikeinfa <- readDNAStringSet(spikein)
+length(names(spikeinfa))
+
+# make BLAST database from spike-in fasta
+system(paste("makeblastdb -dbtype nucl -in ", spikein, sep=""))
+
+# BLAST A22 assembled transcripts (including spike-in reads) against database
+transcripts <- "../results/trinity-full/Trinity.fasta"
+system(paste("blastn -query ", transcripts, " -db ", spikein, " -outfmt 6 -out blast_full.txt",sep=""))
+
+# evaluate
+blastfull <- "blast_full.txt"
+try(assembly.spikein.eval(spikein, blastfull))
+```
+
+No hits!
+
