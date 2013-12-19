@@ -395,7 +395,7 @@ Reduce redundant contigs by running
 
 * [CAP3](http://genome.cshlp.org/content/9/9/868.long) to merge contigs that overlap by with similarity 
 
-```{r cap3, eval=TRUE}
+```{r cap3, eval=FALSE}
 
 ## Cluster and assemble for A22
 A22Tr <- "../results/A22-trinity-2013-12-08/"
@@ -421,9 +421,7 @@ system(paste("cat ", ArTr, "Trinity.fasta.cap.contigs ", ArTr, "Trinity.fasta.ca
 
 Repeat above analysis, BLASTing transcripts against known spike-in reads.
 
-
-
-```{r evaluate_filtered_assembly, eval=TRUE}
+```{r evaluate_filtered_assembly, eval=FALSE}
 # BLAST assembled transcripts against database
 spikein <- "../data/sim/known-sim.fasta"
 cap3.transcripts <- "../results/A22-trinity-2013-12-08/A22_trinity_cap3.fasta"
@@ -437,7 +435,7 @@ No effect on recovery of *in silico* reads.
 
 ## Remove 'spike-in' contigs from A22 assembly.
 
-```{r remove_insilico}
+```{r remove_insilico, eval=FALSE}
 # remove contigs that match in silico transcripts from assembly
 # read blastn file
 suppressWarnings(blast.res <- read.blast("../results/blast_spikein_cap3_results/blast_spikein_cap3.txt"))
@@ -472,24 +470,29 @@ writeXStringSet(assem.sub, filepath = "../results/A22-trinity-2013-12-08/A22_tri
 
 ## Identify thermally response genes
 
-Quantify gene expression using sailfish
+Quantify gene expression using [sailfish](http://www.cs.cmu.edu/~ckingsf/software/sailfish/index.html). In shell, need to run
 
-```{r A22_expression}
-# set up paths
-system("export PATH=/opt/software/Sailfish-0.6.2-Linux_x86-64/bin:$PATH")
+~~~
+export LD_LIBRARY_PATH=/opt/software/Sailfish-0.6.2-Linux_x86-64/lib:$LD_LIBRARY_PATH
+
+export PATH=/opt/software/Sailfish-0.6.2-Linux_x86-64/bin:$PATH
+~~~
+
+to set up paths to run sailfish for transcript quantification.
+
+```{r A22_expression, eval=TRUE}
 
 # make directories for results
 system("mkdir -p ../results/A22-expression")
 A22exp <- "../results/A22-expression/"
 
 # build the index
-system(paste("LD_LIBRARY_PATH=/opt/software/Sailfish-0.6.2-Linux_x86-64/lib sailfish index -t ../results/A22-trinity-2013-12-08/A22_trinity_cap3_clean.fasta -o ", A22exp, "/index -k 20 -p 4", sep=""))
-
+system(paste("sailfish index -t ../results/A22-trinity-2013-12-08/A22_trinity_cap3_clean.fasta -o ", A22exp, "/index -k 20 -p 4", sep=""))
 
 # quantify expression using trimclip reads
 # run separately for each sample
 
-clipdir <- "../data/trimclip" 
+clipdir <- "../data/trimclip/" 
 
 # List of samples
 samplist <- list.files(clipdir)
@@ -499,14 +502,14 @@ samplist <- list.files(clipdir)
 # loop across each sample and quantify expression. 
 
 samples <- c("A22-00", "A22-03", "A22-07", "A22-10", "A22-14", "A22-17", "A22-21", "A22-24", "A22-28", "A22-31", "A22-35", "A22-38")
-length(samples)
 
 for (j in 1:length(samples)) {
+    message("Start expression quantification for sample ", samples[j], ": ", Sys.time())
     quantdir <- paste(samples[j], "_quant", sep="")
     sampR1 <- paste(clipdir, clippedR1[j], sep="")
     sampR2 <- paste(clipdir, clippedR2[j], sep="")
         
-    system(paste("LD_LIBRARY_PATH=/opt/software/Sailfish-0.6.2-Linux_x86-64/lib sailfish quant -i ", A22exp, "/index -o ", A22exp, quantdir, " --reads ", sampR1, " ", sampR2, " -p 4", sep=""))
+    system(paste("sailfish quant -i ", A22exp, "/index -o ", A22exp, quantdir, " --reads ", sampR1, " ", sampR2, " -p 4", sep=""))
 
     message("Done with expression quantification for sample ", samples[j], ": ", Sys.time())
 }
@@ -522,13 +525,13 @@ system("mkdir -p ../results/Ar-expression")
 Arexp <- "../results/Ar-expression/"
 
 # build the index
-system(paste("LD_LIBRARY_PATH=/opt/software/Sailfish-0.6.2-Linux_x86-64/lib sailfish index -t ../results/Ar-trinity-2013-12-08/Ar_trinity_cap3.fasta -o ", Arexp, "/index -k 20 -p 4", sep=""))
+system(paste("sailfish index -t ../results/Ar-trinity-2013-12-08/Ar_trinity_cap3.fasta -o ", Arexp, "/index -k 20 -p 4", sep=""))
 
 
 # quantify expression using trimclip reads
 # run separately for each sample
 
-clipdir <- "../data/trimclip" 
+clipdir <- "../data/trimclip/" 
 
 # List of samples
 samplist <- list.files(clipdir)
@@ -541,11 +544,13 @@ samples <- c("Ar-00", "Ar-03", "Ar-07", "Ar-10", "Ar-14", "Ar-17", "Ar-21", "Ar-
 length(samples)
 
 for (j in 1:length(samples)) {
+    message("Start expression quantification for sample ", samples[j], ": ", Sys.time())
+
     quantdir <- paste(samples[j], "_quant", sep="")
     sampR1 <- paste(clipdir, clippedR1[j], sep="")
     sampR2 <- paste(clipdir, clippedR2[j], sep="")
         
-    system(paste("LD_LIBRARY_PATH=/opt/software/Sailfish-0.6.2-Linux_x86-64/lib sailfish quant -i ", Arexp, "/index -o ", Arexp, quantdir, " --reads ", sampR1, " ", sampR2, " -p 4", sep=""))
+    system(paste("sailfish quant -i ", Arexp, "/index -o ", Arexp, quantdir, " --reads ", sampR1, " ", sampR2, " -p 4", sep=""))
 
     message("Done with expression quantification for sample ", samples[j], ": ", Sys.time())
 }
