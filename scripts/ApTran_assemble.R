@@ -14,6 +14,19 @@ Requires the following programs installed and available on path:
 * [CAP3](http://seq.cs.iastate.edu/cap3.html) for removing chimeric sequences and merging redundant sequences
 * [sailfish](http://www.cs.cmu.edu/~ckingsf/software/sailfish/index.html) for expression Quantification
 
+To make khmer and sailfish available on path; run these commands before knitting this script:
+
+    
+    export PYTHONPATH=/opt/software/khmer/python
+    export LD_LIBRARY_PATH=/opt/software/Sailfish-0.6.2-Linux_x86-64/lib:$LD_LIBRARY_PATH
+    export PATH=/opt/software/Sailfish-0.6.2-Linux_x86-64/bin:$PATH
+
+
+This script is completely reproducible on a linux system by running this command at the bash prompt:
+
+    Rscript -e "library(knitr); knit('ApTran_assemble.Rmd')"
+
+assuming that both R and the `knitr` library are installed. It will take up to 48 hours to complete, depending on your system.
 
 ```{r setup, echo=FALSE}
 # Global settings
@@ -142,10 +155,15 @@ for (j in 1:length(clippedR1)) {
 
 Normalize reads separately for samples from each colony using [khmer](https://github.com/ged-lab/khmer) software
 
+Need to run
+
+~~~~
+export PYTHONPATH=/opt/software/khmer/python
+~~~
+
+in shell first.
 
 ```{r A22_diginorm, eval=FALSE}
-# set PYTHONPATH to khmer module
-system("export PYTHONPATH=/opt/software/khmer/python")
 
 # make new directory for diginorm reads
 system("mkdir -p ../data/diginorm")
@@ -468,6 +486,31 @@ if(length(assem.sub) != length(assem)-length(locs)) stop("Failed to correctly re
 writeXStringSet(assem.sub, filepath = "../results/A22-trinity-2013-12-08/A22_trinity_cap3_clean.fasta", format="fasta")
 ```
 
+## Name transcripts
+
+The current transcript names aren\'t terribly useful. Rename to either `ApVT.000000.1` for the A22 colony collected in Vermont or `ApNC.000000.1` for the colony collected in North Carolina where the string of 0s is the unique component ID and the `.1` is the unique transcript ID for each component.
+
+Need to maintain alternative transcript information from Trinity, coded as `compXXX_seqY` where Y is the alernative transcript for component XXX. 
+
+```{r rename}
+# load Trinity assembly
+A22assem <- readDNAStringSet("../results/A22-trinity-2013-12-08/A22_trinity_cap3.fasta")
+length(assem)
+assem.names <- names(assem)
+
+# strip CAP3 suffix
+assem.names.sub <- str_split_fixed(assem.names, pattern = " ", n=3)[,1]
+length(assem.names.sub)
+head(assem.names.sub)
+tail(assem.names.sub)
+
+# Loop across names,
+  # replace with `ApVT.000001.1` incrementing number by one each time
+  # if seq != 1, keep component ID from previous and increment transcript 
+
+```
+
+
 ## Identify thermally response genes
 
 Quantify gene expression using [sailfish](http://www.cs.cmu.edu/~ckingsf/software/sailfish/index.html). In shell, need to run
@@ -517,9 +560,9 @@ for (j in 1:length(samples)) {
 
 Done with expression quantification for A22.
 
-Start expression quantification for Ar.
+Perform expression quantification for Ar.
 
-```{r Ar_expression}
+```{r Ar_expression, eval=TRUE}
 # make directories for results
 system("mkdir -p ../results/Ar-expression")
 Arexp <- "../results/Ar-expression/"
@@ -556,9 +599,29 @@ for (j in 1:length(samples)) {
 }
 ```
 
+## Identify thermally-responsive genes
+
+The main analysis! Using the transcript quantification results, identify genes that show a significant relationship with temperature.
+
+```{r A22_therm}
+# Load data
+# Merge into one dataframe
+# Loop
+  # fit linear model for each transcript
+  # retain only transcripts with significant overall model
+# 
+```
+
 ## Ortholog identification
 
 Use best-reciprocal `tblastx` to identify orthologs between the two transcriptome assemblies
+
+
+```{r orthologs}
+# Make blast db for each assembly
+# tblastx each assembly against the other
+# find reciprocal best hits
+```
 
 ## Annotation
 
