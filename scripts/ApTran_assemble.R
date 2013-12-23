@@ -488,26 +488,24 @@ writeXStringSet(assem.sub, filepath = "../results/A22-trinity-2013-12-08/A22_tri
 
 ## Name transcripts
 
-The current transcript names aren\'t terribly useful. Rename to either `ApVT.000000.1` for the A22 colony collected in Vermont or `ApNC.000000.1` for the colony collected in North Carolina where the string of 0s is the unique component ID and the `.1` is the unique transcript ID for each component.
+The current transcript names are not terribly useful. Rename to either `ApVT.000000.1` for the A22 colony collected in Vermont or `ApNC.000000.1` for the colony collected in North Carolina where the string of 0s is the unique component ID and the `.1` is the unique transcript ID for each component.
 
 Need to maintain alternative transcript information from Trinity, coded as `compXXX_seqY` where Y is the alernative transcript for component XXX. 
 
-```{r rename}
-# load Trinity assembly
-A22assem <- readDNAStringSet("../results/A22-trinity-2013-12-08/A22_trinity_cap3.fasta")
-length(assem)
-assem.names <- names(assem)
+```{r rename, eval=TRUE}
+# Rename A22
+A22assembly <- "../results/A22-trinity-2013-12-08/A22_trinity_cap3_clean.fasta"
+A22prefix <- "AphVT"
+rename.trinity.transcripts(A22assembly, prefix=A22prefix, maxdigits=6)
 
-# strip CAP3 suffix
-assem.names.sub <- str_split_fixed(assem.names, pattern = " ", n=3)[,1]
-length(assem.names.sub)
-head(assem.names.sub)
-tail(assem.names.sub)
+# Rename Ar
+Arassembly <- "../results/Ar-trinity-2013-12-08/Ar_trinity_cap3.fasta"
+Arprefix <- "AphNC"
+rename.trinity.transcripts(Arassembly, prefix=Arprefix, maxdigits=6)
 
-# Loop across names,
-  # replace with `ApVT.000001.1` incrementing number by one each time
-  # if seq != 1, keep component ID from previous and increment transcript 
-
+# Move files to results directory
+system(paste("mv ", A22prefix, ".fasta ../results/A22-trinity-2013-12-08/", sep=""))
+system(paste("mv ", Arprefix, ".fasta ../results/Ar-trinity-2013-12-08/", sep=""))
 ```
 
 
@@ -530,7 +528,7 @@ system("mkdir -p ../results/A22-expression")
 A22exp <- "../results/A22-expression/"
 
 # build the index
-system(paste("sailfish index -t ../results/A22-trinity-2013-12-08/A22_trinity_cap3_clean.fasta -o ", A22exp, "/index -k 20 -p 4", sep=""))
+system(paste("sailfish index -t ../results/A22-trinity-2013-12-08/AphVT.fasta -o ", A22exp, "/index -k 20 -p 4", sep=""))
 
 # quantify expression using trimclip reads
 # run separately for each sample
@@ -568,7 +566,7 @@ system("mkdir -p ../results/Ar-expression")
 Arexp <- "../results/Ar-expression/"
 
 # build the index
-system(paste("sailfish index -t ../results/Ar-trinity-2013-12-08/Ar_trinity_cap3.fasta -o ", Arexp, "/index -k 20 -p 4", sep=""))
+system(paste("sailfish index -t ../results/Ar-trinity-2013-12-08/AphNC.fasta -o ", Arexp, "/index -k 20 -p 4", sep=""))
 
 
 # quantify expression using trimclip reads
@@ -601,7 +599,7 @@ for (j in 1:length(samples)) {
 
 ## Identify thermally-responsive genes
 
-The main analysis! Using the transcript quantification results, identify genes that show a significant relationship with temperature.
+Finally, the statistical analysis! Using the transcript quantification results, identify genes that show a significant relationship with temperature.
 
 ```{r A22_therm}
 # Load data
