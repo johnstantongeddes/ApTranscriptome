@@ -253,11 +253,11 @@ rename.trinity.transcripts <- function(fasta, prefix, maxdigits=6) {
       compID <- compID+1
       cID <- formatC(compID, width=maxdigits, format="d", flag="0")
       # create new name
-      uniqueID <- paste(prefix, cID, seqID, sep=".")
+      uniqueID <- paste(prefix, "_", cID, ".", seqID, sep="")
     } else { # if seq > 1, keep cID at same and set seqID
         seqID <- substr(file.names.pre.seq[i,"seq"], 4, 6) # select digits, allowing up to 999, following seq
         cID <- formatC(compID, width=maxdigits, format="d", flag="0")
-        uniqueID <- paste(prefix, cID, seqID, sep=".")
+        uniqueID <- paste(prefix, "_", cID, ".", seqID, sep="")
         } # end else
     # add new unique ID to newnames
     newnames <- c(newnames, uniqueID)

@@ -492,7 +492,7 @@ The current transcript names are not terribly useful. Rename to either `ApVT.000
 
 Need to maintain alternative transcript information from Trinity, coded as `compXXX_seqY` where Y is the alernative transcript for component XXX. 
 
-```{r rename, eval=TRUE}
+```{r rename, eval=FALSE}
 # Rename A22
 A22assembly <- "../results/A22-trinity-2013-12-08/A22_trinity_cap3_clean.fasta"
 A22prefix <- "AphVT"
@@ -528,7 +528,7 @@ system("mkdir -p ../results/A22-expression")
 A22exp <- "../results/A22-expression/"
 
 # build the index
-system(paste("sailfish index -t ../results/A22-trinity-2013-12-08/AphVT.fasta -o ", A22exp, "/index -k 20 -p 4", sep=""))
+system(paste("sailfish index -t ../results/A22-trinity-2013-12-08/A22_trinity_cap3_clean.fasta -o ", A22exp, "/index -k 20 -p 4", sep=""))
 
 # quantify expression using trimclip reads
 # run separately for each sample
@@ -623,7 +623,21 @@ Use best-reciprocal `tblastx` to identify orthologs between the two transcriptom
 
 ## Annotation
 
-Annotate transcriptomes using blast2GO
+Annotate transcriptomes using blast2GO.
+
+As this step is time-intensive, run in parallel by splitting  the fasta files into sets
+of 5,000 sequences.
+Perfom `tblastx` for each sequence.
+Merge results and extract gene ontology (GO) with BLAST2GO or SFG scripts
+
+# Download NCBI's NR (non-redundant) protein database from [ftp://ftp.ncbi.nih.gov/blast/db/FASTA/]
+# Make BLAST database
+
+    makeblastdb -in NR.fasta -dbtype prot -out NCBINR
+
+
+
+
 
 ```{r session}
 sessionInfo()
