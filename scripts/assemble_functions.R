@@ -276,6 +276,57 @@ rename.trinity.transcripts <- function(fasta, prefix, maxdigits=6) {
 } # end rename.trinity.transcripts 
 
 
+##########################################################################
+## split.fasta
+##########################################################################
 
+split.fasta <- function(fasta, num_seqs) {
+  # Splits fasta file into multiple files with `num_seqs` sequences each
+  #
+  # Args:
+  #  fasta: FASTA file
+  #  num.seqs: number of sequences in each output file, except last file which
+  #            will contain remainder
+  #
+  # Returns:
+  #  Multiple fasta files with `num_seqs` sequences each
 
+  ##--------load libraries------------
+  require(Biostrings)
+  require(stringr)
+  
+  ##--------read assembly file-----------------
+  file <- readDNAStringSet(fasta)
+  totalseqs <- length(file)
+  #head(file)
+
+  ##-------create subsets of length `num_seqs`--------
+  # total number of subsets to create
+  (num_subsets <- ceiling(totalseqs/num_seqs))
+  # starting sequence
+  seqs_start <- 1
+  # prefix for file outputs
+  prefix <- str_split_fixed(fasta, pattern=".fasta", n=2)[1]
+
+  for(i in 1:num_subsets) {
+      # if last subset, subset to remaining sequences
+      if (i == num_subsets) {
+          subfasta <- file[seqs_start:length(width(file)),] # remaining sequences
+          # write to file
+          (outname <- paste(prefix, "_sub", i, ".fasta", sep=""))
+          writeXStringSet(subfasta, filepath=outname, format="fasta")
+       } else { # else, extract subset of length `num_seqs`
+          seqs_end <- seqs_start + (num_seqs - 1)
+          message("Start:", seqs_start, " Finish:", seqs_end)
+                                        # extract subset
+          subfasta <- file[seqs_start:seqs_end,]
+          # write to file
+          (outname <- paste(prefix, "_sub", i, ".fasta", sep=""))
+          writeXStringSet(subfasta, filepath=outname, format="fasta")
+          # increment `seqs_start`
+          seqs_start <- seqs_end + 1
+      } # end ifelse
+  } # end for loop
+  
+} # end split.fasta function
 

@@ -623,17 +623,47 @@ Use best-reciprocal `tblastx` to identify orthologs between the two transcriptom
 
 ## Annotation
 
-Annotate transcriptomes using blast2GO.
+Annotate transcriptomes using blast2GO. First, need to blast against NCBI nr protein database.
+As this step is time-intensive,
 
-As this step is time-intensive, run in parallel by splitting  the fasta files into sets
-of 5,000 sequences.
-Perfom `tblastx` for each sequence.
-Merge results and extract gene ontology (GO) with BLAST2GO or SFG scripts
+1) ran in parallel by splitting the fasta files into sets of 5,000 sequences
 
-# Download NCBI's NR (non-redundant) protein database from [ftp://ftp.ncbi.nih.gov/blast/db/FASTA/]
-# Make BLAST database
+```{r}
+# Split fasta sequences for parallel BLAST
+AphVTassembly <- "../results/AphVT.fasta"
+AphNCassembly <- "../results/AphNC.fasta"
+split.fasta(fasta=AphVTassembly, num_seqs=5000)
+split.fasta(fasta=AphNCassembly, num_seqs=5000)
+```
 
-    makeblastdb -in NR.fasta -dbtype prot -out NCBINR
+2) subset nr database to *only* sequences that come from organisms within group Insecta.
+
+This is a balance between reasonable breadth and speed of search. Also disregards most hits that are
+either contamination or false.
+
+Downloaded the pre-formatted NCBI nr protein database from [ftp://ftp.ncbi.nih.gov/blast/db/] using the script
+
+    perl update_blastdb.pl nr
+
+and unzip each 'volume' downloaded using `gunzip nr.00.tar.gz`.
+
+Created an 'alias' database containing *only* protein sequences in group Insecta by:
+
+1. searching the [Entrez Protein database](http://www.ncbi.nlm.nih.gov/protein?term=txid50557%5BORGN%5D) with query: "txid50557[ORGN]" where taxon id 50557 is 'Insecta'.
+2. downloaded results using the "Send to File" pulldown in the format "GI list" and saved as 'insecta_gi.txt' containing list of 1,749,040 unique gi ids.
+
+Used this gi list to create Insecta alias database using the command:
+
+    blastdb_aliastool -gilist vertebrates.gi <- list.txt -db nr -out nr <- insecta -title "Insecta nr database"
+
+Performed a `blastx` search for each assebmly subset against this database:
+
+    blastx -query AphVT_sub1.fasta -db nr_insecta -out AphVTsub1_blastx2_nr_insecta -outfmt 5 -evalue 0.0001 -gapopen 11 -gapextend 1 -word_size 3 -matrix BLOSUM62 -max_target_seqs 20 -num_threads 30
+
+Merge results
+
+Extract gene ontology (GO) with BLAST2GO or SFG scripts
+
 
 
 
