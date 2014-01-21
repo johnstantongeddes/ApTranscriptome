@@ -26,6 +26,9 @@ library(qvalue)
 
 # knitr options
 opts_chunk$set(cache=TRUE)
+
+# load personal functions
+source("RxNseq.R")
 ```
     
 ## Summary ##
@@ -158,9 +161,9 @@ Then, for each sample, run the following command:
     sailfish -i sailfish-index -o sailfish-expression/A22-0 --reads A22-0_ATCACG.paired.left.fastq A22-0_ATCACG.paired.right.fastq A22-0_ATCACG.unpaired.left.fastq A22-0_ATCACG.unpaired.right.fastq
 -p 4
 
-which I looped in an R script:                                                 
+which I looped in an R script.                                                 
                                                  
-```{r A22expression, eval=FALSE}
+```{r sailfish, eval=FALSE, echo=FALSE}
 # directory containing trimmed reads
 readdir <- "../data/ind_files/" 
 
@@ -179,7 +182,7 @@ for (j in 1:length(samples)) {
     message("Start expression quantification for sample ", samples[j], ": ", Sys.time())
     quantdir <- paste(samples[j], "_quant", sep="")
     samp.paired.l <- paste(readdir, paired.left[j], sep="")
-v    samp.paired.r <- paste(readdir, paired.right[j], sep="")
+    samp.paired.r <- paste(readdir, paired.right[j], sep="")
     samp.unpaired.l <- paste(readdir, unpaired.left[j], sep="")
     samp.unpaired.r <- paste(readdir, unpaired.right[j], sep="")
         
@@ -189,7 +192,13 @@ v    samp.paired.r <- paste(readdir, paired.right[j], sep="")
 }
 ```
 
-This generated a directory for each sample `r list.files("../results/trinity-full/sailfish-expression")` and within each directory there are the following files `r list.files("../results/trinity-full/sailfish-expression/A22-0_quant")`
+This generated a directory for each sample
+
+`r list.files("../results/trinity-full/sailfish-expression")`
+
+and within each directory there are the following files:
+
+`r list.files("../results/trinity-full/sailfish-expression/A22-0_quant")`
 
 The file *quant_bias_corrected.sf* contains the following columns, following a number of header lines:
 
@@ -200,7 +209,7 @@ The file *quant_bias_corrected.sf* contains the following columns, following a n
 
 The TPM column for each sample was extracted and combined into a matrix for each colony.
 
-```{r expression_matrix, eval=FALSE, echo=FALSE}
+```{r expression_matrix, eval=TRUE, echo=TRUE}
 # function to read sailfish-expression file
 
 read.sample <- function(filein, outname) {
@@ -226,172 +235,88 @@ for (j in 1:length(samples)) {
 A22.TPM <- cbind(A22_0_TPM=A22_0_quant$TPM, A22_3_TPM=A22_3_quant$TPM, A22_7_TPM=A22_7_quant$TPM, A22_10_TPM=A22_10_quant$TPM, A22_14_TPM=A22_14_quant$TPM, A22_17_TPM=A22_17_quant$TPM, A22_21_TPM=A22_21_quant$TPM, A22_24_TPM=A22_24_quant$TPM, A22_28_TPM=A22_28_quant$TPM, A22_31_TPM=A22_31_quant$TPM, A22_35_TPM=A22_35_quant$TPM, A22_38_TPM=A22_38_quant$TPM)
 rownames(A22.TPM) <- A22_0_quant[,"Transcript"]
 head(A22.TPM)
-
+A22.TPM <- data.frame(A22.TPM)
+str(A22.TPM)
 
 Ar.TPM <- cbind(Ar_0_TPM=Ar_0_quant$TPM, Ar_3_TPM=Ar_3_quant$TPM, Ar_7_TPM=Ar_7_quant$TPM, Ar_10_TPM=Ar_10_quant$TPM, Ar_14_TPM=Ar_14_quant$TPM, Ar_17_TPM=Ar_17_quant$TPM, Ar_21_TPM=Ar_21_quant$TPM, Ar_24_TPM=Ar_24_quant$TPM, Ar_28_TPM=Ar_28_quant$TPM, Ar_31_TPM=Ar_31_quant$TPM, Ar_35_TPM=Ar_35_quant$TPM, Ar_38_TPM=Ar_38_quant$TPM)
 rownames(Ar.TPM) <- Ar_0_quant[,"Transcript"]
+Ar.TPM <- data.frame(Ar.TPM)
 head(Ar.TPM)
+str(Ar.TPM)
 ```
 
 
 ## Identification of thermally-responsive genes
 
-For each colony, identify genes that have a significant linear or quadratic regression.
+For each colony, identify genes that have a significant linear or quadratic regression by fitting the linear model to the expression levels at each temperature for each transcript
 
-```{r}
+$$ TPM ~ temp \tilde temp ^2 $$
+
+For this list of P-values, False Discovery Rate (FDR) is applied and q-values are calculated using the [qvalue]() package.
+
+```{r stats, echo=TRUE, eval=TRUE}
 # Define function to report overall model P-value
 
-lmp <- function(modelobject) {
-        if (class(modelobject) != "lm") stop("Not an object of class 'lm' ")
-            f <- summary(modelobject)$fstatistic
-            p <- unname(pf(f[1],f[2],f[3],lower.tail=F))
-            attributes(p) <- NULL
-            return(p)
-    }
 
 # previous results suggest that A22_7 and Ar_7 samples were switched. conservatively remove from further analyses
 
 temps <- c(0, 3.5, 10.5, 14, 17.5, 21, 24.5, 28, 31.5, 35, 38.5)
 
+# Identify thermally-responsive genes for A22
 A22.TPM.sub <- subset(A22.TPM, , select=-A22_7_TPM)
 head(A22.TPM.sub)
 
-# Fit quadratic regression to each transcript, retaining only transcripts with significant model
+RxNseq(mat = A22.TPM.sub, vals = temps, qcrit = 0.05, makeplots = TRUE, prefix = "A22")
 
-signif <- vector(length=0)
-pvals <- vector(length=0)
+# Identify thermally-responsive genes for Ar
+Ar.TPM.sub <- subset(Ar.TPM, , select=-Ar_7_TPM)
+head(Ar.TPM.sub)
 
-#for(i in 1:nrow(A22.TPM.sub)) {
-for(i in 1:1000) {       
-    if(i%%1000 == 0) message(i, " regressions done!")
-    out <- lm(unlist(A22.TPM.sub[i,]) ~ temps + I(temps^2))
-    #print(summary(out))
-    pvals <- c(pvals, lmp(out))
-    if(is.na(lmp(out))) print("NA") else {
-        if(lmp(out) < 0.05) signif <- c(signif, i)
-    }
-}
-
-length(signif)
-
-
-# False discovery rate correction with q-value
-length(pvals)
-# Remove NA pvals
-pvals.complete <- pvals[which(!is.na(pvals))]
-length(pvals.complete)
-# Calculate q-values
-qvals <- qvalue(pvals.complete)
-length(qvals$qvalues)
-qsummary(qvals)
-# q-value diagnostics
-png("qval-diag.png")
-qplot(qvals)
-dev.off()
-
-png("qval-hist.png")
-par(mfrow = c(2,1))
-  hist(pvals)
-  hist(qvals$qvalues)
-dev.off()
-
-
-# Make table with responsive genes reporting both p-val and q-val
-responsive.transcripts <- as.character(data[,1])
-# Add pvals, which include 'NA's
-responsive.transcripts <- cbind(responsive.transcripts, pvals = as.numeric(pvals))
-# Drop NA rows, then add qvalues
-responsive.transcripts <- as.data.frame(responsive.transcripts, stringsAsFactors = FALSE)
-responsive.transcripts <- responsive.transcripts[which(responsive.transcripts$pvals!="NaN"), ]
-#dim(responsive.transcripts)
-# add qvalues
-responsive.transcripts <- cbind(responsive.transcripts, qvals=qvals$qvalues)
-responsive.transcripts$pvals <- as.numeric(responsive.transcripts$pvals)
-#head(responsive.transcripts)
-#str(responsive.transcripts)
-
-# Order by p-value
-responsive.transcripts.by.p <- responsive.transcripts[order(responsive.transcripts$pvals), ]
-head(responsive.transcripts.by.p)
-tail(responsive.transcripts.by.p)
-
-# Take only significant hits, FDR < 0.05
-responsive.transcripts.FDR <- responsive.transcripts.by.p[which(responsive.transcripts.by.p$qvals < 0.05),]
-
-# Write all results to file
-write.table(file="responsive_transcripts_by_pval.txt", responsive.transcripts.by.p, row.names=FALSE, quote=FALSE, sep="\t")
-# Write only significant results to file
-write.table(file="responsive_transcripts_by_pval.txt", responsive.transcripts.FDR, row.names=FALSE, quote=FALSE, sep="\t")
-
-### Plot significant transcripts by q-value
-# scale values
-combined.data.t <- cbind(Transcript_ID = data$Transcript_ID, combined.data)
-head(combined.data.t)
-signif.transcripts.FDR <- merge(combined.data.t, responsive.transcripts.FDR, by.x = "Transcript_ID", by.y = "responsive.transcripts", all.x = FALSE, all.y = TRUE)
-dim(signif.transcripts.FDR)
-head(signif.transcripts.FDR)
-
-m <- signif.transcripts.FDR[,2:12]
-head(m)
-
-signif.transcripts.FDR.scaled <- data.frame(m[0,])
-
-for (j in 1:nrow(m)) {
-    signif.transcripts.FDR.scaled[j,] <- scale(unlist(m[j,]))
-}
-
-
-# 
-
-signif.transcripts <- combined.data[signif, ]
-dim(signif.transcripts)
-
-signif.transcripts.scaled <- data.frame(signif.transcripts[0,])
-signif.transcripts.scaled
-
-for (j in 1:nrow(signif.transcripts)) {
-    signif.transcripts.scaled[j,] <- scale(unlist(signif.transcripts[j,]))
-}
-
-head(signif.transcripts.FDR.scaled)
-
-
-## Plot
-
-# determine min and max values
-
-
-(ex.min <- min(unlist(signif.transcripts.scaled)))
-(ex.max <- max(unlist(signif.transcripts.scaled)))
-
-# Plot loess smooth for each significant transcript
-
-
-pdf("expression-plot.pdf")
-  plot(temps, signif.transcripts.scaled[1,], ylim=c(ex.min, ex.max), ylab="Expected count", xlab="Temp C", pch=16, col="white")
-  for(i in 1:nrow(signif.transcripts.scaled)) {
-      lines(temps, signif.transcripts.scaled[i,], type="l")
-  }
-dev.off()
-
-
-pdf("loess-expression-plot.pdf")
-  plot(1, xlim=c(0, 40), ylim=c(ex.min, ex.max), ylab="Expected count", xlab="Temp C", pch=16, col="white")
-  for(i in 1:nrow(signif.transcripts.scaled)) {
-      loo <- loess(unlist(signif.transcripts.scaled[i,]) ~ temps)      
-      lines(predict(loo))
-  }
-dev.off()
-
-# Make standardized version of all data
-data.scaled <- data.frame(data[0,])
-
-for (j in 1:nrow(data)) {
-    data.scaled[j,] <- scale(unlist(data[j,]))
-}
+RxNseq(mat = Ar.TPM.sub, vals = temps, qcrit = 0.05, makeplots = TRUE, prefix = "Ar")
 ```
 
+Make plots of thermally-responsive genes.
+
+```{r plots, echo=FALSE, eval=FALSE}
+### Plot scaled expression values of significant transcripts if makeplots==TRUE
+
+# make new dataframe with scaled values
+        m <- subset(responsive.transcripts.FDR, , select = -c(pvals, qvals))
+        m.scaled <- data.frame(m[0,-1])
+    
+        for (j in 1:nrow(m)) {
+             m.scaled[j,] <- scale(unlist(m[j,2:ncol(m)])) # skip first column which is transcript ID
+        }
+
+        # determine min and max values
+        (ex.min <- min(unlist(m.scaled)))
+        (ex.max <- max(unlist(m.scaled)))
+
+    # Plot loess smooth for each significant transcript
+
+
+    pdf(paste(prefix, "_expression_plot.pdf", sep = ""))
+      plot(vals, m.scaled[1,], ylim=c(ex.min, ex.max), ylab="Expected count", xlab="Temp C", pch=16, col="white")
+      for(i in 1:nrow(m.scaled)) {
+          lines(vals, m.scaled[i,], type="l")
+      }
+    dev.off()
+
+
+    pdf(paste(prefix, "_loess_expression_plot.pdf", sep = ""))
+      plot(1, xlim=c(0, 40), ylim=c(ex.min, ex.max), ylab="Expected count", xlab="Temp C", pch=16, col="white")
+      for(i in 1:nrow(m.scaled)) {
+        loo <- loess(unlist(m.scaled[i,]) ~ vals)      
+        lines(predict(loo))
+      }
+    dev.off()
+
+```
+
+
 Get annotation of responsive genes. 
+
+Use `data.table` package for database style...
 
 ```{r }
 #### Addendum ####
@@ -407,5 +332,6 @@ Get annotation of responsive genes.
 
 
 ```{r session}
+save.image()
 sessionInfo()
 ```
