@@ -3,15 +3,15 @@ Thermal reactionome of the common ant species *Aphaenogaster*
   
 **Author:** [John Stanton-Geddes](john.stantongeddes.research@gmail.com)
 
-**Technical Report No. 2**
+**Technical Report No. 3**
 
 **Department of Biology**
 
 **University of Vermont**
 
-```{r setup, results='hide'}
+```{r setup, results='hide', message = FALSE}
 # Global settings
-options(stringAsFactors=FALSE)
+options(stringsAsFactors=FALSE)
 
 # Load libraries
 library(R.utils)
@@ -20,14 +20,23 @@ library(knitr)
 library(knitcitations)
 library(pander)
 library(stringr)
-#library(plyr)
-#library(reshape2)
-library(qvalue)
+library(data.table)
+library(RCurl)
+
+# Load Bioconductor libraries
+#source("http://bioconductor.org/biocLite.R")
+#biocLite("topGO")
+#biocLite("qvalue")
+#biocLite("Rgraphviz")
+library(qvalue) 
+library(topGO) 
+library(Rgraphviz) 
+
 
 # knitr options
 opts_chunk$set(cache=TRUE)
 
-# load personal functions
+# load custom functions
 source("RxNseq.R")
 ```
     
@@ -41,13 +50,21 @@ This script is completely reproducible assuming that R, `knitr` and the other re
 
 The assembled transcriptome, annotation and expression values are downloaded rather than re-run due to the computational demands, but the exact commands for each of these steps are documented below.
 
-```{r download, echo = FALSE}
-# download files
-#    * Trimmomatic filtered reads ...
-# downloadFile(url = "")
-#    * Post-processed Trinity assembly ...
-#    * Annotation file ...
-# unzip into proper directories
+```{r download, echo = TRUE, results = "hide"}
+### Transcriptome assembly
+
+### Annotation file
+# from either AWS or GoogleDrive
+annotationURL <- getURL("http://johnstantongeddes.org/assets/files/Aphaeno_transcriptome_AnnotationTable.txt")
+#a2 <- getURL("https://googledrive.com/host/0B75IymziRJ_9Tlg1U1Vxbjk1bzg") # GoogleDrive link
+
+annotationfile <- read.csv(textConnection(annotationURL), header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+head(annotationfile)
+str(annotationfile)
+
+# Convert to data.table
+annotationtable <- data.table(annotationfile)
+head(annotationtable)
 ```
 
 ## Sample description ##
@@ -210,14 +227,6 @@ The file *quant_bias_corrected.sf* contains the following columns, following a n
 The TPM column for each sample was extracted and combined into a matrix for each colony.
 
 ```{r expression_matrix, eval=TRUE, echo=TRUE}
-# function to read sailfish-expression file
-
-read.sample <- function(filein, outname) {
-    file.df <- read.table(filein, header=FALSE, sep="\t")
-    colnames(file.df) <- c("Transcript", "Length", "TPM", "RPKM", "KPKM", "EstimatedNumReads")
-    #head(file.df)
-    assign(outname, file.df, envir = .GlobalEnv)
-}
     
 #  read in each file using loop
 samples <- c("A22-0", "A22-3", "A22-7", "A22-10", "A22-14", "A22-17", "A22-21", "A22-24", "A22-28", "A22-31", "A22-35", "A22-38", "Ar-0", "Ar-3", "Ar-7", "Ar-10", "Ar-14", "Ar-17", "Ar-21", "Ar-24", "Ar-28", "Ar-31", "Ar-35", "Ar-38")
@@ -228,37 +237,29 @@ for (j in 1:length(samples)) {
     samp <- samples[j]
     outpre <- gsub("-", "_", samp)
     outname <- paste(outpre, "_quant", sep="")
-    read.sample(filein=paste(fileinpath, samp, "_quant/quant_bias_corrected.sf", sep=""), outname=outname)
+    read.sailfish.quant(filein=paste(fileinpath, samp, "_quant/quant_bias_corrected.sf", sep=""), outname=outname)
 }
 
-# combine TPM into single matrix
-A22.TPM <- cbind(A22_0_TPM=A22_0_quant$TPM, A22_3_TPM=A22_3_quant$TPM, A22_7_TPM=A22_7_quant$TPM, A22_10_TPM=A22_10_quant$TPM, A22_14_TPM=A22_14_quant$TPM, A22_17_TPM=A22_17_quant$TPM, A22_21_TPM=A22_21_quant$TPM, A22_24_TPM=A22_24_quant$TPM, A22_28_TPM=A22_28_quant$TPM, A22_31_TPM=A22_31_quant$TPM, A22_35_TPM=A22_35_quant$TPM, A22_38_TPM=A22_38_quant$TPM)
-rownames(A22.TPM) <- A22_0_quant[,"Transcript"]
+# combine TPM into single data.frame
+A22.TPM <- data.frame(Transcript = A22_0_quant$Transcript, A22_0_TPM=A22_0_quant$TPM, A22_3_TPM=A22_3_quant$TPM, A22_7_TPM=A22_7_quant$TPM, A22_10_TPM=A22_10_quant$TPM, A22_14_TPM=A22_14_quant$TPM, A22_17_TPM=A22_17_quant$TPM, A22_21_TPM=A22_21_quant$TPM, A22_24_TPM=A22_24_quant$TPM, A22_28_TPM=A22_28_quant$TPM, A22_31_TPM=A22_31_quant$TPM, A22_35_TPM=A22_35_quant$TPM, A22_38_TPM=A22_38_quant$TPM)
 head(A22.TPM)
-A22.TPM <- data.frame(A22.TPM)
 str(A22.TPM)
 
-Ar.TPM <- cbind(Ar_0_TPM=Ar_0_quant$TPM, Ar_3_TPM=Ar_3_quant$TPM, Ar_7_TPM=Ar_7_quant$TPM, Ar_10_TPM=Ar_10_quant$TPM, Ar_14_TPM=Ar_14_quant$TPM, Ar_17_TPM=Ar_17_quant$TPM, Ar_21_TPM=Ar_21_quant$TPM, Ar_24_TPM=Ar_24_quant$TPM, Ar_28_TPM=Ar_28_quant$TPM, Ar_31_TPM=Ar_31_quant$TPM, Ar_35_TPM=Ar_35_quant$TPM, Ar_38_TPM=Ar_38_quant$TPM)
-rownames(Ar.TPM) <- Ar_0_quant[,"Transcript"]
-Ar.TPM <- data.frame(Ar.TPM)
+Ar.TPM <- data.frame(Transcript = Ar_0_quant$Transcript, Ar_0_TPM=Ar_0_quant$TPM, Ar_3_TPM=Ar_3_quant$TPM, Ar_7_TPM=Ar_7_quant$TPM, Ar_10_TPM=Ar_10_quant$TPM, Ar_14_TPM=Ar_14_quant$TPM, Ar_17_TPM=Ar_17_quant$TPM, Ar_21_TPM=Ar_21_quant$TPM, Ar_24_TPM=Ar_24_quant$TPM, Ar_28_TPM=Ar_28_quant$TPM, Ar_31_TPM=Ar_31_quant$TPM, Ar_35_TPM=Ar_35_quant$TPM, Ar_38_TPM=Ar_38_quant$TPM)
 head(Ar.TPM)
 str(Ar.TPM)
 ```
-
 
 ## Identification of thermally-responsive genes
 
 For each colony, identify genes that have a significant linear or quadratic regression by fitting the linear model to the expression levels at each temperature for each transcript
 
-$$ TPM ~ temp \tilde temp ^2 $$
+$$ TPM ~ temp + temp^2 $$
 
 For this list of P-values, False Discovery Rate (FDR) is applied and q-values are calculated using the [qvalue]() package.
 
 ```{r stats, echo=TRUE, eval=TRUE}
-# Define function to report overall model P-value
-
-
-# previous results suggest that A22_7 and Ar_7 samples were switched. conservatively remove from further analyses
+# Previous results suggest that A22_7 and Ar_7 samples were switched. conservatively remove from further analyses
 
 temps <- c(0, 3.5, 10.5, 14, 17.5, 21, 24.5, 28, 31.5, 35, 38.5)
 
@@ -273,7 +274,144 @@ Ar.TPM.sub <- subset(Ar.TPM, , select=-Ar_7_TPM)
 head(Ar.TPM.sub)
 
 RxNseq(mat = Ar.TPM.sub, vals = temps, qcrit = 0.05, makeplots = TRUE, prefix = "Ar")
+
+save.image()
 ```
+
+
+Get annotation of responsive genes. 
+
+Use `data.table` package for database style...
+
+
+```{r function}
+
+# Convert RxN df to data.tables
+A22_RxN$Sequence.Name <- rownames(A22_RxN)
+A22_RxN_table <- data.table(A22_RxN)
+head(A22_RxN_table)
+
+Ar_RxN$Sequence.Name <- rownames(Ar_RxN)
+Ar_RxN_table <- data.table(Ar_RxN)
+head(Ar_RxN_table)
+
+# For each colony, pull out transcripts with q < 0.05
+A22_RxN_qcrit <- A22_RxN_table[A22_RxN_table$qval < 0.05]
+dim(A22_RxN_qcrit)
+
+Ar_RxN_qcrit <- Ar_RxN_table[Ar_RxN_table$qval < 0.05]
+dim(Ar_RxN_qcrit)
+
+## Set keys
+# view tables
+tables() # all same number of rows
+setkey(A22_RxN_qcrit, Sequence.Name)
+setkey(Ar_RxN_qcrit, Sequence.Name)
+setkey(annotationtable, Sequence.Name)
+
+# Join tables
+A22critjoin <- annotationtable[A22_RxN_qcrit]
+dim(A22critjoin)
+
+Arcritjoin <- annotationtable[Ar_RxN_qcrit]
+str(Arcritjoin)
+
+# Pull out transcript with Q < 0.05
+
+# Check for overlap among the colonies in significant transcripts
+length(which(A22critjoin$Sequence.Name %in% Arcritjoin$SequenceName))
+length(which(Arcritjoin$Sequence.Name %in% A22critjoin$SequenceName))
+
+# Save significant transcripts with best hits and GO to file
+write.table(A22critjoin[,list(Sequence.Name, best.hit.to.nr, GO.Biological.Process, GO.Cellular.Component, GO.Molecular.Function, Enzyme, Domain, annotation.type, pval, qval, lin.coef, quad.coef)], file = "A22_signif_transcripts_GO.txt", quote = FALSE, sep = "\t", row.names = FALSE)
+
+write.table(Arcritjoin[,list(Sequence.Name, best.hit.to.nr, GO.Biological.Process, GO.Cellular.Component, GO.Molecular.Function, Enzyme, Domain, annotation.type, pval, qval, lin.coef, quad.coef)], file = "Ar_signif_transcripts_GO.txt", quote = FALSE, sep = "\t", row.names = FALSE)
+```
+
+Use [topGO](http://www.bioconductor.org/packages/2.12/bioc/html/topGO.html) to perform gene set enrichment analysis
+
+First need to create gene ID to GO term map file
+
+```{r geneid2go, echo = TRUE, eval = FALSE}
+
+# create geneid2go.map file from FastAnnotator AnnotationTable.txt
+geneid2GOmap(annotationfile)
+```
+
+Using this gene2GO map file, perform gene set enrichment analysis.
+
+Provide qvalues as the gene score, and select genes with q < 0.05 using custom `selectFDR` function.
+
+```{r topGO}
+
+# read mappings file
+geneID2GO <- readMappings(file = "geneid2go.map")
+str(head(geneID2GO))
+
+# create geneList
+geneList <- A22_RxN$qval
+names(geneList) <- A22_RxN$Transcript
+
+# create function to select significant genes
+selectFDR <- function(qvalue) {
+    return(qvalue < 0.05)
+}
+
+# create topGOdata object
+BP_GOdata <- new("topGOdata",
+                 description = "BP gene set analysis", ontology = "BP",
+                 allGenes = geneList, geneSel = selectFDR,
+                 nodeSize = 10,
+                 annot = annFUN.gene2GO, gene2GO = geneID2GO)
+
+BP_GOdata
+
+CC_GOdata <- new("topGOdata",
+                 description = "CC gene set analysis", ontology = "CC",
+                 allGenes = geneList, geneSel = selectFDR,
+                 nodeSize = 10,
+                 annot = annFUN.gene2GO, gene2GO = geneID2GO)
+
+CC_GOdata
+
+MF_GOdata <- new("topGOdata",
+                 description = "MF gene set analysis", ontology = "MF",
+                 allGenes = geneList, geneSel = selectFDR,
+                 nodeSize = 10,
+                 annot = annFUN.gene2GO, gene2GO = geneID2GO)
+
+MF_GOdata
+
+
+# perform enrichment analysis using multiple methods
+resultWeight01 <- runTest(topGOdata, statistic = 'fisher')
+resultWeight01
+
+# Fisher exact test on gene counts
+resultFisher <- runTest(topGOdata, algorithm = 'classic', statistic = "fisher")
+resultFisher
+
+# Kolmogorov-Smirnov test using classic method on gene scores
+resultKS <- runTest(topGOdata, algorithm = 'classic', statistic = "ks")
+resultKS
+
+# Kolmogorov-Smirnov test using elim method on gene scores
+resultKS.elim <- runTest(topGOdata, algorithm = 'elim', statistic = "ks")
+resultKS.elim
+
+allRes <- GenTable(topGOdata, classicFisher = resultFisher, classicKS = resultKS, elimKS = resultKS.elim, orderBy = "elimKS", ranksOf = "classicFisher", topNodes = 10)
+
+allRes
+
+# graph significant nodes
+
+pdf("topGO_sig_nodes.pdf")
+showSigOfNodes(topGOdata, score(resultWeight01), firstSigNodes = 5, useInfo = 'all')
+dev.off()
+
+```
+
+Finish ...
 
 Make plots of thermally-responsive genes.
 
@@ -313,10 +451,7 @@ Make plots of thermally-responsive genes.
 
 ```
 
-
-Get annotation of responsive genes. 
-
-Use `data.table` package for database style...
+## Session information ##
 
 ```{r }
 #### Addendum ####
