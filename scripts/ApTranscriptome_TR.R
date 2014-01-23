@@ -434,7 +434,7 @@ Using this gene2GO map file, perform gene set enrichment analysis.
 
 Provide qvalues as the gene score, and select genes with q < 0.05 using custom `selectFDR` function.
 
-```{r topGO}
+```{r gene_enrichment_A22}
 
 # read mappings file
 geneID2GO <- readMappings(file = "geneid2go.map")
@@ -462,27 +462,21 @@ BP_GOdata <- new("topGOdata",
 BP_GOdata
 
 # perform enrichment analysis using multiple methods
-resultWeight01 <- runTest(BP_GOdata, statistic = 'fisher', algorithm = 'weight01')
-resultWeight01
+BP.resultParentChild <- runTest(BP_GOdata, statistic = 'fisher', algorithm = 'parentchild')
+BP.resultParentChild
 
-resultParentChild <- runTest(BP_GOdata, statistic = 'fisher', algorithm = 'parentchild')
-resultParentChild
-
-resultKS <- runTest(BP_GOdata, algorithm = 'weight01', statistic = 'ks')
-resultKS
-
-BP.ResTable <- GenTable(BP_GOdata, weight01 = resultWeight01, parentchild = resultParentChild, ks = resultKS, orderBy = "parentchild", topNodes = 40)
+BP.ResTable <- GenTable(BP_GOdata, parentchild = BP.resultParentChild, topNodes = 40)
 BP.ResTable
 
 # graph significant nodes
 
 pdf("BP_topGO_sig_nodes.pdf")
-showSigOfNodes(BP_GOdata, score(resultWeight01), firstSigNodes = 10, useInfo = 'all')
+showSigOfNodes(BP_GOdata, score(BP.resultParentChild), firstSigNodes = 10, useInfo = 'all')
 dev.off()
 
+## Cellular Component
 
-#### Cellular Component 
-
+# create topGOdata object
 CC_GOdata <- new("topGOdata",
                  description = "CC gene set analysis", ontology = "CC",
                  allGenes = A22geneList, geneSel = selectFDR,
@@ -491,17 +485,23 @@ CC_GOdata <- new("topGOdata",
 
 CC_GOdata
 
-CC.resultKS <- runTest(CC_GOdata, algorithm = 'classic', statistic = "ks")
-CC.resultKS
+# perform enrichment analysis using multiple methods
+CC.resultParentChild <- runTest(CC_GOdata, statistic = 'fisher', algorithm = 'parentchild')
+CC.resultParentChild
 
-# Kolmogorov-Smirnov test using elim method on gene scores
-CC.resultKS.elim <- runTest(CC_GOdata, algorithm = 'elim', statistic = "ks")
-CC.resultKS.elim
+CC.ResTable <- GenTable(CC_GOdata, parentchild = CC.resultParentChild, topNodes = 40)
+CC.ResTable
 
+# graph significant nodes
+
+pdf("CC_topGO_sig_nodes.pdf")
+showSigOfNodes(CC_GOdata, score(CC.resultParentChild), firstSigNodes = 10, useInfo = 'all')
+dev.off()
 
 
 #### Molecular Function
 
+# create topGOdata object
 MF_GOdata <- new("topGOdata",
                  description = "MF gene set analysis", ontology = "MF",
                  allGenes = A22geneList, geneSel = selectFDR,
@@ -510,9 +510,103 @@ MF_GOdata <- new("topGOdata",
 
 MF_GOdata
 
+# perform enrichment analysis using multiple methods
+MF.resultParentChild <- runTest(MF_GOdata, statistic = 'fisher', algorithm = 'parentchild')
+MF.resultParentChild
 
+MF.ResTable <- GenTable(MF_GOdata, parentchild = MF.resultParentChild, topNodes = 40)
+MF.ResTable
 
+# graph significant nodes
+
+pdf("MF_topGO_sig_nodes.pdf")
+showSigOfNodes(MF_GOdata, score(MF.resultParentChild), firstSigNodes = 10, useInfo = 'all')
+dev.off()
 ```
+
+Perform gene enrichment analysis for Ar
+
+```{r gene_enrichment_Ar}
+
+# create geneList. note that NA values cause problems with topGO
+# need to retain these for full ontology, so set NA to 1
+A22geneList <- Ar_RxN$qval
+ArgeneList[which(is.na(ArgeneList))] <- 1
+names(ArgeneList) <- Ar_RxN$Transcript
+str(ArgeneList)
+
+# create topGOdata object
+Ar.BP.GOdata <- new("topGOdata",
+                 description = "BP gene set analysis", ontology = "BP",
+                 allGenes = ArgeneList, geneSel = selectFDR,
+                 nodeSize = 10,
+                 annot = annFUN.gene2GO, gene2GO = geneID2GO)
+
+Ar.BP.GOdata
+
+# perform enrichment analysis using multiple methods
+Ar.BP.resultParentChild <- runTest(Ar.BP.GOdata, statistic = 'fisher', algorithm = 'parentchild')
+Ar.BP.resultParentChild
+
+Ar.BP.ResTable <- GenTable(Ar.BP.GOdata, parentchild = Ar.BP.resultParentChild, topNodes = 40)
+Ar.BP.ResTable
+
+# graph significant nodes
+
+pdf("Ar.BP_topGO_sig_nodes.pdf")
+showSigOfNodes(Ar.BP_GOdata, score(Ar.BP.resultParentChild), firstSigNodes = 10, useInfo = 'all')
+dev.off()
+
+## Cellular Component
+
+# create topGOdata object
+CC_GOdata <- new("topGOdata",
+                 description = "CC gene set analysis", ontology = "CC",
+                 allGenes = ArgeneList, geneSel = selectFDR,
+                 nodeSize = 10,
+                 annot = annFUN.gene2GO, gene2GO = geneID2GO)
+
+CC_GOdata
+
+# perform enrichment analysis using multiple methods
+Ar.CC.resultParentChild <- runTest(Ar.CC_GOdata, statistic = 'fisher', algorithm = 'parentchild')
+Ar.CC.resultParentChild
+
+Ar.CC.ResTable <- GenTable(CC_GOdata, parentchild = Ar.CC.resultParentChild, topNodes = 40)
+Ar.CC.ResTable
+
+# graph significant nodes
+
+pdf("Ar.CC_topGO_sig_nodes.pdf")
+showSigOfNodes(Ar.CC_GOdata, score(Ar.CC.resultParentChild), firstSigNodes = 10, useInfo = 'all')
+dev.off()
+
+
+#### Molecular Function
+
+# create topGOdata object
+Ar.MF_GOdata <- new("topGOdata",
+                 description = "MF gene set analysis", ontology = "MF",
+                 allGenes = ArgeneList, geneSel = selectFDR,
+                 nodeSize = 10,
+                 annot = annFUN.gene2GO, gene2GO = geneID2GO)
+
+Ar.MF_GOdata
+
+# perform enrichment analysis using multiple methods
+Ar.MF.resultParentChild <- runTest(Ar.MF_GOdata, statistic = 'fisher', algorithm = 'parentchild')
+Ar.MF.resultParentChild
+
+Ar.MF.ResTable <- GenTable(MF_GOdata, parentchild = Ar.MF.resultParentChild, topNodes = 40)
+Ar.MF.ResTable
+
+# graph significant nodes
+
+pdf("Ar.MF_topGO_sig_nodes.pdf")
+showSigOfNodes(Ar.MF_GOdata, score(Ar.MF.resultParentChild), firstSigNodes = 10, useInfo = 'all')
+dev.off()
+```
+
 
 Finish ...
 
