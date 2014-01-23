@@ -258,7 +258,7 @@ $$ TPM ~ temp + temp^2 $$
 
 For this list of P-values, False Discovery Rate (FDR) is applied and q-values are calculated using the [qvalue]() package.
 
-```{r stats, echo=TRUE, eval=TRUE}
+```{r RxN, echo=TRUE, eval=TRUE}
 # Previous results suggest that A22_7 and Ar_7 samples were switched. conservatively remove from further analyses
 
 temps <- c(0, 3.5, 10.5, 14, 17.5, 21, 24.5, 28, 31.5, 35, 38.5)
@@ -275,58 +275,150 @@ head(Ar.TPM.sub)
 
 RxNseq(mat = Ar.TPM.sub, vals = temps, qcrit = 0.05, makeplots = TRUE, prefix = "Ar")
 
-save.image()
+save.image("RxN_results.RData")
 ```
 
+Examine
 
-Get annotation of responsive genes. 
+1. relationships among responsive transcripts between A22 and Ar
+2. patterns of responsiveness with temperature
 
-Use `data.table` package for database style...
+```{r RxN_qcrit}
 
-
-```{r function}
-
-# Convert RxN df to data.tables
-A22_RxN$Sequence.Name <- rownames(A22_RxN)
+## Convert RxN df to data.tables for fast sort and merge
 A22_RxN_table <- data.table(A22_RxN)
 head(A22_RxN_table)
-
-Ar_RxN$Sequence.Name <- rownames(Ar_RxN)
 Ar_RxN_table <- data.table(Ar_RxN)
 head(Ar_RxN_table)
 
-# For each colony, pull out transcripts with q < 0.05
-A22_RxN_qcrit <- A22_RxN_table[A22_RxN_table$qval < 0.05]
-dim(A22_RxN_qcrit)
-
-Ar_RxN_qcrit <- Ar_RxN_table[Ar_RxN_table$qval < 0.05]
-dim(Ar_RxN_qcrit)
-
 ## Set keys
-# view tables
-tables() # all same number of rows
-setkey(A22_RxN_qcrit, Sequence.Name)
-setkey(Ar_RxN_qcrit, Sequence.Name)
 setkey(annotationtable, Sequence.Name)
+setkey(A22_RxN_table, Transcript)
+setkey(Ar_RxN_table, Transcript)
+# check tables and keys
+tables()
 
 # Join tables
-A22critjoin <- annotationtable[A22_RxN_qcrit]
-dim(A22critjoin)
+A22_DT <- annotationtable[A22_RxN_table]
+str(A22_DT)
+Ar_DT <- annotationtable[Ar_RxN_table]
+str(Ar_DT)
 
-Arcritjoin <- annotationtable[Ar_RxN_qcrit]
-str(Arcritjoin)
+# Pull out transcripts with Q < 0.05 for each colony, order by qval
+A22_DT_qcrit <- A22_DT[A22_DT$qval < 0.05]
+A22_DT_qcrit <- A22_DT_qcrit[order(qval)]
+dim(A22_DT_qcrit)
+Ar_DT_qcrit <- Ar_DT[Ar_DT$qval < 0.05]
+Ar_DT_qcrit <- Ar_DT_qcrit[order(qval)]
+dim(Ar_DT_qcrit)
 
-# Pull out transcript with Q < 0.05
-
-# Check for overlap among the colonies in significant transcripts
-length(which(A22critjoin$Sequence.Name %in% Arcritjoin$SequenceName))
-length(which(Arcritjoin$Sequence.Name %in% A22critjoin$SequenceName))
+setkey(A22_DT_qcrit, Sequence.Name)
+setkey(Ar_DT_qcrit, Sequence.Name)
 
 # Save significant transcripts with best hits and GO to file
-write.table(A22critjoin[,list(Sequence.Name, best.hit.to.nr, GO.Biological.Process, GO.Cellular.Component, GO.Molecular.Function, Enzyme, Domain, annotation.type, pval, qval, lin.coef, quad.coef)], file = "A22_signif_transcripts_GO.txt", quote = FALSE, sep = "\t", row.names = FALSE)
+write.table(A22_DT_qcrit[,list(Sequence.Name, best.hit.to.nr, GO.Biological.Process, GO.Cellular.Component, GO.Molecular.Function, Enzyme, Domain, annotation.type, pval, qval, lin.coef, quad.coef)], file = "A22_signif_transcripts_GO.txt", quote = FALSE, sep = "\t", row.names = FALSE)
 
-write.table(Arcritjoin[,list(Sequence.Name, best.hit.to.nr, GO.Biological.Process, GO.Cellular.Component, GO.Molecular.Function, Enzyme, Domain, annotation.type, pval, qval, lin.coef, quad.coef)], file = "Ar_signif_transcripts_GO.txt", quote = FALSE, sep = "\t", row.names = FALSE)
+write.table(Ar_DT_qcrit[,list(Sequence.Name, best.hit.to.nr, GO.Biological.Process, GO.Cellular.Component, GO.Molecular.Function, Enzyme, Domain, annotation.type, pval, qval, lin.coef, quad.coef)], file = "Ar_signif_transcripts_GO.txt", quote = FALSE, sep = "\t", row.names = FALSE)
 ```
+
+**1. relationships among responsive transcripts between A22 and Ar**
+
+Is there overlap in signficant transcripts between the colonies?
+
+`r round(length(which(A22_DT_qcrit$Sequence.Name %in% Ar_DT_qcrit$Sequence.Name))/length(A22_DT_qcrit$Sequence.Name), 2) * 100`% of responsive transcripts are shared among the two colonies!
+
+Are the responses in the same direction?
+
+Correlation among intercepts is: `r cor.test(A22_DT_qcrit[which(A22_DT_qcrit$Sequence.Name %in% Ar_DT_qcrit$Sequence.Name), intercept], Ar_DT_qcrit[which(Ar_DT_qcrit$Sequence.Name %in% A22_DT_qcrit$Sequence.Name), intercept])`
+
+Correlation among linear coefficients is: `r cor.test(A22_DT_qcrit[which(A22_DT_qcrit$Sequence.Name %in% Ar_DT_qcrit$Sequence.Name), lin.coef], Ar_DT_qcrit[which(Ar_DT_qcrit$Sequence.Name %in% A22_DT_qcrit$Sequence.Name), lin.coef])`
+
+Correlation among quadratic coefficients is: `r cor.test(A22_DT_qcrit[which(A22_DT_qcrit$Sequence.Name %in% Ar_DT_qcrit$Sequence.Name), quad.coef], Ar_DT_qcrit[which(Ar_DT_qcrit$Sequence.Name %in% A22_DT_qcrit$Sequence.Name), quad.coef])`
+
+To summarize:
+
+- 98% of significant transcripts the same in Ar and A22
+- 99% correlation in linear models for the significant transcripts for Ar and A22
+
+**2. patterns of responsiveness with temperature**
+
+Distribution of intercepts, linear and quadratic coefficients for each colony.
+
+```{r lm_coefficients, echo = FALSE}
+# quantiles
+quantile(A22_DT_qcrit$intercept)
+quantile(Ar_DT_qcrit$intercept)
+
+quantile(A22_DT_qcrit$lin.coef, na.rm = TRUE)
+quantile(Ar_DT_qcrit$lin.coef, na.rm = TRUE)
+
+quantile(A22_DT_qcrit$quad.coef, na.rm = TRUE)
+quantile(Ar_DT_qcrit$quad.coef, na.rm = TRUE)
+
+# percent of linear coefficients that are positive
+
+
+```
+
+Number of A22 transcripts with significant linear responses:
+`r length(which(!is.na(A22_DT_qcrit$lin.coef)))`
+
+Number of A22 transcripts with significant quadratic responses:
+`r length(which(!is.na(A22_DT_qcrit$quad.coef)))`
+
+Percent of A22 transcripts that significantly increase expression with temperature:
+`r round(length(which(A22_DT_qcrit$lin.coef > 0))/length(which(!is.na(A22_DT_qcrit$lin.coef)))*100, 2)`
+
+Percent of A22 transcripts that have significant negative curvature:
+`r
+round(length(which(A22_DT_qcrit$quad.coef > 0))/length(which(!is.na(A22_DT_qcrit$quad.coef)))*100, 2)`
+
+
+Number of Ar transcripts with significant linear responses:
+`rlength(which(!is.na(Ar_DT_qcrit$lin.coef)))`
+
+Number of Ar transcripts with significant quadratic responses:
+`r length(which(!is.na(Ar_DT_qcrit$quad.coef)))`
+
+Percent of Ar transcripts that significantly increase expression with temperature:
+`r round(length(which(Ar_DT_qcrit$lin.coef > 0))/length(which(!is.na(Ar_DT_qcrit$lin.coef)))*100, 2)`
+
+Percent of Ar transcripts that have significant negative curvature:
+`r round(length(which(Ar_DT_qcrit$quad.coef > 0))/length(which(!is.na(Ar_DT_qcrit$quad.coef)))*100, 2)`
+
+
+```{r hists, echo=FALSE, eval=FALSE}
+
+## IN PROGRESS ##
+
+# combine data
+# reshape long
+# make histogram
+
+png("hist_intercept.png")
+  h <- ggplot(A22_DT_qcrit, aes(intercept)) + geom_histogram(binwidth = 0.5) +
+#   scale_x_log10()
+    xlim(0, 100)
+  h
+dev.off()
+
+png("hist_linear.png")
+  h <- ggplot(A22_DT_qcrit, aes(lin.coef)) + geom_histogram(binwidth = 0.5) +
+    xlim(-5,5)
+  h
+dev.off()
+
+png("hist_quad.png")
+  h <- ggplot(A22_DT_qcrit, aes(quad.coef)) + geom_histogram(binwidth = 0.1) +
+    xlim(-1,1)
+  h
+dev.off()
+```
+
+
+## Functional annotation and gene set enrichment analysis ##
+
+Get annotation of responsive genes. 
 
 Use [topGO](http://www.bioconductor.org/packages/2.12/bioc/html/topGO.html) to perform gene set enrichment analysis
 
@@ -348,11 +440,14 @@ Provide qvalues as the gene score, and select genes with q < 0.05 using custom `
 geneID2GO <- readMappings(file = "geneid2go.map")
 str(head(geneID2GO))
 
-# create geneList
-geneList <- A22_RxN$qval
-names(geneList) <- A22_RxN$Transcript
+# create geneList. note that NA values cause problems with topGO
+# need to retain these for full ontology, so set NA to 1
+A22geneList <- A22_RxN$qval
+A22geneList[which(is.na(A22geneList))] <- 1
+names(A22geneList) <- A22_RxN$Transcript
+str(A22geneList)
 
-# create function to select significant genes
+# create function to select significant genes for topGO
 selectFDR <- function(qvalue) {
     return(qvalue < 0.05)
 }
@@ -360,54 +455,62 @@ selectFDR <- function(qvalue) {
 # create topGOdata object
 BP_GOdata <- new("topGOdata",
                  description = "BP gene set analysis", ontology = "BP",
-                 allGenes = geneList, geneSel = selectFDR,
+                 allGenes = A22geneList, geneSel = selectFDR,
                  nodeSize = 10,
                  annot = annFUN.gene2GO, gene2GO = geneID2GO)
 
 BP_GOdata
 
+# perform enrichment analysis using multiple methods
+resultWeight01 <- runTest(BP_GOdata, statistic = 'fisher', algorithm = 'weight01')
+resultWeight01
+
+resultParentChild <- runTest(BP_GOdata, statistic = 'fisher', algorithm = 'parentchild')
+resultParentChild
+
+resultKS <- runTest(BP_GOdata, algorithm = 'weight01', statistic = 'ks')
+resultKS
+
+BP.ResTable <- GenTable(BP_GOdata, weight01 = resultWeight01, parentchild = resultParentChild, ks = resultKS, orderBy = "parentchild", topNodes = 40)
+BP.ResTable
+
+# graph significant nodes
+
+pdf("BP_topGO_sig_nodes.pdf")
+showSigOfNodes(BP_GOdata, score(resultWeight01), firstSigNodes = 10, useInfo = 'all')
+dev.off()
+
+
+#### Cellular Component 
+
 CC_GOdata <- new("topGOdata",
                  description = "CC gene set analysis", ontology = "CC",
-                 allGenes = geneList, geneSel = selectFDR,
+                 allGenes = A22geneList, geneSel = selectFDR,
                  nodeSize = 10,
                  annot = annFUN.gene2GO, gene2GO = geneID2GO)
 
 CC_GOdata
 
+CC.resultKS <- runTest(CC_GOdata, algorithm = 'classic', statistic = "ks")
+CC.resultKS
+
+# Kolmogorov-Smirnov test using elim method on gene scores
+CC.resultKS.elim <- runTest(CC_GOdata, algorithm = 'elim', statistic = "ks")
+CC.resultKS.elim
+
+
+
+#### Molecular Function
+
 MF_GOdata <- new("topGOdata",
                  description = "MF gene set analysis", ontology = "MF",
-                 allGenes = geneList, geneSel = selectFDR,
+                 allGenes = A22geneList, geneSel = selectFDR,
                  nodeSize = 10,
                  annot = annFUN.gene2GO, gene2GO = geneID2GO)
 
 MF_GOdata
 
 
-# perform enrichment analysis using multiple methods
-resultWeight01 <- runTest(topGOdata, statistic = 'fisher')
-resultWeight01
-
-# Fisher exact test on gene counts
-resultFisher <- runTest(topGOdata, algorithm = 'classic', statistic = "fisher")
-resultFisher
-
-# Kolmogorov-Smirnov test using classic method on gene scores
-resultKS <- runTest(topGOdata, algorithm = 'classic', statistic = "ks")
-resultKS
-
-# Kolmogorov-Smirnov test using elim method on gene scores
-resultKS.elim <- runTest(topGOdata, algorithm = 'elim', statistic = "ks")
-resultKS.elim
-
-allRes <- GenTable(topGOdata, classicFisher = resultFisher, classicKS = resultKS, elimKS = resultKS.elim, orderBy = "elimKS", ranksOf = "classicFisher", topNodes = 10)
-
-allRes
-
-# graph significant nodes
-
-pdf("topGO_sig_nodes.pdf")
-showSigOfNodes(topGOdata, score(resultWeight01), firstSigNodes = 5, useInfo = 'all')
-dev.off()
 
 ```
 
