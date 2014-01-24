@@ -144,14 +144,7 @@ Results are available as job ID [13894410176993](http://fastannotator.cgu.edu.tw
 
 ## Identification of thermally-responsive genes ##
 
-Expression was quantified using the program [sailfish]()                                              
-    export PYTHONPATH=/opt/software/khmer/python
-    export LD_LIBRARY_PATH=/opt/software/Sailfish-0.6.2-Linux_x86-64/lib:$LD_LIBRARY_PATH
-    export PATH=/opt/software/Sailfish-0.6.2-Linux_x86-64/bin:$PATH
-
-
-
-## Quantify gene expression                                          
+### Quantify gene expression ###
 
 Quantify gene expression using [sailfish](http://www.cs.cmu.edu/~ckingsf/software/sailfish/index.html). In shell, set up paths to software libraries:
                                                  
@@ -180,32 +173,34 @@ Then, for each sample, run the following command:
 
 which I looped in an R script.                                                 
                                                  
-```{r sailfish, eval=FALSE, echo=FALSE}
+```{r sailfish, eval=TRUE, echo=TRUE}
 # directory containing trimmed reads
 readdir <- "../data/ind_files/" 
 
 # list of reads in each of four trimmed classes
 readlist <- list.files(readdir)
-(paired.left <- readlist[grep("\\.paired.left.fastq$", readlist)])
+(paired.left <- readlist[grep(".\\.paired.left.fastq$", readlist)])
 (paired.right <- readlist[grep("\\.paired.right.fastq$", readlist)])
 (unpaired.left <- readlist[grep("unpaired.left.fastq$", readlist)])
 (unpaired.right <- readlist[grep("unpaired.right.fastq$", readlist)])
 
 # Loop across each sample and quantify expression
 
-samples <- c("A22-0", "A22-3", "A22-7", "A22-10", "A22-14", "A22-17", "A22-21", "A22-24", "A22-28", "A22-31", "A22-35", "A22-38", "Ar-0", "Ar-3", "Ar-7", "Ar-10", "Ar-14", "Ar-17", "Ar-21", "Ar-24", "Ar-28", "Ar-31", "Ar-35", "Ar-38")
+# NOTE - samples listed in same order as given by the above lists
+samples <- c("A22-0", "A22-10", "A22-14", "A22-17", "A22-21", "A22-24", "A22-28", "A22-31", "A22-35", "A22-38", "A22-3", "A22-7", "Ar-0", "Ar-10", "Ar-14", "Ar-17", "Ar-21", "Ar-24", "Ar-28", "Ar-31", "Ar-35", "Ar-38", "Ar-3", "Ar-7")
 
 for (j in 1:length(samples)) {
     message("Start expression quantification for sample ", samples[j], ": ", Sys.time())
     quantdir <- paste(samples[j], "_quant", sep="")
-    samp.paired.l <- paste(readdir, paired.left[j], sep="")
-    samp.paired.r <- paste(readdir, paired.right[j], sep="")
-    samp.unpaired.l <- paste(readdir, unpaired.left[j], sep="")
-    samp.unpaired.r <- paste(readdir, unpaired.right[j], sep="")
-        
-    system(paste("sailfish quant -i ../results/trinity-full/sailfish-index -o ../results/trinity-full/sailfish-expression/", quantdir, " --reads ", samp.paired.l, " ", samp.paired.r, " ", samp.unpaired.l, " ", samp.unpaired.r, " -p 4", sep=""))
-
-    message("Done with expression quantification for sample ", samples[j], ": ", Sys.time())
+    samp.pos <- grep(paste(paste(samples[j], "_", sep="")), paired.left)
+    samp.paired.l <- paste(readdir, paired.left[samp.pos], sep="")
+    samp.paired.r <- paste(readdir, paired.right[samp.pos], sep="")
+    samp.unpaired.l <- paste(readdir, unpaired.left[samp.pos], sep="")
+    samp.unpaired.r <- paste(readdir, unpaired.right[samp.pos], sep="")
+    sailfishcmd <- paste("sailfish quant -i ../results/trinity-full/sailfish-index -o ../results/trinity-full/sailfish-expression/", quantdir, " --reads ", samp.paired.l, " ", samp.paired.r, " ", samp.unpaired.l, " ", samp.unpaired.r, " -p 4", sep="")
+    print(sailfishcmd)
+    system(sailfishcmd)
+    message("Done with expression quantification for sample ", samples[j], ": ", Sys.time(), "\n")
 }
 ```
 
