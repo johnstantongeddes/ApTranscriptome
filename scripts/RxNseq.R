@@ -3,7 +3,7 @@
 ## John Stanton-Geddes
 ############################################################################################
 
-read.sailfish.quant <- function(filein, outname) {
+read.sailfish.quant <- function(filein, outname, samp, trtval) {
     # Read sailfish quantification file
     #
     # Args:
@@ -13,6 +13,9 @@ read.sailfish.quant <- function(filein, outname) {
     file.df <- read.table(filein, header=FALSE, sep="\t", stringsAsFactors = FALSE)
     colnames(file.df) <- c("Transcript", "Length", "TPM", "RPKM", "KPKM", "EstimatedNumReads")
     #head(file.df)
+    # add columns with sample ID and treatment
+    file.df$sample <- samp
+    file.df$trt <- trtval
     assign(outname, file.df, envir = .GlobalEnv)
 }
 
@@ -160,6 +163,9 @@ dply.RxNseq <- function(mat, vals, qcrit = 0.05, makeplots = TRUE, prefix="RxN")
         return(p)
     }
     ##########################################################################
+
+    dd <- ddply(mat, .(Transcript), function(z)coef(lm(TPM ~ trt + I(trt^2), data=z)))
+    dd
 
     # Check that length(vals)==ncols(mat)+1, where first column of mat is Transcript IDs
     if(length(vals)+1 != ncol(mat)) stop("Number of martrix columns does not equal number of X values!")

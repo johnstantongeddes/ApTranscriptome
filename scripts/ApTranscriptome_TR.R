@@ -227,20 +227,21 @@ The TPM column for each sample was extracted and combined into a matrix for each
 samples <- c("A22-0", "A22-3", "A22-7", "A22-10", "A22-14", "A22-17", "A22-21", "A22-24", "A22-28", "A22-31", "A22-35", "A22-38", "Ar-0", "Ar-3", "Ar-7", "Ar-10", "Ar-14", "Ar-17", "Ar-21", "Ar-24", "Ar-28", "Ar-31", "Ar-35", "Ar-38")
 
 fileinpath <- "../results/trinity-full/sailfish-expression/"
-    
+
 for (j in 1:length(samples)) {
     samp <- samples[j]
+    trtval <- as.numeric(str_split_fixed(samp, "-", 2)[2])
     outpre <- gsub("-", "_", samp)
     outname <- paste(outpre, "_quant", sep="")
-    read.sailfish.quant(filein=paste(fileinpath, samp, "_quant/quant_bias_corrected.sf", sep=""), outname=outname)
+    read.sailfish.quant(filein=paste(fileinpath, samp, "_quant/quant_bias_corrected.sf", sep=""), outname=outname, samp = samp, trtval = trtval)
 }
 
-# combine TPM into single data.frame
-A22.TPM <- data.frame(Transcript = A22_0_quant$Transcript, A22_0_TPM=A22_0_quant$TPM, A22_3_TPM=A22_3_quant$TPM, A22_7_TPM=A22_7_quant$TPM, A22_10_TPM=A22_10_quant$TPM, A22_14_TPM=A22_14_quant$TPM, A22_17_TPM=A22_17_quant$TPM, A22_21_TPM=A22_21_quant$TPM, A22_24_TPM=A22_24_quant$TPM, A22_28_TPM=A22_28_quant$TPM, A22_31_TPM=A22_31_quant$TPM, A22_35_TPM=A22_35_quant$TPM, A22_38_TPM=A22_38_quant$TPM)
-head(A22.TPM)
+# combine into long format
+
+A22.TPM <- rbind(A22_0_quant, A22_3_quant, A22_7_quant, A22_10_quant, A22_14_quant, A22_17_quant, A22_21_quant, A22_24_quant, A22_28_quant, A22_31_quant, A22_35_quant, A22_38_quant)
 str(A22.TPM)
 
-Ar.TPM <- data.frame(Transcript = Ar_0_quant$Transcript, Ar_0_TPM=Ar_0_quant$TPM, Ar_3_TPM=Ar_3_quant$TPM, Ar_7_TPM=Ar_7_quant$TPM, Ar_10_TPM=Ar_10_quant$TPM, Ar_14_TPM=Ar_14_quant$TPM, Ar_17_TPM=Ar_17_quant$TPM, Ar_21_TPM=Ar_21_quant$TPM, Ar_24_TPM=Ar_24_quant$TPM, Ar_28_TPM=Ar_28_quant$TPM, Ar_31_TPM=Ar_31_quant$TPM, Ar_35_TPM=Ar_35_quant$TPM, Ar_38_TPM=Ar_38_quant$TPM)
+Ar.TPM <- rbind(Ar_0_quant, Ar_3_quant, Ar_7_quant, Ar_10_quant, Ar_14_quant, Ar_17_quant, Ar_21_quant, Ar_24_quant, Ar_28_quant, Ar_31_quant, Ar_35_quant, Ar_38_quant)
 head(Ar.TPM)
 str(Ar.TPM)
 ```
