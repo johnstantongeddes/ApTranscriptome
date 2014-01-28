@@ -199,7 +199,7 @@ for (j in 1:length(samples)) {
     samp.unpaired.r <- paste(readdir, unpaired.right[samp.pos], sep="")
     sailfishcmd <- paste("sailfish quant -i ../results/trinity-full/sailfish-index -o ../results/trinity-full/sailfish-expression/", quantdir, " --reads ", samp.paired.l, " ", samp.paired.r, " ", samp.unpaired.l, " ", samp.unpaired.r, " -p 4", sep="")
     print(sailfishcmd)
-    system(sailfishcmd)
+#    system(sailfishcmd)
     message("Done with expression quantification for sample ", samples[j], ": ", Sys.time(), "\n")
 }
 ```
@@ -208,9 +208,9 @@ This generated a directory for each sample
 
 `r list.files("../results/trinity-full/sailfish-expression")`
 
-and within each directory there are the following files:
+and within each directory there are the following r:
 
-`r list.files("../results/trinity-full/sailfish-expression/A22-0_quant")`
+`files list.files("../results/trinity-full/sailfish-expression/A22-0_quant")`
 
 The file *quant_bias_corrected.sf* contains the following columns, following a number of header lines:
 
@@ -350,9 +350,6 @@ quantile(Ar_DT_qcrit$lin.coef, na.rm = TRUE)
 quantile(A22_DT_qcrit$quad.coef, na.rm = TRUE)
 quantile(Ar_DT_qcrit$quad.coef, na.rm = TRUE)
 
-# percent of linear coefficients that are positive
-
-
 ```
 
 Number of A22 transcripts with significant linear responses:
@@ -365,12 +362,10 @@ Percent of A22 transcripts that significantly increase expression with temperatu
 `r round(length(which(A22_DT_qcrit$lin.coef > 0))/length(which(!is.na(A22_DT_qcrit$lin.coef)))*100, 2)`
 
 Percent of A22 transcripts that have significant negative curvature:
-`r
-round(length(which(A22_DT_qcrit$quad.coef > 0))/length(which(!is.na(A22_DT_qcrit$quad.coef)))*100, 2)`
-
+`r round(length(which(A22_DT_qcrit$quad.coef > 0))/length(which(!is.na(A22_DT_qcrit$quad.coef)))*100, 2)`
 
 Number of Ar transcripts with significant linear responses:
-`rlength(which(!is.na(Ar_DT_qcrit$lin.coef)))`
+`r length(which(!is.na(Ar_DT_qcrit$lin.coef)))`
 
 Number of Ar transcripts with significant quadratic responses:
 `r length(which(!is.na(Ar_DT_qcrit$quad.coef)))`
@@ -419,7 +414,7 @@ Use [topGO](http://www.bioconductor.org/packages/2.12/bioc/html/topGO.html) to p
 
 First need to create gene ID to GO term map file
 
-```{r geneid2go, echo = TRUE, eval = FALSE}
+```{r geneid2go, echo = TRUE, eval = TRUE}
 
 # create geneid2go.map file from FastAnnotator AnnotationTable.txt
 geneid2GOmap(annotationfile)
@@ -517,6 +512,7 @@ MF.ResTable
 pdf("MF_topGO_sig_nodes.pdf")
 showSigOfNodes(MF_GOdata, score(MF.resultParentChild), firstSigNodes = 10, useInfo = 'all')
 dev.off()
+
 ```
 
 Perform gene enrichment analysis for Ar
@@ -525,7 +521,7 @@ Perform gene enrichment analysis for Ar
 
 # create geneList. note that NA values cause problems with topGO
 # need to retain these for full ontology, so set NA to 1
-A22geneList <- Ar_RxN$qval
+ArgeneList <- Ar_RxN$qval
 ArgeneList[which(is.na(ArgeneList))] <- 1
 names(ArgeneList) <- Ar_RxN$Transcript
 str(ArgeneList)
@@ -549,56 +545,56 @@ Ar.BP.ResTable
 # graph significant nodes
 
 pdf("Ar.BP_topGO_sig_nodes.pdf")
-showSigOfNodes(Ar.BP_GOdata, score(Ar.BP.resultParentChild), firstSigNodes = 10, useInfo = 'all')
+showSigOfNodes(Ar.BP.GOdata, score(Ar.BP.resultParentChild), firstSigNodes = 10, useInfo = 'all')
 dev.off()
 
 ## Cellular Component
 
 # create topGOdata object
-CC_GOdata <- new("topGOdata",
+Ar.CC.GOdata <- new("topGOdata",
                  description = "CC gene set analysis", ontology = "CC",
                  allGenes = ArgeneList, geneSel = selectFDR,
                  nodeSize = 10,
                  annot = annFUN.gene2GO, gene2GO = geneID2GO)
 
-CC_GOdata
+Ar.CC.GOdata
 
 # perform enrichment analysis using multiple methods
-Ar.CC.resultParentChild <- runTest(Ar.CC_GOdata, statistic = 'fisher', algorithm = 'parentchild')
+Ar.CC.resultParentChild <- runTest(Ar.CC.GOdata, statistic = 'fisher', algorithm = 'parentchild')
 Ar.CC.resultParentChild
 
-Ar.CC.ResTable <- GenTable(CC_GOdata, parentchild = Ar.CC.resultParentChild, topNodes = 40)
+Ar.CC.ResTable <- GenTable(Ar.CC.GOdata, parentchild = Ar.CC.resultParentChild, topNodes = 40)
 Ar.CC.ResTable
 
 # graph significant nodes
 
 pdf("Ar.CC_topGO_sig_nodes.pdf")
-showSigOfNodes(Ar.CC_GOdata, score(Ar.CC.resultParentChild), firstSigNodes = 10, useInfo = 'all')
+showSigOfNodes(Ar.CC.GOdata, score(Ar.CC.resultParentChild), firstSigNodes = 10, useInfo = 'all')
 dev.off()
 
 
 #### Molecular Function
 
 # create topGOdata object
-Ar.MF_GOdata <- new("topGOdata",
+Ar.MF.GOdata <- new("topGOdata",
                  description = "MF gene set analysis", ontology = "MF",
                  allGenes = ArgeneList, geneSel = selectFDR,
                  nodeSize = 10,
                  annot = annFUN.gene2GO, gene2GO = geneID2GO)
 
-Ar.MF_GOdata
+Ar.MF.GOdata
 
 # perform enrichment analysis using multiple methods
-Ar.MF.resultParentChild <- runTest(Ar.MF_GOdata, statistic = 'fisher', algorithm = 'parentchild')
+Ar.MF.resultParentChild <- runTest(Ar.MF.GOdata, statistic = 'fisher', algorithm = 'parentchild')
 Ar.MF.resultParentChild
 
-Ar.MF.ResTable <- GenTable(MF_GOdata, parentchild = Ar.MF.resultParentChild, topNodes = 40)
+Ar.MF.ResTable <- GenTable(Ar.MF.GOdata, parentchild = Ar.MF.resultParentChild, topNodes = 20)
 Ar.MF.ResTable
 
 # graph significant nodes
 
 pdf("Ar.MF_topGO_sig_nodes.pdf")
-showSigOfNodes(Ar.MF_GOdata, score(Ar.MF.resultParentChild), firstSigNodes = 10, useInfo = 'all')
+showSigOfNodes(Ar.MF.GOdata, score(Ar.MF.resultParentChild), firstSigNodes = 10, useInfo = 'all')
 dev.off()
 ```
 
@@ -644,19 +640,6 @@ Make plots of thermally-responsive genes.
 ```
 
 ## Session information ##
-
-```{r }
-#### Addendum ####
-## compare sailfish to RSEM results
-
-# Read data file for 'expected_counts' from RSEM
-#data <- read.table("../data/combined.exp_count.matrix", header=T, sep="\t")
-#dim(data)
-#data[1:10,1:4]
-#str(data)
-
-```
-
 
 ```{r session}
 save.image()
