@@ -9,7 +9,7 @@ Thermal reactionome of the common ant species *Aphaenogaster*
 
 **University of Vermont**
 
-```{r setup, results='hide', message = FALSE}
+```{r setup, echo=FALSE, results='hide', message = FALSE}
 # Global settings
 options(stringsAsFactors=FALSE)
 
@@ -30,7 +30,8 @@ library(RCurl)
 #biocLite("Rgraphviz")
 library(qvalue) 
 library(topGO) 
-library(Rgraphviz) 
+suppressMessages(library(Rgraphviz))
+library(Rgraphviz)
 
 
 # knitr options
@@ -39,12 +40,16 @@ opts_chunk$set(cache=TRUE)
 # load custom functions
 source("RxNseq.R")
 ```
-    
+
 ## Summary ##
   
-In this technical report, which accompanies the manuscript "...." (in press), we describe the *de novo* assembly of the transcriptome for two ant colonies with in the *Aphaenogaster rudis-picea-fulva* species complex `r citep("10.1155/2012/752815")`.
+In this technical report, which accompanies the manuscript **Thermal reactionome of a common ant species** (Stanton-Geddes et al., in press), we
 
-This script is completely reproducible assuming that R, `knitr` and the other required libraries (listed below) are installed on a standard linux system using the following:
+1. describe the *de novo* assembly of the transcriptome for two ant colonies with in the *Aphaenogaster rudis-picea-fulva* species complex `r citep("10.1155/2012/752815")`
+2. identify thermally-responsive genes
+3. perform gene set enrichment analysis
+
+This script is completely reproducible assuming that R, `knitr` and the other required libraries (listed within the source document) are installed on a standard linux system using the following:
     
     Rscript -e "library(knitr); knit('ApTran_assemble.Rmd')"
 
@@ -52,6 +57,8 @@ The assembled transcriptome, annotation and expression values are downloaded rat
 
 ```{r download, echo = TRUE, results = "hide"}
 ### Transcriptome assembly
+
+### Expression data
 
 ### Annotation file
 # from either AWS or GoogleDrive
@@ -137,7 +144,8 @@ pandoc.table(assemstats, style="rmarkdown", caption = "Table 1: Statistics for T
 
 ## Annotation ##
 
-Annotation was performed by uploading the reduced assembly "Trinity_cap3_uclust.fasta" to the web-based annotation program [FastAnnotator](http://fastannotator.cgu.edu.tw/index.php) `r citep("10.1186/1471-2164-13-S7-S9")`.
+Annotation was performed by uploading the reduced assembly "Trinity_cap3_uclust.fasta" to the web-based annotation program [FastAnnotator](http://fastannotator.cgu.edu.tw/index.php) `r citep("
+10.1186/1471-2164-13-S7-S9")`.
 
 Results are available as job ID [13894410176993](http://fastannotator.cgu.edu.tw/job.php?jobid=13894410176993#page=basicinfo).
 
@@ -146,7 +154,7 @@ Results are available as job ID [13894410176993](http://fastannotator.cgu.edu.tw
 
 ### Quantify gene expression ###
 
-Quantify gene expression using [sailfish](http://www.cs.cmu.edu/~ckingsf/software/sailfish/index.html). In shell, set up paths to software libraries:
+Quantify gene expression using [sailfish](http://www.cs.cmu.edu/~ckingsf/software/sailfish/index.html). Make sure that PATHs to the software libraries are set up correctly: 
                                                  
     export LD_LIBRARY_PATH=/opt/software/Sailfish-0.6.2-Linux_x86-64/lib:$LD_LIBRARY_PATH
     export PATH=/opt/software/Sailfish-0.6.2-Linux_x86-64/bin:$PATH
@@ -249,7 +257,7 @@ str(Ar.TPM)
 
 For each colony, identify genes that have a significant linear or quadratic regression by fitting the linear model to the expression levels at each temperature for each transcript
 
-$$ TPM ~ temp + temp^2 $$
+$$ TPM = \beta_0 + \beta_1(temp) + \beta_2(temp)^2 + \epsilon $$
 
 For this list of P-values, False Discovery Rate (FDR) is applied and q-values are calculated using the [qvalue]() package.
 
@@ -273,7 +281,15 @@ RxNseq(mat = Ar.TPM.sub, vals = temps, qcrit = 0.05, makeplots = TRUE, prefix = 
 save.image("RxN_results.RData")
 ```
 
-Examine
+While many transcripts have significant P-values, these drastically diminish with FDR.
+
+`r qsummary(A22_qsummary)`
+
+In fact, for Ar, no transcripts are significant at q < 0.05 so will use 0.1 as the threshold.
+
+`r qsummary(Ar_qsummary)`
+
+Next, examine
 
 1. relationships among responsive transcripts between A22 and Ar
 2. patterns of responsiveness with temperature
@@ -303,7 +319,10 @@ str(Ar_DT)
 A22_DT_qcrit <- A22_DT[A22_DT$qval < 0.05]
 A22_DT_qcrit <- A22_DT_qcrit[order(qval)]
 dim(A22_DT_qcrit)
-Ar_DT_qcrit <- Ar_DT[Ar_DT$qval < 0.05]
+
+# No transcripts with q < 0.05 for Ar, so use 0.1 as the threshold
+
+Ar_DT_qcrit <- Ar_DT[Ar_DT$qval < 0.1]
 Ar_DT_qcrit <- Ar_DT_qcrit[order(qval)]
 dim(Ar_DT_qcrit)
 
@@ -443,79 +462,86 @@ selectFDR <- function(qvalue) {
 }
 
 # create topGOdata object
-BP_GOdata <- new("topGOdata",
+A22.BP.GOdata <- new("topGOdata",
                  description = "BP gene set analysis", ontology = "BP",
                  allGenes = A22geneList, geneSel = selectFDR,
                  nodeSize = 10,
                  annot = annFUN.gene2GO, gene2GO = geneID2GO)
 
-BP_GOdata
+A22.BP.GOdata
 
 # perform enrichment analysis using multiple methods
-BP.resultParentChild <- runTest(BP_GOdata, statistic = 'fisher', algorithm = 'parentchild')
-BP.resultParentChild
+A22.BP.resultParentChild <- runTest(A22.BP.GOdata, statistic = 'fisher', algorithm = 'parentchild')
+A22.BP.resultParentChild
 
-BP.ResTable <- GenTable(BP_GOdata, parentchild = BP.resultParentChild, topNodes = 40)
-BP.ResTable
+# 8 significant GO terms
+
+A22.BP.ResTable <- GenTable(A22.BP.GOdata, parentchild = A22.BP.resultParentChild, topNodes = 16)
+A22.BP.ResTable
 
 # graph significant nodes
 
-pdf("BP_topGO_sig_nodes.pdf")
-showSigOfNodes(BP_GOdata, score(BP.resultParentChild), firstSigNodes = 10, useInfo = 'all')
+pdf("A22.BP_topGO_sig_nodes.pdf")
+showSigOfNodes(A22.BP.GOdata, score(A22.BP.resultParentChild), firstSigNodes = 10, useInfo = 'all')
 dev.off()
+
 
 ## Cellular Component
 
 # create topGOdata object
-CC_GOdata <- new("topGOdata",
+A22.CC.GOdata <- new("topGOdata",
                  description = "CC gene set analysis", ontology = "CC",
                  allGenes = A22geneList, geneSel = selectFDR,
                  nodeSize = 10,
                  annot = annFUN.gene2GO, gene2GO = geneID2GO)
 
-CC_GOdata
+A22.CC.GOdata
 
 # perform enrichment analysis using multiple methods
-CC.resultParentChild <- runTest(CC_GOdata, statistic = 'fisher', algorithm = 'parentchild')
-CC.resultParentChild
+A22.CC.resultParentChild <- runTest(A22.CC.GOdata, statistic = 'fisher', algorithm = 'parentchild')
+A22.CC.resultParentChild
 
-CC.ResTable <- GenTable(CC_GOdata, parentchild = CC.resultParentChild, topNodes = 40)
+# 2 significant GO terms
+
+CC.ResTable <- GenTable(A22.CC.GOdata, parentchild = A22.CC.resultParentChild, topNodes = 10)
 CC.ResTable
 
 # graph significant nodes
 
-pdf("CC_topGO_sig_nodes.pdf")
-showSigOfNodes(CC_GOdata, score(CC.resultParentChild), firstSigNodes = 10, useInfo = 'all')
+pdf("A22.CC_topGO_sig_nodes.pdf")
+showSigOfNodes(A22.CC.GOdata, score(A22.CC.resultParentChild), firstSigNodes = 10, useInfo = 'all')
 dev.off()
 
 
 #### Molecular Function
 
 # create topGOdata object
-MF_GOdata <- new("topGOdata",
+A22.MF.GOdata <- new("topGOdata",
                  description = "MF gene set analysis", ontology = "MF",
                  allGenes = A22geneList, geneSel = selectFDR,
                  nodeSize = 10,
                  annot = annFUN.gene2GO, gene2GO = geneID2GO)
 
-MF_GOdata
+A22.MF.GOdata
 
 # perform enrichment analysis using multiple methods
-MF.resultParentChild <- runTest(MF_GOdata, statistic = 'fisher', algorithm = 'parentchild')
-MF.resultParentChild
+A22.MF.resultParentChild <- runTest(A22.MF.GOdata, statistic = 'fisher', algorithm = 'parentchild')
+A22.MF.resultParentChild
 
-MF.ResTable <- GenTable(MF_GOdata, parentchild = MF.resultParentChild, topNodes = 40)
-MF.ResTable
+# 6 significant GO terms
+
+A22.MF.ResTable <- GenTable(A22.MF.GOdata, parentchild = A22.MF.resultParentChild, topNodes = 12)
+A22.MF.ResTable
 
 # graph significant nodes
 
-pdf("MF_topGO_sig_nodes.pdf")
-showSigOfNodes(MF_GOdata, score(MF.resultParentChild), firstSigNodes = 10, useInfo = 'all')
+pdf("A22.MF_topGO_sig_nodes.pdf")
+showSigOfNodes(A22.MF.GOdata, score(A22.MF.resultParentChild), firstSigNodes = 10, useInfo = 'all')
 dev.off()
 
 ```
 
-Perform gene enrichment analysis for Ar
+Perform gene enrichment analysis for Ar. As there were no genes significant at q < 0.05, use 0.1 as the critical threshold.
 
 ```{r gene_enrichment_Ar}
 
@@ -526,10 +552,16 @@ ArgeneList[which(is.na(ArgeneList))] <- 1
 names(ArgeneList) <- Ar_RxN$Transcript
 str(ArgeneList)
 
+# create function to select significant genes for topGO
+selectFDR1 <- function(qvalue) {
+    return(qvalue < 0.1)
+}
+
+
 # create topGOdata object
 Ar.BP.GOdata <- new("topGOdata",
                  description = "BP gene set analysis", ontology = "BP",
-                 allGenes = ArgeneList, geneSel = selectFDR,
+                 allGenes = ArgeneList, geneSel = selectFDR1,
                  nodeSize = 10,
                  annot = annFUN.gene2GO, gene2GO = geneID2GO)
 
@@ -539,7 +571,7 @@ Ar.BP.GOdata
 Ar.BP.resultParentChild <- runTest(Ar.BP.GOdata, statistic = 'fisher', algorithm = 'parentchild')
 Ar.BP.resultParentChild
 
-Ar.BP.ResTable <- GenTable(Ar.BP.GOdata, parentchild = Ar.BP.resultParentChild, topNodes = 40)
+Ar.BP.ResTable <- GenTable(Ar.BP.GOdata, parentchild = Ar.BP.resultParentChild, topNodes = 10)
 Ar.BP.ResTable
 
 # graph significant nodes
@@ -553,7 +585,7 @@ dev.off()
 # create topGOdata object
 Ar.CC.GOdata <- new("topGOdata",
                  description = "CC gene set analysis", ontology = "CC",
-                 allGenes = ArgeneList, geneSel = selectFDR,
+                 allGenes = ArgeneList, geneSel = selectFDR1,
                  nodeSize = 10,
                  annot = annFUN.gene2GO, gene2GO = geneID2GO)
 
@@ -563,7 +595,7 @@ Ar.CC.GOdata
 Ar.CC.resultParentChild <- runTest(Ar.CC.GOdata, statistic = 'fisher', algorithm = 'parentchild')
 Ar.CC.resultParentChild
 
-Ar.CC.ResTable <- GenTable(Ar.CC.GOdata, parentchild = Ar.CC.resultParentChild, topNodes = 40)
+Ar.CC.ResTable <- GenTable(Ar.CC.GOdata, parentchild = Ar.CC.resultParentChild, topNodes = 10)
 Ar.CC.ResTable
 
 # graph significant nodes
@@ -578,7 +610,7 @@ dev.off()
 # create topGOdata object
 Ar.MF.GOdata <- new("topGOdata",
                  description = "MF gene set analysis", ontology = "MF",
-                 allGenes = ArgeneList, geneSel = selectFDR,
+                 allGenes = ArgeneList, geneSel = selectFDR1,
                  nodeSize = 10,
                  annot = annFUN.gene2GO, gene2GO = geneID2GO)
 
@@ -588,7 +620,7 @@ Ar.MF.GOdata
 Ar.MF.resultParentChild <- runTest(Ar.MF.GOdata, statistic = 'fisher', algorithm = 'parentchild')
 Ar.MF.resultParentChild
 
-Ar.MF.ResTable <- GenTable(Ar.MF.GOdata, parentchild = Ar.MF.resultParentChild, topNodes = 20)
+Ar.MF.ResTable <- GenTable(Ar.MF.GOdata, parentchild = Ar.MF.resultParentChild, topNodes = 10)
 Ar.MF.ResTable
 
 # graph significant nodes
@@ -598,44 +630,71 @@ showSigOfNodes(Ar.MF.GOdata, score(Ar.MF.resultParentChild), firstSigNodes = 10,
 dev.off()
 ```
 
-
-Finish ...
-
 Make plots of thermally-responsive genes.
+Annotate by GO term.
 
 ```{r plots, echo=FALSE, eval=FALSE}
-### Plot scaled expression values of significant transcripts if makeplots==TRUE
+## Plot expression values of significant transcripts
+# scale expression values 
 
 # make new dataframe with scaled values
-        m <- subset(responsive.transcripts.FDR, , select = -c(pvals, qvals))
-        m.scaled <- data.frame(m[0,-1])
-    
-        for (j in 1:nrow(m)) {
-             m.scaled[j,] <- scale(unlist(m[j,2:ncol(m)])) # skip first column which is transcript ID
-        }
+A22.scale <- A22_DT_qcrit[ , grep("A22", colnames(A22_DT_qcrit)), with = FALSE]
+dim(A22.scale)
 
-        # determine min and max values
-        (ex.min <- min(unlist(m.scaled)))
-        (ex.max <- max(unlist(m.scaled)))
+A22.scaled <- data.frame(A22.scale[0])
 
-    # Plot loess smooth for each significant transcript
+for (j in 1:nrow(A22.scale)) {
+    A22.scaled[j,] <- scale(unlist(A22.scale[j,])) # skip first column which is transcript ID
+}
 
+# determine min and max values
+(ex.min <- min(unlist(A22.scaled)))
+(ex.max <- max(unlist(A22.scaled)))
 
-    pdf(paste(prefix, "_expression_plot.pdf", sep = ""))
-      plot(vals, m.scaled[1,], ylim=c(ex.min, ex.max), ylab="Expected count", xlab="Temp C", pch=16, col="white")
-      for(i in 1:nrow(m.scaled)) {
-          lines(vals, m.scaled[i,], type="l")
-      }
-    dev.off()
+# Add gene and lm information
+A22.plot.df <- data.frame(cbind(A22_DT_qcrit[,list(Sequence.Name,GO.Biological.Process,GO.Cellular.Component,GO.Molecular.Function,lin.coef, quad.coef)], A22.scaled[,]))
+str(A22.plot.df)
+
+# Reshape data for ggplot
 
 
-    pdf(paste(prefix, "_loess_expression_plot.pdf", sep = ""))
-      plot(1, xlim=c(0, 40), ylim=c(ex.min, ex.max), ylab="Expected count", xlab="Temp C", pch=16, col="white")
-      for(i in 1:nrow(m.scaled)) {
-        loo <- loess(unlist(m.scaled[i,]) ~ vals)      
-        lines(predict(loo))
-      }
-    dev.off()
+rA22.plot.df <- reshape(A22.plot.df, idvar = "Sequence.Name", varying = list("A22_0_TPM", "A22_3_TPM", "A22_10_TPM", "A22_14_TPM", "A22_17_TPM", "A22_21_TPM", "A22_24_TPM", "A22_28_TPM", "A22_31_TPM", "A22_35_TPM", "A22_38_TPM"), v.names = "TPM", direction = "long", timevar = temps) 
+
+head(rA22.plot.df)
+                                                                  
+
+# Plot expression levels against temp for each significant transcript
+
+pdf("A22_expression_ggplot.pdf")
+  p <- ggplot(rA22.plot.df, aes(x=temps, y=TPM))
+  p + geom_line(aes(colour = lin.coef)) + scale_colour_gradient(low="red")
+}
+
+    plot(temps, A22.scaled[1,], ylim=c(ex.min, ex.max), ylab="Expression (TPM)", xlab="Temp C", pch=16, col="white")
+  for(i in 1:nrow(A22.scaled)) {
+      lines(temps, A22.scaled[i,], type="l", col = )
+  }
+dev.off()
+
+
+# Set colors to lin.coeff using [function](http://stackoverflow.com/questions/7420281/create-a-rainbow-color-scale-based-on-a-vector-in-the-order-of-that-vector)
+
+pdf("A22_expression_plot.pdf")
+  plot(temps, A22.scaled[1,], ylim=c(ex.min, ex.max), ylab="Expression (TPM)", xlab="Temp C", pch=16, col="white")
+  for(i in 1:nrow(A22.scaled)) {
+      lines(temps, A22.scaled[i,], type="l")
+  }
+dev.off()
+
+# Plot loess smooth for each significant transcript
+
+pdf("A22_loess_expression_plot.pdf")
+  plot(0, xlim=c(0, 40), ylim=c(ex.min, ex.max), ylab="Expected count", xlab="Temp C", pch=16, col="white")
+  for(i in 1:nrow(A22.scaled)) {
+      loo <- loess(unlist(A22.scaled[i,]) ~ temps)      
+      lines(temps, predict(loo))
+  }
+dev.off()
 
 ```
 
