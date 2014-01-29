@@ -22,6 +22,7 @@ library(pander)
 library(stringr)
 library(data.table)
 library(RCurl)
+library(plyr)
 
 # Load Bioconductor libraries
 #source("http://bioconductor.org/biocLite.R")
@@ -240,6 +241,13 @@ for (j in 1:length(samples)) {
 
 A22.TPM <- rbind(A22_0_quant, A22_3_quant, A22_7_quant, A22_10_quant, A22_14_quant, A22_17_quant, A22_21_quant, A22_24_quant, A22_28_quant, A22_31_quant, A22_35_quant, A22_38_quant)
 str(A22.TPM)
+
+A22.TPM.dt <- data.table(A22.TPM)
+setkey(A22.TPM.dt, Transcript)
+
+tt <- sample(unique(A22.TPM.dt$Transcript), 10)
+mat <- A22.TPM.dt[J(tt)]
+
 
 Ar.TPM <- rbind(Ar_0_quant, Ar_3_quant, Ar_7_quant, Ar_10_quant, Ar_14_quant, Ar_17_quant, Ar_21_quant, Ar_24_quant, Ar_28_quant, Ar_31_quant, Ar_35_quant, Ar_38_quant)
 head(Ar.TPM)
