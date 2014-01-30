@@ -25,7 +25,10 @@ RxNseq <- function(mat, qcrit = 0.05, makeplots = TRUE, prefix="RxN") {
     # Identify transcripts with significant reaction norms against a continuous variable
     #
     # Args:
-    #  mat: matrix of expression values. first column should be transcript IDs and
+    #  mat: three-column matrix in long format
+    #        1) transcript: transcript IDS
+    #        2) trt: values for continuous predictor (e.g. temperature)
+    #        3) exp: expression values (e.g. TPM) 
     #       columns should be ordered by expression values at each assayed level
     #  vals: values that expression were assayed against. same order as columns of 'mat'
     #  qcrit: critical q-value for siginificant hits. default = 0.05
@@ -57,8 +60,8 @@ RxNseq <- function(mat, qcrit = 0.05, makeplots = TRUE, prefix="RxN") {
     ##########################################################################
 
     # plyr: split by Transcript, fit lm model to treatment values, return pvals and coefficients
-    dd <- ddply(mat, .(Transcript), function(df) {
-        lmout <- lm(TPM ~ trt + I(trt^2), data = df)
+    dd <- ddply(mat, .(transcript), function(df) {
+        lmout <- lm(exp ~ trt + I(trt^2), data = df)
         return(c(pval = lmp(lmout),
                  coef(lmout)))
     })
