@@ -34,10 +34,6 @@ library(topGO)
 suppressMessages(library(Rgraphviz))
 library(Rgraphviz)
 
-
-# knitr options
-opts_chunk$set(cache=TRUE)
-
 # load custom functions
 source("RxNseq.R")
 ```
@@ -181,7 +177,7 @@ Then, for each sample, run the following command:
 
 which I looped in an R script.                                                 
                                                  
-```{r sailfish, eval=TRUE, echo=TRUE}
+```{r sailfish, eval=TRUE, echo=TRUE, cache=TRUE}
 # directory containing trimmed reads
 readdir <- "../data/ind_files/" 
 
