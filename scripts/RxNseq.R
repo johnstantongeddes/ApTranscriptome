@@ -15,23 +15,22 @@ read.sailfish.quant <- function(filein, outname, samp, trtval) {
     #head(file.df)
     # add columns with sample ID and treatment
     file.df$sample <- samp
-    file.df$trt <- trtval
+    file.df$val <- trtval
     assign(outname, file.df, envir = .GlobalEnv)
 }
 
 
 
-RxNseq <- function(mat, qcrit = 0.05, makeplots = TRUE, prefix="RxN") {
+RxNseq <- function(mat, model = 1, makeplots = TRUE, prefix="RxN") {
     # Identify transcripts with significant reaction norms against a continuous variable
     #
     # Args:
     #  mat: three-column matrix in long format
     #        1) transcript: transcript IDS
-    #        2) trt: values for continuous predictor (e.g. temperature)
+    #        2) val: values for continuous predictor (e.g. temperature)
     #        3) exp: expression values (e.g. TPM) 
     #       columns should be ordered by expression values at each assayed level
-    #  vals: values that expression were assayed against. same order as columns of 'mat'
-    #  qcrit: critical q-value for siginificant hits. default = 0.05
+    #  model: fit a linear (1) or quadratic (2) model. defaul = 1
     #  makeplots: should plots be generated? default = TRUE
     #  prefix: prefix for generated files. default="RxNseq"
     #
@@ -47,6 +46,15 @@ RxNseq <- function(mat, qcrit = 0.05, makeplots = TRUE, prefix="RxN") {
     require(qvalue)
     require(plyr)
 
+    # check that 'model' is 1 or 2
+    stopifnot(model %in% 1:2)
+    # check 'mat' correct format
+    if(ncol(mat) != 3) stop("Input mat incorrect dimensions")
+    # check 'mat' column names
+    stopifnot("transcript" %in% colnames(mat))
+    stopifnot("val" %in% colnames(mat))
+    stopifnot("exp" %in% colnames(mat))
+    
     #########################################################################
     # Function to report overall model P-value
 
@@ -59,13 +67,28 @@ RxNseq <- function(mat, qcrit = 0.05, makeplots = TRUE, prefix="RxN") {
     }
     ##########################################################################
 
-    # plyr: split by Transcript, fit lm model to treatment values, return pvals and coefficients
-    dd <- ddply(mat, .(transcript), function(df) {
-        lmout <- lm(exp ~ trt + I(trt^2), data = df)
+    # if coef=1, fit linear model only
+    if(model==1) {
+        dd <- ddply(mat, .(transcript), function(df) {
+        lmout <- lm(exp ~ val, data = df)
         return(c(pval = lmp(lmout),
-                 coef(lmout)))
-    })
+                 intercept = coef(lmout)[[1]],
+                 lin.coef = coef(lmout)[[2]]))
+        })
+        
+    } else { # fit quadratic model
+        # plyr: split by Transcript, fit lm model to treatment values, return pvals and coefficients
+        dd <- ddply(mat, .(transcript), function(df) {
+        lmout <- lm(exp ~ val + I(val^2), data = df)
+        return(c(pval = lmp(lmout),
+                 intercept = coef(lmout)[[1]],
+                 lin.coef = coef(lmout)[[2]],
+                 quad.coef = coef(lmout)[[3]]))
+        })
+    
+    }
 
+    
     # False discovery rate correction with q-value
     # Remove NA pvals due to all expression values being zero. These have no expression and thus makes no sense to test for differential expression
     pvals.pos <- which(!is.na(dd$pval))
@@ -136,3 +159,4 @@ geneid2GOmap <- function(annotmat) {
 } # end function
 
     
+

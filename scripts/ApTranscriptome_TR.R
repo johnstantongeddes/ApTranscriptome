@@ -32,7 +32,6 @@ library(plyr)
 library(qvalue) 
 library(topGO) 
 suppressMessages(library(Rgraphviz))
-library(Rgraphviz)
 
 # load custom functions
 source("RxNseq.R")
@@ -139,7 +138,7 @@ pandoc.table(assemstats, style="rmarkdown", caption = "Table 1: Statistics for T
 ```
 
 
-## Annotation ##
+## Transcriptome annotation ##
 
 Annotation was performed by uploading the reduced assembly "Trinity_cap3_uclust.fasta" to the web-based annotation program [FastAnnotator](http://fastannotator.cgu.edu.tw/index.php) `r citep("10.1186/1471-2164-13-S7-S9")`.
 
@@ -172,10 +171,9 @@ Make a directory for the expression values
 
 Then, for each sample, run the following command:
                                                  
-    sailfish -i sailfish-index -o sailfish-expression/A22-0 --reads A22-0_ATCACG.paired.left.fastq A22-0_ATCACG.paired.right.fastq A22-0_ATCACG.unpaired.left.fastq A22-0_ATCACG.unpaired.right.fastq
--p 4
+    sailfish -i sailfish-index -o sailfish-expression/A22-0 --reads A22-0_ATCACG.paired.left.fastq A22-0_ATCACG.paired.right.fastq A22-0_ATCACG.unpaired.left.fastq A22-0_ATCACG.unpaired.right.fastq -p 4
 
-which I looped in an R script.                                                 
+Or, with a loop:                                                 
                                                  
 ```{r sailfish, eval=TRUE, echo=TRUE, cache=TRUE}
 # directory containing trimmed reads
@@ -248,16 +246,16 @@ str(A22.TPM)
 # convert to data.table
 
 A22.TPM.dt <- data.table(A22.TPM)
-setkey(A22.TPM.dt, Transcript, trt)
+setkey(A22.TPM.dt, Transcript, val)
 
 # set "trt" to true values - truncated in file names for convenience
 
-A22.TPM.dt[trt==3,trt:=3.5]
-A22.TPM.dt[trt==10,trt:=10.5]
-A22.TPM.dt[trt==17,trt:=17.5]
-A22.TPM.dt[trt==24,trt:=24.5]
-A22.TPM.dt[trt==31,trt:=31.5]
-A22.TPM.dt[trt==38,trt:=38.5]
+A22.TPM.dt[val==3,val:=3.5]
+A22.TPM.dt[val==10,val:=10.5]
+A22.TPM.dt[val==17,val:=17.5]
+A22.TPM.dt[val==24,val:=24.5]
+A22.TPM.dt[val==31,val:=31.5]
+A22.TPM.dt[val==38,val:=38.5]
 head(A22.TPM.dt)
 str(A22.TPM.dt)
 
@@ -265,13 +263,13 @@ str(A22.TPM.dt)
 # Repeat for Ar
 Ar.TPM <- rbind(Ar_0_quant, Ar_3_quant, Ar_7_quant, Ar_10_quant, Ar_14_quant, Ar_17_quant, Ar_21_quant, Ar_24_quant, Ar_28_quant, Ar_31_quant, Ar_35_quant, Ar_38_quant)
 Ar.TPM.dt <- data.table(Ar.TPM)
-setkey(Ar.TPM.dt, Transcript, trt)
-Ar.TPM.dt[trt==3,trt:=3.5]
-Ar.TPM.dt[trt==10,trt:=10.5]
-Ar.TPM.dt[trt==17,trt:=17.5]
-Ar.TPM.dt[trt==24,trt:=24.5]
-Ar.TPM.dt[trt==31,trt:=31.5]
-Ar.TPM.dt[trt==38,trt:=38.5]
+setkey(Ar.TPM.dt, Transcript, val)
+Ar.TPM.dt[val==3,val:=3.5]
+Ar.TPM.dt[val==10,val:=10.5]
+Ar.TPM.dt[val==17,val:=17.5]
+Ar.TPM.dt[val==24,val:=24.5]
+Ar.TPM.dt[val==31,val:=31.5]
+Ar.TPM.dt[val==38,val:=38.5]
 head(Ar.TPM.dt)
 str(Ar.TPM.dt)
 
@@ -294,30 +292,30 @@ Preliminary [examination]() of the data indicated that the A22_7 and Ar_7 sample
 
 # remove values at temperature 7C
 
-A22.TPM.dt.sub <- A22.TPM.dt[trt != 7]
-unique(A22.TPM.dt.sub$trt) # values with trt==7 correctly removed
+A22.TPM.dt.sub <- A22.TPM.dt[val != 7]
+unique(A22.TPM.dt.sub$val) # values with val==7 correctly removed
 
 # format for RxNseq function
 
-A22mat <- A22.TPM.dt[, list(Transcript, trt, TPM)]
-setnames(A22mat, c("transcript", "trt", "exp"))
+A22mat <- A22.TPM.dt[, list(Transcript, val, TPM)]
+setnames(A22mat, c("transcript", "val", "exp"))
 setkey(A22mat, transcript)
 
-RxNseq(mat = A22mat, qcrit = 0.05, makeplots = TRUE, prefix = "A22")
+RxNseq(mat = A22mat, model = 2, makeplots = TRUE, prefix = "A22")
 
 ### Repeat for Ar
 
 # remove values at temperature 7C
 
-Ar.TPM.dt.sub <- Ar.TPM.dt[trt != 7]
-unique(Ar.TPM.dt.sub$trt) # values with trt==7 correctly removed
+Ar.TPM.dt.sub <- Ar.TPM.dt[val != 7]
+unique(Ar.TPM.dt.sub$val) # values with val==7 correctly removed
 
 # format for RxNseq function
-Armat <- Ar.TPM.dt[, list(Transcript, trt, TPM)]
-setnames(Armat, c("transcript", "trt", "exp"))
+Armat <- Ar.TPM.dt[, list(Transcript, val, TPM)]
+setnames(Armat, c("transcript", "val", "exp"))
 setkey(Armat, transcript)
 
-RxNseq(mat = Armat, qcrit = 0.05, makeplots = TRUE, prefix = "Ar")
+RxNseq(mat = Armat, model = 2, makeplots = TRUE, prefix = "Ar")
 
 
 save.image("RxN_results.RData")
@@ -330,7 +328,7 @@ While many transcripts have significant P-values, few reach q < 0.05, so use q <
 
 In the previous section, I identified transcripts that show significant responses in expression against temperature. Next, I add gene annotation and ontology information to these transcripts.  
 
-```{r RxN_annotation}
+```{r RxN_annotation, eval=FALSE}
 
 ## Convert RxN df to data.tables for fast sort and merge
 A22.RxN.dt <- data.table(A22_RxN)
@@ -351,7 +349,7 @@ A22.RxN.G.qcrit <- A22.RxN.G[qval < 0.1]
 dim(A22.RxN.G.qcrit)
 
 # Save significant transcripts with best hits and GO to file
-write.table(A22.RxN.G.qcrit[,list(Sequence.Name, best.hit.to.nr, GO.Biological.Process, GO.Cellular.Component, GO.Molecular.Function, Enzyme, Domain, annotation.type, pval, qval, '(Intercept)', trt, 'I(trt^2)')], file = "A22_signif_transcripts_GO.txt", quote = FALSE, sep = "\t", row.names = FALSE)
+write.table(A22.RxN.G.qcrit[,list(Sequence.Name, best.hit.to.nr, GO.Biological.Process, GO.Cellular.Component, GO.Molecular.Function, Enzyme, Domain, annotation.type, pval, qval, intercept, lin.coef, quad.coef)], file = "A22_signif_transcripts_GO.txt", quote = FALSE, sep = "\t", row.names = FALSE)
 
 # Repeat for Ar
 Ar.RxN.dt <- data.table(Ar_RxN)
@@ -360,7 +358,7 @@ setkey(Ar.RxN.dt, transcript)
 Ar.RxN.G <- annotationtable[Ar.RxN.dt]
 Ar.RxN.G.qcrit <- Ar.RxN.G[Ar.RxN.G$qval < 0.1]
 dim(Ar.RxN.G.qcrit)
-write.table(Ar.RxN.G.qcrit[,list(Sequence.Name, best.hit.to.nr, GO.Biological.Process, GO.Cellular.Component, GO.Molecular.Function, Enzyme, Domain, annotation.type, pval, qval, '(Intercept)', trt, 'I(trt^2)')], file = "Ar_signif_transcripts_GO.txt", quote = FALSE, sep = "\t", row.names = FALSE)
+write.table(Ar.RxN.G.qcrit[,list(Sequence.Name, best.hit.to.nr, GO.Biological.Process, GO.Cellular.Component, GO.Molecular.Function, Enzyme, Domain, annotation.type, pval, qval, intercept, lin.coef, quad.coef)], file = "A22_signif_transcripts_GO.txt", quote = FALSE, sep = "\t", row.names = FALSE)
 ```
 
 ## Plot responsive genes ##
@@ -379,12 +377,12 @@ head(A22plot.dt)
 
 # plot
 
-p <- ggplot(A22plot.dt, aes(x=trt, y=exp.scaled, group=transcript))
-p + geom_line(aes(colour = trt.1)) + scale_colour_gradient(low="red")
+p <- ggplot(A22plot.dt, aes(x=val, y=exp.scaled, group=transcript))
+p + geom_line(aes(colour = lin.coef)) + scale_colour_gradient(low="red")
 
 pdf("A22_expression_ggplot.pdf")
-  p <- ggplot(A22plot.dt, aes(x=trt, y=exp.scaled, group=transcript))
-  p + geom_line(aes(colour = trt.1)) + scale_colour_gradient(low="red")
+  p <- ggplot(A22plot.dt, aes(x=val, y=exp.scaled, group=transcript))
+  p + geom_line(aes(colour = lin.coef)) + scale_colour_gradient(low="red")
 dev.off()
 
 ```
@@ -395,7 +393,44 @@ shock, potentially with some overlap. Therefore, proceed by splitting analysis i
 (0 - 17.5 C) and 'high' temperature groups. Repeat analysis, fitting linear model with linear
 coefficient only.
 
+**1. Identify responsive genes at low temperatures**
 
+```{r RxNlow, echo=TRUE, eval=TRUE}
+
+# Subset data to 'low' and 'high' sets
+setkey(A22mat, val)
+A22matlow <- A22mat[J(c(0, 3.5, 10.5, 14.0, 17.5))]
+dim(A22matlow)
+unique(A22matlow$val)
+
+A22mathigh <- A22mat[J(c(17.5, 21.0, 24.5, 28.0, 31.5, 35.0, 38.5))]
+dim(A22mathigh)
+unique(A22mathigh$val)
+
+# Identify transcripts showing significant linear response against temperature for each subset
+RxNseq(mat = A22matlow, model = 1, makeplots = TRUE, prefix = "A22low")
+RxNseq(mat = A22mathigh, model = 1, makeplots = TRUE, prefix = "A22high")
+
+
+# Repeat for Ar
+
+setkey(Armat, val)
+Armatlow <- Armat[J(c(0, 3.5, 10.5, 14.0, 17.5))]
+dim(Armatlow)
+unique(Armatlow$val)
+
+Armathigh <- Armat[J(c(17.5, 21.0, 24.5, 28.0, 31.5, 35.0, 38.5))]
+dim(Armathigh)
+unique(A22mathigh$val)
+
+# Identify transcripts showing significant linear response against temperature for each subset
+RxNseq(mat = A22matlow, model = 1, makeplots = TRUE, prefix = "A22low")
+RxNseq(mat = A22mathigh, model = 1, makeplots = TRUE, prefix = "A22high")
+
+save.image("RxN_results.RData")
+```
+
+Continue from here...
 
 ```{r hists, echo=FALSE, eval=FALSE}
 
