@@ -29,7 +29,7 @@ library(plyr)
 #biocLite("topGO")
 #biocLite("qvalue")
 #biocLite("Rgraphviz")
-library(qvalue) 
+suppressMessages(library(qvalue))
 library(topGO) 
 suppressMessages(library(Rgraphviz))
 
@@ -297,11 +297,12 @@ unique(A22.TPM.dt.sub$val) # values with val==7 correctly removed
 
 # format for RxNseq function
 
-A22mat <- A22.TPM.dt[, list(Transcript, val, TPM)]
-setnames(A22mat, c("transcript", "val", "exp"))
-setkey(A22mat, transcript)
+A22.TPM.dt.sub <- A22.TPM.dt.sub[, list(Transcript, val, TPM)]
+setnames(A22.TPM.dt.sub, c("transcript", "val", "exp"))
+setkey(A22.TPM.dt.sub, transcript)
 
-RxNseq(mat = A22mat, model = 2, makeplots = TRUE, prefix = "A22")
+RxNseq(mat = A22.TPM.dt.sub, model = 2, makeplots = TRUE, prefix = "A22quad")
+RxNseq(mat = A22.TPM.dt.sub, model = 1, makeplots = TRUE, prefix = "A22linear")
 
 ### Repeat for Ar
 
@@ -315,13 +316,18 @@ Armat <- Ar.TPM.dt[, list(Transcript, val, TPM)]
 setnames(Armat, c("transcript", "val", "exp"))
 setkey(Armat, transcript)
 
-RxNseq(mat = Armat, model = 2, makeplots = TRUE, prefix = "Ar")
+RxNseq(mat = Armat, model = 2, makeplots = TRUE, prefix = "ARquad")
+RxNseq(mat = Armat, model = 1, makeplots = TRUE, prefix = "ARlinear")
 
 
 save.image("RxN_results.RData")
 ```
 
-While many transcripts have significant P-values, few reach q < 0.05, so use q < 0.1 as the critical threshold.
+While many transcripts have significant P-values, few reach q < 0.05. Examining the distribution of P-values shows that this is because P-values are not estimated without bias. Though the lowest bin (P < 0.05) is the highest for A22 and third highest for Ar, other bins also have an excess of P-values. Interestingly, these are the same for the two colonies: 0.3 - 0.35 and 0.55 - 0.65. This excess of P-values causes and inflated estimate of pi_0 which decreases the number of FDR significant hits.
+
+As this part of the analysis is hypothesis *generating*, that is, I am using P-values to grab a set of potential candidates, rather than hypothesis-testing, I will use a simple correction of taking the top hits after removing the number expected simply due to multiple testing.
+
+For A22, there 99,811 tests performed yielding `r 99811 * 0.05` expected false hits, so I will retain the top `r 11846 - round(99811 * 0.05, 0)` hits, and for Ar there are 93,080 tests so I will retain the top `r 7537 - round(93080 * 0.05, 0)` hits.
 
 
 ## Functional annotation ##
@@ -344,8 +350,9 @@ tables()
 A22.RxN.G <- annotationtable[A22.RxN.dt]
 str(A22.RxN.G)
 
-# Pull out transcripts with q < 0.1 for each colony, order by qval
-A22.RxN.G.qcrit <- A22.RxN.G[qval < 0.1]
+# Order by p-value, and pull out hits expected beyond those found by chance
+A22.RxN.G <- A22.RxN.G[order(A22.RxN.G$pval), ]
+A22.RxN.G.qcrit <- A22.RxN.G[1:6855, ]
 dim(A22.RxN.G.qcrit)
 
 # Save significant transcripts with best hits and GO to file
@@ -356,8 +363,10 @@ Ar.RxN.dt <- data.table(Ar_RxN)
 head(Ar.RxN.dt)
 setkey(Ar.RxN.dt, transcript)
 Ar.RxN.G <- annotationtable[Ar.RxN.dt]
-Ar.RxN.G.qcrit <- Ar.RxN.G[Ar.RxN.G$qval < 0.1]
-dim(Ar.RxN.G.qcrit)
+Ar.RxN.G <- Ar.RxN.G[order(Ar.RxN.G$pval), ]
+Ar.RxN.G.qcrit <- A22.RxN.G[1:2883, ]
+dim(A22.RxN.G.qcrit)
+
 write.table(Ar.RxN.G.qcrit[,list(Sequence.Name, best.hit.to.nr, GO.Biological.Process, GO.Cellular.Component, GO.Molecular.Function, Enzyme, Domain, annotation.type, pval, qval, intercept, lin.coef, quad.coef)], file = "A22_signif_transcripts_GO.txt", quote = FALSE, sep = "\t", row.names = FALSE)
 ```
 
@@ -368,24 +377,67 @@ Annotate by GO term.
 
 ```{r plots, echo=FALSE, eval=FALSE}
 # combine expression and annotation data for responsive transcripts
-A22plot.dt <- A22mat[A22.RxN.G.qcrit]
+setkey(A22.TPM.dt.sub, transcript)
+A22plot.dt <- A22.TPM.dt.sub[A22.RxN.G.qcrit]
 dim(A22plot.dt)
+
+# for each transcript, identify temperature of max expression
+A22.max.min.exp <- ddply(A22plot.dt, .(transcript), function(df) {
+    lmout <- lm(exp ~ val  + I(val^2), data = df)
+    vals <- c(0, 3.5, 10, 14, 17.5, 21, 24.5, 28, 31.5, 35, 38.5)
+    pout <- predict(lmout)
+    return(c(max.val = vals[which(pout == max(pout))],
+             min.val = vals[which(pout == min(pout))]))
+    }
+)
+
+dim(A22.max.min.exp)
+head(A22.max.min.exp)
+
+table(A22.max.min.exp$max.val)
+table(A22.max.min.exp$min.val)
+
+
+# separate 'high' and 'low' responsive transcripts
+
+A22.high <- A22.max.min.exp[which(A22.max.min.exp$max.val > 31), ]
+dim(A22.high)
+
+A22.low <- A22.max.min.exp[which(A22.max.min.exp$max.val < 4), ]
+dim(A22.low)
+
+
+# Plot
+A22.high <- data.table(A22.high)
+setkey(A22.high, transcript)
+A22.high.dt <- A22plot.dt[A22.high]
+A22.low <- data.table(A22.low)
+setkey(A22.low, transcript)
+A22.low.dt <- A22plot.dt[A22.low]
+# combine
+A22plot.dt <- rbind(A22.high.dt, A22.low.dt)
+
 
 # scale expression values 
 A22plot.dt[,exp.scaled:=scale(exp), by = transcript]
-head(A22plot.dt)
+dim(A22plot.dt)
 
 # plot
 
-p <- ggplot(A22plot.dt, aes(x=val, y=exp.scaled, group=transcript))
-p + geom_line(aes(colour = lin.coef)) + scale_colour_gradient(low="red")
+p <- ggplot(A22.high.dt, aes(x=val, y=exp.scaled, group=transcript))
+p + geom_line(aes(colour = max.val)) + scale_colour_gradient(low="red")
 
 pdf("A22_expression_ggplot.pdf")
   p <- ggplot(A22plot.dt, aes(x=val, y=exp.scaled, group=transcript))
-  p + geom_line(aes(colour = lin.coef)) + scale_colour_gradient(low="red")
+  p + geom_line(aes(colour = max.val)) + scale_colour_gradient(low="red")
 dev.off()
 
+pdf("A22_high_expression_smooth_ggplot.pdf")
+  p <- ggplot(A22.high.dt, aes(x=val, y=exp.scaled, group=transcript))
+  p + geom_smooth(aes(colour = lin.coef)) + scale_colour_gradient(low="red")
+dev.off()
 ```
+
 
 Expression is globally lowest at 'middle' temperatures. Biologically, it makes sense that some
 genes are activated in response to cold-shock, while others are activated in response to cold
@@ -398,39 +450,78 @@ coefficient only.
 ```{r RxNlow, echo=TRUE, eval=TRUE}
 
 # Subset data to 'low' and 'high' sets
-setkey(A22mat, val)
-A22matlow <- A22mat[J(c(0, 3.5, 10.5, 14.0, 17.5))]
-dim(A22matlow)
-unique(A22matlow$val)
+setkey(A22.TPM.dt.sub, val)
+A22.TPM.dt.sublow <- A22.TPM.dt.sub[J(c(0, 3.5, 10.5, 14.0, 17.5, 21.0))]
+dim(A22.TPM.dt.sublow)
+unique(A22.TPM.dt.sublow$val)
 
-A22mathigh <- A22mat[J(c(17.5, 21.0, 24.5, 28.0, 31.5, 35.0, 38.5))]
-dim(A22mathigh)
-unique(A22mathigh$val)
+A22.TPM.dt.subhigh <- A22.TPM.dt.sub[J(c(17.5, 21.0, 24.5, 28.0, 31.5, 35.0, 38.5))]
+dim(A22.TPM.dt.subhigh)
+unique(A22.TPM.dt.subhigh$val)
 
 # Identify transcripts showing significant linear response against temperature for each subset
-RxNseq(mat = A22matlow, model = 1, makeplots = TRUE, prefix = "A22low")
-RxNseq(mat = A22mathigh, model = 1, makeplots = TRUE, prefix = "A22high")
+RxNseq(mat = A22.TPM.dt.sublow, model = 1, makeplots = TRUE, prefix = "A22low")
+RxNseq(mat = A22.TPM.dt.subhigh, model = 1, makeplots = TRUE, prefix = "A22high")
 
 
 # Repeat for Ar
 
 setkey(Armat, val)
-Armatlow <- Armat[J(c(0, 3.5, 10.5, 14.0, 17.5))]
+Armatlow <- Armat[J(c(0, 3.5, 10.5, 14.0, 17.5, 21.0))]
 dim(Armatlow)
 unique(Armatlow$val)
 
 Armathigh <- Armat[J(c(17.5, 21.0, 24.5, 28.0, 31.5, 35.0, 38.5))]
 dim(Armathigh)
-unique(A22mathigh$val)
+unique(A22.TPM.dt.subhigh$val)
 
 # Identify transcripts showing significant linear response against temperature for each subset
-RxNseq(mat = A22matlow, model = 1, makeplots = TRUE, prefix = "A22low")
-RxNseq(mat = A22mathigh, model = 1, makeplots = TRUE, prefix = "A22high")
+RxNseq(mat = A22.TPM.dt.sublow, model = 1, makeplots = TRUE, prefix = "A22low")
+RxNseq(mat = A22.TPM.dt.subhigh, model = 1, makeplots = TRUE, prefix = "A22high")
 
 save.image("RxN_results.RData")
 ```
 
-Continue from here...
+Reduced power due to smaller dataset gives zero significant hits.
+Expect `r round(87363 * 0.05, 0)` hits by chance and only get 4277 at P < 0.05.
+
+```{r compare_all_high}
+# Pull out significant transcripts beyond those expected by chance
+
+A22high.RxN.dt <- data.table(A22high_RxN)
+head(A22high.RxN.dt)
+setkey(A22high.RxN.dt, transcript)
+A22high.RxN.G <- annotationtable[A22high.RxN.dt]
+
+# In absence of any significance, use top 1k hits
+A22high.RxN.G <- A22high.RxN.G[order(A22high.RxN.G$pval), ]
+A22high.RxN.G.qcrit <- A22high.RxN.G[1:1000, ]
+dim(A22high.RxN.G.qcrit)
+```
+
+Of the top 1000 hits looking at 'low' temperatures only, `r length(which(A22high.RxN.G.qcrit$Sequence.Name %in% A22.RxN.G.qcrit$Sequence.Name))` are also in the overall responsive group.
+
+And now look at the number of low hits also in the overall:
+
+```{r compare_all_low}
+# Pull out significant transcripts beyond those expected by chance
+
+A22low.RxN.dt <- data.table(A22low_RxN)
+head(A22low.RxN.dt)
+setkey(A22low.RxN.dt, transcript)
+A22low.RxN.G <- annotationtable[A22low.RxN.dt]
+
+# In absence of any significance, use top 1k hits
+A22low.RxN.G <- A22low.RxN.G[order(A22low.RxN.G$pval), ]
+A22low.RxN.G.qcrit <- A22low.RxN.G[1:1000, ]
+dim(A22low.RxN.G.qcrit)
+```
+
+Of the top 1000 hits looking at 'low' temperatures only, `r length(which(A22low.RxN.G.qcrit$Sequence.Name %in% A22.RxN.G.qcrit$Sequence.Name))` are also in the overall responsive group.
+
+
+Given about 30% overlap, but low power for the responsive gene identification split into 'low' and 'high' groups, continue analysis using overall. 
+
 
 ```{r hists, echo=FALSE, eval=FALSE}
 
@@ -487,14 +578,14 @@ str(head(geneID2GO))
 
 # create geneList. note that NA values cause problems with topGO
 # need to retain these for full ontology, so set NA to 1
-A22geneList <- A22_RxN$qval
+A22geneList <- A22_RxN$pval
 A22geneList[which(is.na(A22geneList))] <- 1
-names(A22geneList) <- A22_RxN$Transcript
+names(A22geneList) <- A22_RxN$transcript
 str(A22geneList)
 
-# create function to select significant genes for topGO
-selectFDR <- function(qvalue) {
-    return(qvalue < 0.05)
+# Function to select top genes (defined above)
+selectFDR <- function(pvalue) {
+    return(pvalue < 0.033196)
 }
 
 # create topGOdata object
@@ -583,14 +674,14 @@ Perform gene enrichment analysis for Ar. As there were no genes significant at q
 
 # create geneList. note that NA values cause problems with topGO
 # need to retain these for full ontology, so set NA to 1
-ArgeneList <- Ar_RxN$qval
+ArgeneList <- Ar_RxN$pval
 ArgeneList[which(is.na(ArgeneList))] <- 1
-names(ArgeneList) <- Ar_RxN$Transcript
+names(ArgeneList) <- Ar_RxN$transcript
 str(ArgeneList)
 
 # create function to select significant genes for topGO
-selectFDR1 <- function(qvalue) {
-    return(qvalue < 0.1)
+selectFDR1 <- function(pvalue) {
+    return(pvalue < 0.010232)
 }
 
 
