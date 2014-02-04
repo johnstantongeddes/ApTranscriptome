@@ -276,6 +276,34 @@ str(Ar.TPM.dt)
 tables()
 ```
 
+Examine correlations among expression levels at each temperature between the two colonies.
+
+```{r exp_correlations}
+cor.test(Ar_0_quant$TPM, A22_0_quant$TPM)
+cor.test(Ar_3_quant$TPM, A22_3_quant$TPM)
+cor.test(Ar_7_quant$TPM, A22_7_quant$TPM)
+cor.test(Ar_10_quant$TPM, A22_10_quant$TPM)
+cor.test(Ar_14_quant$TPM, A22_14_quant$TPM)
+cor.test(Ar_17_quant$TPM, A22_17_quant$TPM)
+cor.test(Ar_21_quant$TPM, A22_21_quant$TPM)
+cor.test(Ar_24_quant$TPM, A22_24_quant$TPM)
+cor.test(Ar_28_quant$TPM, A22_28_quant$TPM)
+cor.test(Ar_31_quant$TPM, A22_31_quant$TPM)
+cor.test(Ar_35_quant$TPM, A22_35_quant$TPM)
+
+
+temp <- c(0, 3.5, 7, 10.5, 14, 17.5, 21, 24.5, 28, 31.5, 35, 38.5)
+cors <- c(round(cor(Ar_0_quant$TPM, A22_0_quant$TPM), 2), round(cor(Ar_3_quant$TPM, A22_3_quant$TPM), 2), round(cor(Ar_7_quant$TPM, A22_7_quant$TPM), 2), round(cor(Ar_10_quant$TPM, A22_10_quant$TPM), 2), round(cor(Ar_14_quant$TPM, A22_14_quant$TPM), 2), round(cor(Ar_17_quant$TPM, A22_17_quant$TPM), 2), round(cor(Ar_21_quant$TPM, A22_21_quant$TPM), 2), round(cor(Ar_24_quant$TPM, A22_24_quant$TPM), 2), round(cor(Ar_28_quant$TPM, A22_28_quant$TPM), 2), round(cor(Ar_31_quant$TPM, A22_31_quant$TPM), 2), round(cor(Ar_35_quant$TPM, A22_35_quant$TPM), 2), round(cor(Ar_38_quant$TPM, A22_38_quant$TPM), 2))
+
+cortable <- cbind(temp, cors)
+
+pandoc.table(cortable, style="rmarkdown"
+
+```
+
+Expression levels are *highly* correlated between colonies. 
+
+
 ## Identification of thermally-responsive genes
 
 For each colony, identify genes that have a significant linear or quadratic regression by fitting the linear model to the expression levels at each temperature for each transcript
