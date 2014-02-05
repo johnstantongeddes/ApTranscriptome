@@ -21,14 +21,17 @@ read.sailfish.quant <- function(filein, outname, samp, trtval) {
 
 
 
-RxNseq <- function(f, model = "NA", prefix="RxN") {
+RxNseq <- function(f, model = "NA") {
     # Identify transcripts with significant reaction norms against a continuous variable
     #
     # Args:
-    #  f: data.frame in long format. must contain columns specified in model formula
-    #  model: model formula, e.g. "TPM ~ colony + val"
-    #  makeplots: should plots be generated? default = TRUE
-    #  prefix: prefix for generated files. default="RxNseq"
+    #  f: data.frame in long format. must contain columns specified in model formula.
+    #     column with name "Transcript" must exist for proper split-apply
+    #  model: model formula
+    #     NOTE - for function to work correctly, each model term must be separated
+    #     by a single space. for example:
+    #            TPM ~ colony + val + colony:val
+    #     it is important that interactions are grouped together, no spaces
     #
     # Returns:
     #  Returns dataframe with p-value and regression coefficients
@@ -54,20 +57,23 @@ RxNseq <- function(f, model = "NA", prefix="RxN") {
         # fit model
         lmout <- eval(parse(text = paste("lm(", model, ", data = f)", sep = "")))
         Fvals <- anova(lmout)$'Pr(>F)'
+
         # assign coefficients only for significant terms, else NA
+        coefvec <- vector()
+        coefnames <- unlist(str_split(model, pattern = " "))
+        coefnames <- coefnames[c(TRUE,FALSE)][-1]
+        
         for(i in 1:(length(Fvals)-1)) { # skip last value which is residuals
-            assign(paste("coef", i, sep=""), ifelse(Fvals[i] < 0.05, Fvals[i], NA))
+            coefval <- ifelse(Fvals[i] < 0.05, Fvals[i], NA)
+            coefvec <- append(coefvec, coefval)
+            names(coefvec)[i] <- coefnames[i]
         }
+        
         # return values
         return(c(pval = lmp(lmout),
-                 coef1 = coef1,
-                 coef2 = coef2))
+                 coefvec))
         } # end function
     ) # end ddply
-
-    # return this dataframe
-#    assign(paste(prefix, "_RxN", sep=""), dd, envir = .GlobalEnv)
-    
 } # end function
 
 

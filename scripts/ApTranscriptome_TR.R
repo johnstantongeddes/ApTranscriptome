@@ -314,22 +314,13 @@ str(TPM.dt)
 
 # define model for RxN function
 
-model <- "TPM ~ colony + val + I(val^2) + colony * val + colony * I(val^2)"
+model <- "TPM ~ colony + val + I(val^2) + colony:val + colony:I(val^2)"
 
 # identify responsive transcripts
-t1testRXN <- RxNseq(f = dt, model = model, prefix = "TPMcombined")
-
-RxNseq(f = TPM.dt, model = model, prefix = "TPMcombined")
-
+RxNout <- RxNseq(f = f100, model = model)
 
 save.image("RxN_combined_results.RData")
 ```
-
-While many transcripts have significant P-values, few reach q < 0.05. Examining the distribution of P-values shows that this is because P-values are not estimated without bias. Though the lowest bin (P < 0.05) is the highest for A22 and third highest for Ar, other bins also have an excess of P-values. Interestingly, these are the same for the two colonies: 0.3 - 0.35 and 0.55 - 0.65. This excess of P-values causes and inflated estimate of pi_0 which decreases the number of FDR significant hits.
-
-As this part of the analysis is hypothesis *generating*, that is, I am using P-values to grab a set of potential candidates, rather than hypothesis-testing, I will use a simple correction of taking the top hits after removing the number expected simply due to multiple testing.
-
-For A22, there 99,811 tests performed yielding `r 99811 * 0.05` expected false hits, so I will retain the top `r 11846 - round(99811 * 0.05, 0)` hits, and for Ar there are 93,080 tests so I will retain the top `r 7537 - round(93080 * 0.05, 0)` hits.
 
 
 ## Functional annotation ##
