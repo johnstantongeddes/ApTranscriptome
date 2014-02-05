@@ -21,39 +21,23 @@ read.sailfish.quant <- function(filein, outname, samp, trtval) {
 
 
 
-RxNseq <- function(mat, model = 1, makeplots = TRUE, prefix="RxN") {
+RxNseq <- function(df, model = "NA", prefix="RxN") {
     # Identify transcripts with significant reaction norms against a continuous variable
     #
     # Args:
-    #  mat: three-column matrix in long format
-    #        1) transcript: transcript IDS
-    #        2) val: values for continuous predictor (e.g. temperature)
-    #        3) exp: expression values (e.g. TPM) 
-    #       columns should be ordered by expression values at each assayed level
-    #  model: fit a linear (1) or quadratic (2) model. defaul = 1
+    #  df: data.frame in long format. must contain columns specified in model formula
+    #  model: model formula, e.g. "TPM ~ colony + val"
     #  makeplots: should plots be generated? default = TRUE
     #  prefix: prefix for generated files. default="RxNseq"
     #
     # Returns:
-    #  1) Returns dataframe with p-value, q-value and regression coefficients
-    #     for each transcript
-    #  2) Writes tab-delimited text file of only significant transcripts at qcrit,
-    #       sorted low to high
-    #  3) Saves diagnositic plots for qvalue comparisions if makeplots = TRUE
+    #  Returns dataframe with p-value and regression coefficients
+    #  for each transcript
       
 
     # requires
     require(qvalue)
     require(plyr)
-
-    # check that 'model' is 1 or 2
-    stopifnot(model %in% 1:2)
-    # check 'mat' correct format
-    if(ncol(mat) != 3) stop("Input mat incorrect dimensions")
-    # check 'mat' column names
-    stopifnot("transcript" %in% colnames(mat))
-    stopifnot("val" %in% colnames(mat))
-    stopifnot("exp" %in% colnames(mat))
     
     #########################################################################
     # Function to report overall model P-value
@@ -67,61 +51,13 @@ RxNseq <- function(mat, model = 1, makeplots = TRUE, prefix="RxN") {
     }
     ##########################################################################
 
-    # if coef=1, fit linear model only
-    if(model==1) {
-        dd <- ddply(mat, .(transcript), function(df) {
-        lmout <- lm(exp ~ val, data = df)
+    dd <- ddply(df, .(Transcript), function(df) {
+        lmout <- eval(parse(text = paste("lm(", model, ", data = df)", sep = "")))
         return(c(pval = lmp(lmout),
-                 intercept = coef(lmout)[[1]],
-                 lin.coef = coef(lmout)[[2]]))
-        })
-        
-    } else { # fit quadratic model
-        # plyr: split by Transcript, fit lm model to treatment values, return pvals and coefficients
-        dd <- ddply(mat, .(transcript), function(df) {
-        lmout <- lm(exp ~ val + I(val^2), data = df)
-        return(c(pval = lmp(lmout),
-                 intercept = coef(lmout)[[1]],
-                 lin.coef = coef(lmout)[[2]],
-                 quad.coef = coef(lmout)[[3]]))
-        })
-    
-    }
+                 coef(lmout)))
+        } # end function
+    ) # end ddply
 
-    
-    # False discovery rate correction with q-value
-    # Remove NA pvals due to all expression values being zero. These have no expression and thus makes no sense to test for differential expression
-    pvals.pos <- which(!is.na(dd$pval))
-    pvals <- dd[pvals.pos,"pval"]
-    
-    # Calculate q-values
-    qobj <- qvalue(pvals)
-    #length(qvals$qvalues)
-    qs <- qsummary(qobj)
-    # return q summary
-    assign(paste(prefix, "_qsummary", sep = ""), qs, envir = .GlobalEnv)
-    
-    # Add to mat.new
-    dd$qval <- NA
-    dd$qval[pvals.pos] <- qobj$qvalues
-
-    # Plot qvalue diagnostics if makeplots==TRUE
-    if(makeplots==TRUE) {
-        message("Plotting q-value diagnostics")
-        # q-value diagnostics
-
-        pdf(paste(prefix, "_qval_diag.pdf", sep = ""))
-          qplot(qobj)
-        dev.off()
-
-        pdf(paste(prefix, "_qval_hist.pdf", sep = ""))
-        par(mfrow = c(2,1))
-          hist(pvals)
-          hist(qobj$qvalues)
-        dev.off()
-
-    }
-      
     # return this dataframe
     assign(paste(prefix, "_RxN", sep=""), dd, envir = .GlobalEnv)
     

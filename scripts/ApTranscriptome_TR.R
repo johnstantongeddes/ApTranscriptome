@@ -276,28 +276,15 @@ str(Ar.TPM.dt)
 tables()
 ```
 
-Examine correlations among expression levels at each temperature between the two colonies.
+Note that expression levels at each temperature treatment are highly correlated between the two colonies.
 
-```{r exp_correlations}
-cor.test(Ar_0_quant$TPM, A22_0_quant$TPM)
-cor.test(Ar_3_quant$TPM, A22_3_quant$TPM)
-cor.test(Ar_7_quant$TPM, A22_7_quant$TPM)
-cor.test(Ar_10_quant$TPM, A22_10_quant$TPM)
-cor.test(Ar_14_quant$TPM, A22_14_quant$TPM)
-cor.test(Ar_17_quant$TPM, A22_17_quant$TPM)
-cor.test(Ar_21_quant$TPM, A22_21_quant$TPM)
-cor.test(Ar_24_quant$TPM, A22_24_quant$TPM)
-cor.test(Ar_28_quant$TPM, A22_28_quant$TPM)
-cor.test(Ar_31_quant$TPM, A22_31_quant$TPM)
-cor.test(Ar_35_quant$TPM, A22_35_quant$TPM)
-
-
+```{r exp_correlations, echo=FALSE, results='asis'}
 temp <- c(0, 3.5, 7, 10.5, 14, 17.5, 21, 24.5, 28, 31.5, 35, 38.5)
 cors <- c(round(cor(Ar_0_quant$TPM, A22_0_quant$TPM), 2), round(cor(Ar_3_quant$TPM, A22_3_quant$TPM), 2), round(cor(Ar_7_quant$TPM, A22_7_quant$TPM), 2), round(cor(Ar_10_quant$TPM, A22_10_quant$TPM), 2), round(cor(Ar_14_quant$TPM, A22_14_quant$TPM), 2), round(cor(Ar_17_quant$TPM, A22_17_quant$TPM), 2), round(cor(Ar_21_quant$TPM, A22_21_quant$TPM), 2), round(cor(Ar_24_quant$TPM, A22_24_quant$TPM), 2), round(cor(Ar_28_quant$TPM, A22_28_quant$TPM), 2), round(cor(Ar_31_quant$TPM, A22_31_quant$TPM), 2), round(cor(Ar_35_quant$TPM, A22_35_quant$TPM), 2), round(cor(Ar_38_quant$TPM, A22_38_quant$TPM), 2))
 
 cortable <- cbind(temp, cors)
 
-pandoc.table(cortable, style="rmarkdown"
+pandoc.table(cortable, style="rmarkdown", caption = "correlations between colonies at each temperature treatment")
 
 ```
 
@@ -306,49 +293,34 @@ Expression levels are *highly* correlated between colonies.
 
 ## Identification of thermally-responsive genes
 
-For each colony, identify genes that have a significant linear or quadratic regression by fitting the linear model to the expression levels at each temperature for each transcript
+To identify transcripts (roughly equivalent to genes) that show thermal responsiveness, I fit the following linear model to each transcript:
 
-$$ TPM = \beta_0 + \beta_1(temp) + \beta_2(temp)^2 + \epsilon $$
+$$ TPM = \beta_0 + \beta_1(colony) + \beta_2(temp) + \beta_3(temp^2) + \beta_4(colony * temp) + \\beta_5(colony * temp^2) + epsilon $$
 
-where TPM is transcripts per million, and temp is temperature. 
+where TPM is transcripts per million. 
 
 For this list of P-values, False Discovery Rate (FDR) is applied and q-values are calculated using the [qvalue]() package.
 
-Preliminary [examination]() of the data indicated that the A22_7 and Ar_7 samples may have been switched. To be conservative, I first perform the analysis without these samples.
+Though preliminary [examination]() of the data indicated that the A22_7 and Ar_7 samples may have been switched, this does not influence this analysis as colony is included as a predictor.
 
 ```{r RxN, echo=TRUE, eval=TRUE}
 
-# remove values at temperature 7C
-
-A22.TPM.dt.sub <- A22.TPM.dt[val != 7]
-unique(A22.TPM.dt.sub$val) # values with val==7 correctly removed
-
-# format for RxNseq function
-
-A22.TPM.dt.sub <- A22.TPM.dt.sub[, list(Transcript, val, TPM)]
-setnames(A22.TPM.dt.sub, c("transcript", "val", "exp"))
-setkey(A22.TPM.dt.sub, transcript)
-
-RxNseq(mat = A22.TPM.dt.sub, model = 2, makeplots = TRUE, prefix = "A22quad")
-RxNseq(mat = A22.TPM.dt.sub, model = 1, makeplots = TRUE, prefix = "A22linear")
-
-### Repeat for Ar
-
-# remove values at temperature 7C
-
-Ar.TPM.dt.sub <- Ar.TPM.dt[val != 7]
-unique(Ar.TPM.dt.sub$val) # values with val==7 correctly removed
-
-# format for RxNseq function
-Armat <- Ar.TPM.dt[, list(Transcript, val, TPM)]
-setnames(Armat, c("transcript", "val", "exp"))
-setkey(Armat, transcript)
-
-RxNseq(mat = Armat, model = 2, makeplots = TRUE, prefix = "ARquad")
-RxNseq(mat = Armat, model = 1, makeplots = TRUE, prefix = "ARlinear")
+A22.TPM.dt[,colony:="A22"]
+Ar.TPM.dt[,colony:="Ar"]
+TPM.dt <- rbind(A22.TPM.dt, Ar.TPM.dt)
+TPM.dt$colony <- as.factor(TPM.dt$colony)
+str(TPM.dt)
 
 
-save.image("RxN_results.RData")
+# define model for RxN function
+
+model <- "TPM ~ colony + val + I(val^2) + colony * val + colony * I(val^2)"
+
+# identify responsive transcripts
+
+RxNseq(df = TPM.dt, model = model, prefix = "TPMcombined")
+
+save.image("RxN_combined_results.RData")
 ```
 
 While many transcripts have significant P-values, few reach q < 0.05. Examining the distribution of P-values shows that this is because P-values are not estimated without bias. Though the lowest bin (P < 0.05) is the highest for A22 and third highest for Ar, other bins also have an excess of P-values. Interestingly, these are the same for the two colonies: 0.3 - 0.35 and 0.55 - 0.65. This excess of P-values causes and inflated estimate of pi_0 which decreases the number of FDR significant hits.
@@ -465,90 +437,6 @@ pdf("A22_high_expression_smooth_ggplot.pdf")
   p + geom_smooth(aes(colour = lin.coef)) + scale_colour_gradient(low="red")
 dev.off()
 ```
-
-
-Expression is globally lowest at 'middle' temperatures. Biologically, it makes sense that some
-genes are activated in response to cold-shock, while others are activated in response to cold
-shock, potentially with some overlap. Therefore, proceed by splitting analysis into 'low'
-(0 - 17.5 C) and 'high' temperature groups. Repeat analysis, fitting linear model with linear
-coefficient only.
-
-**1. Identify responsive genes at low temperatures**
-
-```{r RxNlow, echo=TRUE, eval=TRUE}
-
-# Subset data to 'low' and 'high' sets
-setkey(A22.TPM.dt.sub, val)
-A22.TPM.dt.sublow <- A22.TPM.dt.sub[J(c(0, 3.5, 10.5, 14.0, 17.5, 21.0))]
-dim(A22.TPM.dt.sublow)
-unique(A22.TPM.dt.sublow$val)
-
-A22.TPM.dt.subhigh <- A22.TPM.dt.sub[J(c(17.5, 21.0, 24.5, 28.0, 31.5, 35.0, 38.5))]
-dim(A22.TPM.dt.subhigh)
-unique(A22.TPM.dt.subhigh$val)
-
-# Identify transcripts showing significant linear response against temperature for each subset
-RxNseq(mat = A22.TPM.dt.sublow, model = 1, makeplots = TRUE, prefix = "A22low")
-RxNseq(mat = A22.TPM.dt.subhigh, model = 1, makeplots = TRUE, prefix = "A22high")
-
-
-# Repeat for Ar
-
-setkey(Armat, val)
-Armatlow <- Armat[J(c(0, 3.5, 10.5, 14.0, 17.5, 21.0))]
-dim(Armatlow)
-unique(Armatlow$val)
-
-Armathigh <- Armat[J(c(17.5, 21.0, 24.5, 28.0, 31.5, 35.0, 38.5))]
-dim(Armathigh)
-unique(A22.TPM.dt.subhigh$val)
-
-# Identify transcripts showing significant linear response against temperature for each subset
-RxNseq(mat = A22.TPM.dt.sublow, model = 1, makeplots = TRUE, prefix = "A22low")
-RxNseq(mat = A22.TPM.dt.subhigh, model = 1, makeplots = TRUE, prefix = "A22high")
-
-save.image("RxN_results.RData")
-```
-
-Reduced power due to smaller dataset gives zero significant hits.
-Expect `r round(87363 * 0.05, 0)` hits by chance and only get 4277 at P < 0.05.
-
-```{r compare_all_high}
-# Pull out significant transcripts beyond those expected by chance
-
-A22high.RxN.dt <- data.table(A22high_RxN)
-head(A22high.RxN.dt)
-setkey(A22high.RxN.dt, transcript)
-A22high.RxN.G <- annotationtable[A22high.RxN.dt]
-
-# In absence of any significance, use top 1k hits
-A22high.RxN.G <- A22high.RxN.G[order(A22high.RxN.G$pval), ]
-A22high.RxN.G.qcrit <- A22high.RxN.G[1:1000, ]
-dim(A22high.RxN.G.qcrit)
-```
-
-Of the top 1000 hits looking at 'low' temperatures only, `r length(which(A22high.RxN.G.qcrit$Sequence.Name %in% A22.RxN.G.qcrit$Sequence.Name))` are also in the overall responsive group.
-
-And now look at the number of low hits also in the overall:
-
-```{r compare_all_low}
-# Pull out significant transcripts beyond those expected by chance
-
-A22low.RxN.dt <- data.table(A22low_RxN)
-head(A22low.RxN.dt)
-setkey(A22low.RxN.dt, transcript)
-A22low.RxN.G <- annotationtable[A22low.RxN.dt]
-
-# In absence of any significance, use top 1k hits
-A22low.RxN.G <- A22low.RxN.G[order(A22low.RxN.G$pval), ]
-A22low.RxN.G.qcrit <- A22low.RxN.G[1:1000, ]
-dim(A22low.RxN.G.qcrit)
-```
-
-Of the top 1000 hits looking at 'low' temperatures only, `r length(which(A22low.RxN.G.qcrit$Sequence.Name %in% A22.RxN.G.qcrit$Sequence.Name))` are also in the overall responsive group.
-
-
-Given about 30% overlap, but low power for the responsive gene identification split into 'low' and 'high' groups, continue analysis using overall. 
 
 
 ```{r hists, echo=FALSE, eval=FALSE}
