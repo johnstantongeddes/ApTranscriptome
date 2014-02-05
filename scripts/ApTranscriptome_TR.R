@@ -317,8 +317,10 @@ str(TPM.dt)
 model <- "TPM ~ colony + val + I(val^2) + colony * val + colony * I(val^2)"
 
 # identify responsive transcripts
+t1testRXN <- RxNseq(f = dt, model = model, prefix = "TPMcombined")
 
-RxNseq(df = TPM.dt, model = model, prefix = "TPMcombined")
+RxNseq(f = TPM.dt, model = model, prefix = "TPMcombined")
+
 
 save.image("RxN_combined_results.RData")
 ```

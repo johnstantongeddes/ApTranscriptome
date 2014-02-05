@@ -21,11 +21,11 @@ read.sailfish.quant <- function(filein, outname, samp, trtval) {
 
 
 
-RxNseq <- function(df, model = "NA", prefix="RxN") {
+RxNseq <- function(f, model = "NA", prefix="RxN") {
     # Identify transcripts with significant reaction norms against a continuous variable
     #
     # Args:
-    #  df: data.frame in long format. must contain columns specified in model formula
+    #  f: data.frame in long format. must contain columns specified in model formula
     #  model: model formula, e.g. "TPM ~ colony + val"
     #  makeplots: should plots be generated? default = TRUE
     #  prefix: prefix for generated files. default="RxNseq"
@@ -36,7 +36,6 @@ RxNseq <- function(df, model = "NA", prefix="RxN") {
       
 
     # requires
-    require(qvalue)
     require(plyr)
     
     #########################################################################
@@ -51,15 +50,23 @@ RxNseq <- function(df, model = "NA", prefix="RxN") {
     }
     ##########################################################################
 
-    dd <- ddply(df, .(Transcript), function(df) {
-        lmout <- eval(parse(text = paste("lm(", model, ", data = df)", sep = "")))
+    dd <- ddply(f, .(Transcript), function(f) {
+        # fit model
+        lmout <- eval(parse(text = paste("lm(", model, ", data = f)", sep = "")))
+        Fvals <- anova(lmout)$'Pr(>F)'
+        # assign coefficients only for significant terms, else NA
+        for(i in 1:(length(Fvals)-1)) { # skip last value which is residuals
+            assign(paste("coef", i, sep=""), ifelse(Fvals[i] < 0.05, Fvals[i], NA))
+        }
+        # return values
         return(c(pval = lmp(lmout),
-                 coef(lmout)))
+                 coef1 = coef1,
+                 coef2 = coef2))
         } # end function
     ) # end ddply
 
     # return this dataframe
-    assign(paste(prefix, "_RxN", sep=""), dd, envir = .GlobalEnv)
+#    assign(paste(prefix, "_RxN", sep=""), dd, envir = .GlobalEnv)
     
 } # end function
 
