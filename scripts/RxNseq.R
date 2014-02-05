@@ -39,6 +39,7 @@ RxNseq <- function(f, model = "NA") {
       
 
     # requires
+    require(stringr)
     require(plyr)
     
     #########################################################################
@@ -61,7 +62,7 @@ RxNseq <- function(f, model = "NA") {
         # assign coefficients only for significant terms, else NA
         coefvec <- vector()
         coefnames <- unlist(str_split(model, pattern = " "))
-        coefnames <- coefnames[c(TRUE,FALSE)][-1]
+        coefnames <- paste("coef", coefnames[c(TRUE,FALSE)][-1], sep = ".")
         
         for(i in 1:(length(Fvals)-1)) { # skip last value which is residuals
             coefval <- ifelse(Fvals[i] < 0.05, Fvals[i], NA)

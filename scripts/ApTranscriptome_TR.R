@@ -223,7 +223,7 @@ The file *quant_bias_corrected.sf* contains the following columns, following a n
 
 The TPM column for each sample was extracted and combined into a matrix for each colony.
 
-```{r load_expression_data, eval=TRUE, echo=FALSE}
+```{r load_expression_data, eval=TRUE, echo=FALSE, results='hide'}
     
 #  read in each file using loop
 samples <- c("A22-0", "A22-3", "A22-7", "A22-10", "A22-14", "A22-17", "A22-21", "A22-24", "A22-28", "A22-31", "A22-35", "A22-38", "Ar-0", "Ar-3", "Ar-7", "Ar-10", "Ar-14", "Ar-17", "Ar-21", "Ar-24", "Ar-28", "Ar-31", "Ar-35", "Ar-38")
@@ -285,7 +285,6 @@ cors <- c(round(cor(Ar_0_quant$TPM, A22_0_quant$TPM), 2), round(cor(Ar_3_quant$T
 cortable <- cbind(temp, cors)
 
 pandoc.table(cortable, style="rmarkdown", caption = "correlations between colonies at each temperature treatment")
-
 ```
 
 Expression levels are *highly* correlated between colonies. 
@@ -295,173 +294,128 @@ Expression levels are *highly* correlated between colonies.
 
 To identify transcripts (roughly equivalent to genes) that show thermal responsiveness, I fit the following linear model to each transcript:
 
-$$ TPM = \beta_0 + \beta_1(colony) + \beta_2(temp) + \beta_3(temp^2) + \beta_4(colony * temp) + \\beta_5(colony * temp^2) + epsilon $$
+$$ TPM = \beta_0 + \beta_1(colony) + \beta_2(temp) + \beta_3(temp^2) + \beta_4(colony * temp) + \\beta_5(colony * temp^2) + \epsilon $$
 
 where TPM is transcripts per million. 
 
 For this list of P-values, False Discovery Rate (FDR) is applied and q-values are calculated using the [qvalue]() package.
 
-Though preliminary [examination]() of the data indicated that the A22_7 and Ar_7 samples may have been switched, this does not influence this analysis as colony is included as a predictor.
+Preliminary [examination](https://minilims1.uvm.edu/BCProject-26-Cahan/methods.html#clustering-of-samples) of the data indicated that the A22_7 and Ar_7 samples may have been switched, so I remove these values from the analysis to be conservative). 
 
 ```{r RxN, echo=TRUE, eval=TRUE}
-
 A22.TPM.dt[,colony:="A22"]
 Ar.TPM.dt[,colony:="Ar"]
 TPM.dt <- rbind(A22.TPM.dt, Ar.TPM.dt)
 TPM.dt$colony <- as.factor(TPM.dt$colony)
 str(TPM.dt)
 
+setkey(TPM.dt, val)
+TPM.dt.sub <- TPM.dt[val != 7] 
+unique(TPM.dt.sub$val)
 
 # define model for RxN function
-
 model <- "TPM ~ colony + val + I(val^2) + colony:val + colony:I(val^2)"
 
 # identify responsive transcripts
-RxNout <- RxNseq(f = f100, model = model)
+RxNout <- RxNseq(f = TPM.dt.sub, model = model)
 
 save.image("RxN_combined_results.RData")
 ```
 
+Of the `r nrow(RxNout)` transcripts, `r length(which(RxNout$pval < 0.05))` have models with P < 0.05.
 
-## Functional annotation ##
+Many of these are likely false positives, so I adjusted P-values using false discovery rate (FDR) to identify only those transcripts with less than 5% FDR as significant. 
 
-In the previous section, I identified transcripts that show significant responses in expression against temperature. Next, I add gene annotation and ontology information to these transcripts.  
+```{r fdr}
+RxNout$qval <- p.adjust(RxNout$pval, method = "fdr")
 
-```{r RxN_annotation, eval=FALSE}
-
-## Convert RxN df to data.tables for fast sort and merge
-A22.RxN.dt <- data.table(A22_RxN)
-head(A22.RxN.dt)
-
-## Set keys
-setkey(annotationtable, Sequence.Name)
-setkey(A22.RxN.dt, transcript)
-# check tables and keys
-tables()
-
-# Join tables
-A22.RxN.G <- annotationtable[A22.RxN.dt]
-str(A22.RxN.G)
-
-# Order by p-value, and pull out hits expected beyond those found by chance
-A22.RxN.G <- A22.RxN.G[order(A22.RxN.G$pval), ]
-A22.RxN.G.qcrit <- A22.RxN.G[1:6855, ]
-dim(A22.RxN.G.qcrit)
-
-# Save significant transcripts with best hits and GO to file
-write.table(A22.RxN.G.qcrit[,list(Sequence.Name, best.hit.to.nr, GO.Biological.Process, GO.Cellular.Component, GO.Molecular.Function, Enzyme, Domain, annotation.type, pval, qval, intercept, lin.coef, quad.coef)], file = "A22_signif_transcripts_GO.txt", quote = FALSE, sep = "\t", row.names = FALSE)
-
-# Repeat for Ar
-Ar.RxN.dt <- data.table(Ar_RxN)
-head(Ar.RxN.dt)
-setkey(Ar.RxN.dt, transcript)
-Ar.RxN.G <- annotationtable[Ar.RxN.dt]
-Ar.RxN.G <- Ar.RxN.G[order(Ar.RxN.G$pval), ]
-Ar.RxN.G.qcrit <- A22.RxN.G[1:2883, ]
-dim(A22.RxN.G.qcrit)
-
-write.table(Ar.RxN.G.qcrit[,list(Sequence.Name, best.hit.to.nr, GO.Biological.Process, GO.Cellular.Component, GO.Molecular.Function, Enzyme, Domain, annotation.type, pval, qval, intercept, lin.coef, quad.coef)], file = "A22_signif_transcripts_GO.txt", quote = FALSE, sep = "\t", row.names = FALSE)
+# subset to significant transcripts
+signif.transcripts <- RxNout[which(RxNout$qval < 0.05), ]
 ```
 
-## Plot responsive genes ##
+## Functional annotation
 
-Make plots of thermally-responsive genes.
-Annotate by GO term.
+```{r annotation}
+# add annotation information
+setkey(annotationtable, Sequence.Name)
+signif.transcripts <- data.table(signif.transcripts)
+setkey(signif.transcripts, Transcript)
+```
 
-```{r plots, echo=FALSE, eval=FALSE}
-# combine expression and annotation data for responsive transcripts
-setkey(A22.TPM.dt.sub, transcript)
-A22plot.dt <- A22.TPM.dt.sub[A22.RxN.G.qcrit]
-dim(A22plot.dt)
+```{r table_results, echo=FALSE, results='asis'}
+clist <- c('Total', 'Colony', 'Temp.lin', 'Temp.quad', 'Colony:Temp.lin', 'Colony:Temp.quad')
+siglist <- c(nrow(signif.transcripts), length(which(!is.na(signif.transcripts$coef.colony))), length(which(!is.na(signif.transcripts$coef.val))), length(which(!is.na(signif.transcripts$'coef.I(val^2)'))), length(which(!is.na(signif.transcripts$'coef.colony:val'))), length(which(!is.na(signif.transcripts$'coef.colony:I(val^2)'))))
+
+sigtable <- data.frame(Coefficient = clist, Number_signficant = siglist)
+
+pandoc.table(sigtable, style="rmarkdown", caption = "Number of transcripts for which each term is significant")
+```
+
+Of these, subset to those that have significant responses to temperature, either through a direct effect or interaction with colony. Add annotation information and write results to file. Do the same for transcripts that differ in expression between the colonies.
+
+```{r responsive_transcripts}
+responsive.transcripts <- signif.transcripts[!is.na(signif.transcripts$'coef.val') | !is.na(signif.transcripts$'coef.I(val^2)') | !is.na(signif.transcripts$'coef.colony:val') | !is.na(signif.transcripts$'coef.colony:I(val^2)')]
+dim(responsive.transcripts)
+
+# join signif transcripts with annotation
+responsive.transcripts.ann <- annotationtable[responsive.transcripts]
+str(responsive.transcripts.ann)
+
+write.table(responsive.transcripts.ann, file = "Ap_responsive_transcripts_GO.txt", quote = FALSE, sep = "\t", row.names = FALSE)
+
+colony.transcripts <- signif.transcripts[!is.na(signif.transcripts$'coef.colony')]
+colony.transcripts.ann <- annotationtable[colony.transcripts]
+str(colony.transcripts.ann)
+write.table(colony.transcripts.ann, file = "Ap_colony_transcripts_GO.txt", quote = FALSE, sep = "\t", row.names = FALSE)
+```
+
+Encouragingly, 2 known candidates (e.g. heat shock proteins?) occur in this list:
+
+`r responsive.transcripts.ann[grep("heat shock protein", responsive.transcripts.ann$best.hit.to.nr), list(best.hit.to.nr)]`
+
+
+The following table shows the number of responsive transcripts that have maxmimum expression at low, intermediate and high temperatures. 
+
+```{r maxmin, eval=TRUE, echo=FALSE, results = 'asis'}
+# merge RxN results with expression values
+Ap.dt <- TPM.dt.sub[responsive.transcripts.ann]
 
 # for each transcript, identify temperature of max expression
-A22.max.min.exp <- ddply(A22plot.dt, .(transcript), function(df) {
-    lmout <- lm(exp ~ val  + I(val^2), data = df)
+Ap.max.min.exp <- ddply(Ap.dt, .(Transcript), function(df) {
+    lmout <- lm(TPM ~ val + I(val^2), data = df)
     vals <- c(0, 3.5, 10, 14, 17.5, 21, 24.5, 28, 31.5, 35, 38.5)
-    pout <- predict(lmout)
+    newdf <- data.frame(colony = rep("A22", 11), val = vals)
+    pout <- predict(lmout, newdata=newdf)
     return(c(max.val = vals[which(pout == max(pout))],
              min.val = vals[which(pout == min(pout))]))
     }
 )
 
-dim(A22.max.min.exp)
-head(A22.max.min.exp)
+# Table maximum and minium expression by temperature
+maxt <- table(Ap.max.min.exp$max.val)
+mint <- table(Ap.max.min.exp$min.val)
 
-table(A22.max.min.exp$max.val)
-table(A22.max.min.exp$min.val)
+expt <- rbind(Max = maxt, Min = mint)
 
-
-# separate 'high' and 'low' responsive transcripts
-
-A22.high <- A22.max.min.exp[which(A22.max.min.exp$max.val > 31), ]
-dim(A22.high)
-
-A22.low <- A22.max.min.exp[which(A22.max.min.exp$max.val < 4), ]
-dim(A22.low)
-
-
-# Plot
-A22.high <- data.table(A22.high)
-setkey(A22.high, transcript)
-A22.high.dt <- A22plot.dt[A22.high]
-A22.low <- data.table(A22.low)
-setkey(A22.low, transcript)
-A22.low.dt <- A22plot.dt[A22.low]
-# combine
-A22plot.dt <- rbind(A22.high.dt, A22.low.dt)
-
-
-# scale expression values 
-A22plot.dt[,exp.scaled:=scale(exp), by = transcript]
-dim(A22plot.dt)
-
-# plot
-
-p <- ggplot(A22.high.dt, aes(x=val, y=exp.scaled, group=transcript))
-p + geom_line(aes(colour = max.val)) + scale_colour_gradient(low="red")
-
-pdf("A22_expression_ggplot.pdf")
-  p <- ggplot(A22plot.dt, aes(x=val, y=exp.scaled, group=transcript))
-  p + geom_line(aes(colour = max.val)) + scale_colour_gradient(low="red")
-dev.off()
-
-pdf("A22_high_expression_smooth_ggplot.pdf")
-  p <- ggplot(A22.high.dt, aes(x=val, y=exp.scaled, group=transcript))
-  p + geom_smooth(aes(colour = lin.coef)) + scale_colour_gradient(low="red")
-dev.off()
+pandoc.table(expt, style="rmarkdown", caption = "Number of transcripts that have maximum and minimum expression at each temperature level")
 ```
 
+**Most** transcripts have maximum expression at high (>=31.5) or low (<=10) temperatures. As the genes invovled in each type of thermal response may differ, designate responsive transcripts by max expression at high, low or intermediate (14-28) temperatures.
 
-```{r hists, echo=FALSE, eval=FALSE}
-
-## IN PROGRESS ##
-
-# combine data
-# reshape long
-# make histogram
-
-png("hist_'(Intercept)'.png")
-  h <- ggplot(A22.RxN.G.qcrit, aes('(Intercept)')) + geom_histogram(binwidth = 0.5) +
-#   scale_x_log10()
-    xlim(0, 100)
-  h
-dev.off()
-
-png("hist_linear.png")
-  h <- ggplot(A22.RxN.G.qcrit, aes(lin.coef)) + geom_histogram(binwidth = 0.5) +
-    xlim(-5,5)
-  h
-dev.off()
-
-png("hist_quad.png")
-  h <- ggplot(A22.RxN.G.qcrit, aes(quad.coef)) + geom_histogram(binwidth = 0.1) +
-    xlim(-1,1)
-  h
-dev.off()
+```{r, eval=FALSE}
+# set expression type
+responsive.transcripts <- responsive.transcripts[Ap.max.min.exp]
+responsive.transcripts[ , exp_type:="intermediate"]
+responsive.transcripts[max.val>31, exp_type:="high"]
+responsive.transcripts[max.val<11, exp_type:="low"]
 ```
 
+## Functional annotation ##
 
-## Functional annotation and gene set enrichment analysis ##
+In the previous section, I identified transcripts that show significant responses in expression. Next, I add gene annotation and ontology information to these transcripts.  
+
+
+## Gene set enrichment analysis ##
 
 Get annotation of responsive genes. 
 
@@ -576,6 +530,75 @@ showSigOfNodes(A22.MF.GOdata, score(A22.MF.resultParentChild), firstSigNodes = 1
 dev.off()
 
 ```
+
+
+```{r}
+# Plot
+Ap.high <- data.table(Ap.high)
+setkey(Ap.high, Transcript)
+Ap.high.dt <- Ap.plot.dt[Ap.high]
+Ap.low <- data.table(Ap.low)
+setkey(Ap.low, Transcript)
+Ap.low.dt <- Ap.plot.dt[Ap.low]
+
+
+# combine
+Ap.plot.dt <- rbind(Ap.high.dt, Ap.low.dt)
+
+
+# scale expression values 
+Ap.plot.dt[,exp.scaled:=scale(TPM), by = Transcript]
+dim(Ap.plot.dt)
+
+# plot
+
+png("Ap_expression_ggplot.png")
+  p <- ggplot(Ap.plot.dt, aes(x=val, y=exp.scaled, group=Transcript)) + geom_line()
+  p + facet_grid(. ~ colony)
+#  p + geom_line(aes(colour = max.val)) + scale_colour_gradient(low="red")
+dev.off()
+
+pdf("Ap_high_expression_smooth_ggplot.pdf")
+  p <- ggplot(Ap.high.dt, aes(x=val, y=exp.scaled, group=transcript))
+  p + geom_smooth(aes(colour = colony))
+  #p + geom_smooth(aes(colour = lin.coef)) + scale_colour_gradient(low="red")
+dev.off()
+```
+
+
+
+
+
+
+```{r hists, echo=FALSE, eval=FALSE}
+
+## IN PROGRESS ##
+
+# combine data
+# reshape long
+# make histogram
+
+png("hist_'(Intercept)'.png")
+  h <- ggplot(A22.RxN.G.qcrit, aes('(Intercept)')) + geom_histogram(binwidth = 0.5) +
+#   scale_x_log10()
+    xlim(0, 100)
+  h
+dev.off()
+
+png("hist_linear.png")
+  h <- ggplot(A22.RxN.G.qcrit, aes(lin.coef)) + geom_histogram(binwidth = 0.5) +
+    xlim(-5,5)
+  h
+dev.off()
+
+png("hist_quad.png")
+  h <- ggplot(A22.RxN.G.qcrit, aes(quad.coef)) + geom_histogram(binwidth = 0.1) +
+    xlim(-1,1)
+  h
+dev.off()
+```
+
+
 
 Perform gene enrichment analysis for Ar. As there were no genes significant at q < 0.05, use 0.1 as the critical threshold.
 
