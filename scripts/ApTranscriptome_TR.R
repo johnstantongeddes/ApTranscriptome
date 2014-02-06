@@ -29,7 +29,6 @@ library(plyr)
 #biocLite("topGO")
 #biocLite("qvalue")
 #biocLite("Rgraphviz")
-suppressMessages(library(qvalue))
 library(topGO) 
 suppressMessages(library(Rgraphviz))
 
@@ -346,7 +345,7 @@ setkey(signif.transcripts, Transcript)
 clist <- c('Total', 'Colony', 'Temp.lin', 'Temp.quad', 'Colony:Temp.lin', 'Colony:Temp.quad')
 siglist <- c(nrow(signif.transcripts), length(which(!is.na(signif.transcripts$coef.colony))), length(which(!is.na(signif.transcripts$coef.val))), length(which(!is.na(signif.transcripts$'coef.I(val^2)'))), length(which(!is.na(signif.transcripts$'coef.colony:val'))), length(which(!is.na(signif.transcripts$'coef.colony:I(val^2)'))))
 
-sigtable <- data.frame(Coefficient = clist, Number_signficant = siglist)
+sigtable <- data.frame(Coefficient = clist, Number_significant = siglist)
 
 pandoc.table(sigtable, style="rmarkdown", caption = "Number of transcripts for which each term is significant")
 ```
@@ -373,23 +372,48 @@ Encouragingly, 2 known candidates (e.g. heat shock proteins) occur in this list:
 
 `r responsive.transcripts.ann[grep("heat shock", responsive.transcripts.ann$best.hit.to.nr), list(best.hit.to.nr)]`
 
-The following table shows the number of responsive transcripts that have maxmimum expression at low, intermediate and high temperatures. 
+Identify shape of curve:
 
-```{r maxmin, eval=TRUE, echo=FALSE, results = 'asis'}
+* increase - exrpression increases with temperature
+* decrease - expression decreases with temperature
+* concave - expression greatest at intermediate temperatures
+* convex - expression lowest at intermediate temperatures
+
+```{r shape, eval=TRUE, echo=FALSE, results = 'asis'}
 # merge RxN results with expression values
 setkey(TPM.dt.sub, Transcript)
 Ap.dt <- TPM.dt.sub[responsive.transcripts.ann]
 
-# for each transcript, identify temperature of max expression
-Ap.max.min.exp <- ddply(Ap.dt, .(Transcript), function(df) {
+# for each significant transcript, get all coefficients
+Ap.shape <- ddply(Ap.dt, .(Transcript), function(df) {
     lmout <- lm(TPM ~ val + I(val^2), data = df)
-    vals <- c(0, 3.5, 10, 14, 17.5, 21, 24.5, 28, 31.5, 35, 38.5)
-    newdf <- data.frame(colony = rep("A22", 11), val = vals)
-    pout <- predict(lmout, newdata=newdf)
-    return(c(max.val = vals[which(pout == max(pout))],
-             min.val = vals[which(pout == min(pout))]))
+    coef(lmout)
+    shape = if(coef(lmout)['val'] > 0 & coef(lmout)['I(val^2)'] > 0) "increase" else {
+        if(coef(lmout)['val'] < 0 & coef(lmout)['I(val^2)'] < 0) "decrease" else {
+            if(coef(lmout)['val'] > 0 & coef(lmout)['I(val^2)'] < 0) "concave" else {
+                "convex"}}}
     }
 )
+
+shape.table <- table(Ap.shape$V1)
+
+pandoc.table(shape.table, style="rmarkdown", caption = "Number of transcripts that have maximum and minimum expression at each temperature level")
+```
+
+While most transcripts have a convex shape, this summary masks that most of these have maximum expression at low or high, with zero to low elsewhere. Next, identify where maximum expression occurs.
+
+
+```{r maxmin, eval=TRUE, echo=FALSE, results = 'asis'}
+
+Ap.max.min.exp <- ddply(Ap.dt, .(Transcript), function(df) {
+        lmout <- lm(TPM ~ val + I(val^2), data = df)
+            vals <- c(0, 3.5, 10, 14, 17.5, 21, 24.5, 28, 31.5, 35, 38.5)
+            newdf <- data.frame(colony = rep("A22", 11), val = vals)
+            pout <- predict(lmout, newdata=newdf)
+            return(c(max.val = vals[which(pout == max(pout))],
+                                  min.val = vals[which(pout == min(pout))]))
+    }
+                        )
 
 # Table maximum and minium expression by temperature
 maxt <- table(Ap.max.min.exp$max.val)
@@ -402,13 +426,16 @@ pandoc.table(expt, style="rmarkdown", caption = "Number of transcripts that have
 
 **Most** transcripts have maximum expression at high (>=31.5) or low (<=10) temperatures. As the genes invovled in each type of thermal response may differ, designate responsive transcripts by max expression at high, low or intermediate (14-28) temperatures.
 
+
 ```{r, eval=TRUE}
 # set expression type
 responsive.transcripts.ann <- responsive.transcripts.ann[Ap.max.min.exp]
 responsive.transcripts.ann[ , exp_type:="intermediate"]
 responsive.transcripts.ann[max.val>31, exp_type:="high"]
 responsive.transcripts.ann[max.val<11, exp_type:="low"]
+head(responsive.transcripts.ann)
 ```
+
 
 ## Functional annotation ##
 
@@ -513,8 +540,6 @@ Ap.MF.GOdata
 Ap.MF.resultParentChild <- runTest(Ap.MF.GOdata, statistic = 'fisher', algorithm = 'parentchild')
 Ap.MF.resultParentChild
 
-# 6 significant GO terms
-
 Ap.MF.ResTable <- GenTable(Ap.MF.GOdata, parentchild = Ap.MF.resultParentChild, topNodes = 20)
 Ap.MF.ResTable
 
@@ -526,33 +551,43 @@ dev.off()
 
 ```
 
-Plots of responsive transcripts
+Note that among responsive transcripts, there are 26 transcripts with GO term "response to stress":
+
+`r unique(Ap.dt[grep("GO:0006950", Ap.dt$GO.Biological.Process), Transcript])`
+
+and this term is included in the list of enriched GO terms:
+
+```{r GO_terms}
+# significant GO terms
+Ap.BP.signif.table <- GenTable(Ap.BP.GOdata, parentchild = Ap.BP.resultParentChild, topNodes = 406)
+Ap.BP.signif <- Ap.BP.signif.table$GO.ID
+length(Ap.BP.signif)
+
+Ap.BP.signif.term <- Ap.BP.signif.table$Term
+Ap.BP.signif.term[grep("stress", Ap.BP.signif.term)]
+Ap.BP.signif.term[grep("immune", Ap.BP.signif.term)]
+```
 
 
-```{r}
-# Plot
-Ap.high <- data.table(Ap.high)
-setkey(Ap.high, Transcript)
-Ap.high.dt <- Ap.plot.dt[Ap.high]
-Ap.low <- data.table(Ap.low)
-setkey(Ap.low, Transcript)
-Ap.low.dt <- Ap.plot.dt[Ap.low]
+## Visualize responsive transcripts
 
+Make plots of reponsive transcripts
 
-# combine
-Ap.plot.dt <- rbind(Ap.high.dt, Ap.low.dt)
-
-
+```{r plot}
 # scale expression values 
-Ap.plot.dt[,exp.scaled:=scale(TPM), by = Transcript]
-dim(Ap.plot.dt)
+Ap.dt[,exp.scaled:=scale(TPM), by = Transcript]
+str(Ap.dt)
+
+# subset to genes with significant interaction
+Ap.dt.interaction <- Ap.dt[!is.na(Ap.dt$'coef.colony:val') | !is.na(Ap.dt$'coef.colony:I(val^2)')]
+str(Ap.dt.interaction)
 
 # plot
 
-png("Ap_expression_ggplot.png")
-  p <- ggplot(Ap.plot.dt, aes(x=val, y=exp.scaled, group=Transcript)) + geom_line()
-  p + facet_grid(. ~ colony)
-#  p + geom_line(aes(colour = max.val)) + scale_colour_gradient(low="red")
+png("Ap_expression_by_colony.png")
+  p <- ggplot(Ap.dt.interaction, aes(x=val, y=exp.scaled, group=Transcript)) + geom_line()
+#  p + facet_grid(. ~ colony)
+  p + geom_line(aes(colour = colony))
 dev.off()
 
 pdf("Ap_high_expression_smooth_ggplot.pdf")
