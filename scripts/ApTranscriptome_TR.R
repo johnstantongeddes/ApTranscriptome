@@ -369,15 +369,15 @@ str(colony.transcripts.ann)
 write.table(colony.transcripts.ann, file = "Ap_colony_transcripts_GO.txt", quote = FALSE, sep = "\t", row.names = FALSE)
 ```
 
-Encouragingly, 2 known candidates (e.g. heat shock proteins?) occur in this list:
+Encouragingly, 2 known candidates (e.g. heat shock proteins) occur in this list:
 
-`r responsive.transcripts.ann[grep("heat shock protein", responsive.transcripts.ann$best.hit.to.nr), list(best.hit.to.nr)]`
-
+`r responsive.transcripts.ann[grep("heat shock", responsive.transcripts.ann$best.hit.to.nr), list(best.hit.to.nr)]`
 
 The following table shows the number of responsive transcripts that have maxmimum expression at low, intermediate and high temperatures. 
 
 ```{r maxmin, eval=TRUE, echo=FALSE, results = 'asis'}
 # merge RxN results with expression values
+setkey(TPM.dt.sub, Transcript)
 Ap.dt <- TPM.dt.sub[responsive.transcripts.ann]
 
 # for each transcript, identify temperature of max expression
@@ -402,12 +402,12 @@ pandoc.table(expt, style="rmarkdown", caption = "Number of transcripts that have
 
 **Most** transcripts have maximum expression at high (>=31.5) or low (<=10) temperatures. As the genes invovled in each type of thermal response may differ, designate responsive transcripts by max expression at high, low or intermediate (14-28) temperatures.
 
-```{r, eval=FALSE}
+```{r, eval=TRUE}
 # set expression type
-responsive.transcripts <- responsive.transcripts[Ap.max.min.exp]
-responsive.transcripts[ , exp_type:="intermediate"]
-responsive.transcripts[max.val>31, exp_type:="high"]
-responsive.transcripts[max.val<11, exp_type:="low"]
+responsive.transcripts.ann <- responsive.transcripts.ann[Ap.max.min.exp]
+responsive.transcripts.ann[ , exp_type:="intermediate"]
+responsive.transcripts.ann[max.val>31, exp_type:="high"]
+responsive.transcripts.ann[max.val<11, exp_type:="low"]
 ```
 
 ## Functional annotation ##
@@ -417,14 +417,11 @@ In the previous section, I identified transcripts that show significant response
 
 ## Gene set enrichment analysis ##
 
-Get annotation of responsive genes. 
-
-Use [topGO](http://www.bioconductor.org/packages/2.12/bioc/html/topGO.html) to perform gene set enrichment analysis
+I use [topGO](http://www.bioconductor.org/packages/2.12/bioc/html/topGO.html) to perform gene set enrichment analysis
 
 First need to create gene ID to GO term map file
 
-```{r geneid2go, echo=TRUE, eval=FALSE}
-
+```{r geneid2go, echo=TRUE, eval=TRUE}
 # create geneid2go.map file from FastAnnotator AnnotationTable.txt
 geneid2GOmap(annotationfile)
 ```
@@ -433,103 +430,103 @@ Using this gene2GO map file, perform gene set enrichment analysis.
 
 Provide qvalues as the gene score, and select genes with q < 0.05 using custom `selectFDR` function.
 
-```{r gene_enrichment_A22, echo=FALSE, eval=FALSE}
-
+```{r gsea, echo=TRUE, eval=TRUE}
 # read mappings file
 geneID2GO <- readMappings(file = "geneid2go.map")
 str(head(geneID2GO))
 
 # create geneList. note that NA values cause problems with topGO
-# need to retain these for full ontology, so set NA to 1
-A22geneList <- A22_RxN$pval
-A22geneList[which(is.na(A22geneList))] <- 1
-names(A22geneList) <- A22_RxN$transcript
-str(A22geneList)
+# so set any NA to 1 as need to retain for GO analysis
+Ap.geneList <- RxNout.dt$pval
+Ap.geneList[which(is.na(Ap.geneList))] <- 1
+stopifnot(length(which(is.na(Ap.geneList))) == 0)
+names(Ap.geneList) <- RxNout.dt$Transcript
+str(Ap.geneList)
 
 # Function to select top genes (defined above)
-selectFDR <- function(pvalue) {
-    return(pvalue < 0.033196)
+selectFDR <- function(qvalue) {
+    return(qvalue < 0.5)
 }
 
 # create topGOdata object
-A22.BP.GOdata <- new("topGOdata",
+Ap.BP.GOdata <- new("topGOdata",
                  description = "BP gene set analysis", ontology = "BP",
-                 allGenes = A22geneList, geneSel = selectFDR,
+                 allGenes = Ap.geneList, geneSel = selectFDR,
                  nodeSize = 10,
                  annot = annFUN.gene2GO, gene2GO = geneID2GO)
 
-A22.BP.GOdata
+Ap.BP.GOdata
 
 # perform enrichment analysis using multiple methods
-A22.BP.resultParentChild <- runTest(A22.BP.GOdata, statistic = 'fisher', algorithm = 'parentchild')
-A22.BP.resultParentChild
+Ap.BP.resultParentChild <- runTest(Ap.BP.GOdata, statistic = 'fisher', algorithm = 'parentchild')
+Ap.BP.resultParentChild
 
-# 8 significant GO terms
-
-A22.BP.ResTable <- GenTable(A22.BP.GOdata, parentchild = A22.BP.resultParentChild, topNodes = 16)
-A22.BP.ResTable
+Ap.BP.ResTable <- GenTable(Ap.BP.GOdata, parentchild = Ap.BP.resultParentChild, topNodes = 40)
+Ap.BP.ResTable
 
 # graph significant nodes
 
-pdf("A22.BP_topGO_sig_nodes.pdf")
-showSigOfNodes(A22.BP.GOdata, score(A22.BP.resultParentChild), firstSigNodes = 10, useInfo = 'all')
+pdf("Ap.BP_topGO_sig_nodes.pdf")
+showSigOfNodes(Ap.BP.GOdata, score(Ap.BP.resultParentChild), firstSigNodes = 10, useInfo = 'all')
 dev.off()
+```
 
+GO analysis for cellular component
 
-## Cellular Component
-
+```{r GO_CC, echo=TRUE, eval=TRUE}
 # create topGOdata object
-A22.CC.GOdata <- new("topGOdata",
+Ap.CC.GOdata <- new("topGOdata",
                  description = "CC gene set analysis", ontology = "CC",
-                 allGenes = A22geneList, geneSel = selectFDR,
+                 allGenes = Ap.geneList, geneSel = selectFDR,
                  nodeSize = 10,
                  annot = annFUN.gene2GO, gene2GO = geneID2GO)
 
-A22.CC.GOdata
+Ap.CC.GOdata
 
 # perform enrichment analysis using multiple methods
-A22.CC.resultParentChild <- runTest(A22.CC.GOdata, statistic = 'fisher', algorithm = 'parentchild')
-A22.CC.resultParentChild
+Ap.CC.resultParentChild <- runTest(Ap.CC.GOdata, statistic = 'fisher', algorithm = 'parentchild')
+Ap.CC.resultParentChild
 
-# 2 significant GO terms
-
-CC.ResTable <- GenTable(A22.CC.GOdata, parentchild = A22.CC.resultParentChild, topNodes = 10)
-CC.ResTable
+Ap.CC.ResTable <- GenTable(Ap.CC.GOdata, parentchild = Ap.CC.resultParentChild, topNodes = 40)
+Ap.CC.ResTable
 
 # graph significant nodes
 
-pdf("A22.CC_topGO_sig_nodes.pdf")
-showSigOfNodes(A22.CC.GOdata, score(A22.CC.resultParentChild), firstSigNodes = 10, useInfo = 'all')
+pdf("Ap.CC_topGO_sig_nodes.pdf")
+showSigOfNodes(Ap.CC.GOdata, score(Ap.CC.resultParentChild), firstSigNodes = 10, useInfo = 'all')
 dev.off()
+```
 
+GO analysis for molecular function
 
-#### Molecular Function
-
+```{r GO_MF, echo=TRUE, eval=TRUE}
 # create topGOdata object
-A22.MF.GOdata <- new("topGOdata",
+Ap.MF.GOdata <- new("topGOdata",
                  description = "MF gene set analysis", ontology = "MF",
-                 allGenes = A22geneList, geneSel = selectFDR,
+                 allGenes = Ap.geneList, geneSel = selectFDR,
                  nodeSize = 10,
                  annot = annFUN.gene2GO, gene2GO = geneID2GO)
 
-A22.MF.GOdata
+Ap.MF.GOdata
 
 # perform enrichment analysis using multiple methods
-A22.MF.resultParentChild <- runTest(A22.MF.GOdata, statistic = 'fisher', algorithm = 'parentchild')
-A22.MF.resultParentChild
+Ap.MF.resultParentChild <- runTest(Ap.MF.GOdata, statistic = 'fisher', algorithm = 'parentchild')
+Ap.MF.resultParentChild
 
 # 6 significant GO terms
 
-A22.MF.ResTable <- GenTable(A22.MF.GOdata, parentchild = A22.MF.resultParentChild, topNodes = 12)
-A22.MF.ResTable
+Ap.MF.ResTable <- GenTable(Ap.MF.GOdata, parentchild = Ap.MF.resultParentChild, topNodes = 20)
+Ap.MF.ResTable
 
 # graph significant nodes
 
-pdf("A22.MF_topGO_sig_nodes.pdf")
-showSigOfNodes(A22.MF.GOdata, score(A22.MF.resultParentChild), firstSigNodes = 10, useInfo = 'all')
+pdf("Ap.MF_topGO_sig_nodes.pdf")
+showSigOfNodes(Ap.MF.GOdata, score(Ap.MF.resultParentChild), firstSigNodes = 10, useInfo = 'all')
 dev.off()
 
 ```
+
+Plots of responsive transcripts
 
 
 ```{r}
@@ -579,115 +576,25 @@ dev.off()
 # make histogram
 
 png("hist_'(Intercept)'.png")
-  h <- ggplot(A22.RxN.G.qcrit, aes('(Intercept)')) + geom_histogram(binwidth = 0.5) +
+  h <- ggplot(Ap.RxN.G.qcrit, aes('(Intercept)')) + geom_histogram(binwidth = 0.5) +
 #   scale_x_log10()
     xlim(0, 100)
   h
 dev.off()
 
 png("hist_linear.png")
-  h <- ggplot(A22.RxN.G.qcrit, aes(lin.coef)) + geom_histogram(binwidth = 0.5) +
+  h <- ggplot(Ap.RxN.G.qcrit, aes(lin.coef)) + geom_histogram(binwidth = 0.5) +
     xlim(-5,5)
   h
 dev.off()
 
 png("hist_quad.png")
-  h <- ggplot(A22.RxN.G.qcrit, aes(quad.coef)) + geom_histogram(binwidth = 0.1) +
+  h <- ggplot(Ap.RxN.G.qcrit, aes(quad.coef)) + geom_histogram(binwidth = 0.1) +
     xlim(-1,1)
   h
 dev.off()
 ```
 
-
-
-Perform gene enrichment analysis for Ar. As there were no genes significant at q < 0.05, use 0.1 as the critical threshold.
-
-```{r gene_enrichment_Ar, echo=FALSE, eval=FALSE}
-
-# create geneList. note that NA values cause problems with topGO
-# need to retain these for full ontology, so set NA to 1
-ArgeneList <- Ar_RxN$pval
-ArgeneList[which(is.na(ArgeneList))] <- 1
-names(ArgeneList) <- Ar_RxN$transcript
-str(ArgeneList)
-
-# create function to select significant genes for topGO
-selectFDR1 <- function(pvalue) {
-    return(pvalue < 0.010232)
-}
-
-
-# create topGOdata object
-Ar.BP.GOdata <- new("topGOdata",
-                 description = "BP gene set analysis", ontology = "BP",
-                 allGenes = ArgeneList, geneSel = selectFDR1,
-                 nodeSize = 10,
-                 annot = annFUN.gene2GO, gene2GO = geneID2GO)
-
-Ar.BP.GOdata
-
-# perform enrichment analysis using multiple methods
-Ar.BP.resultParentChild <- runTest(Ar.BP.GOdata, statistic = 'fisher', algorithm = 'parentchild')
-Ar.BP.resultParentChild
-
-Ar.BP.ResTable <- GenTable(Ar.BP.GOdata, parentchild = Ar.BP.resultParentChild, topNodes = 10)
-Ar.BP.ResTable
-
-# graph significant nodes
-
-pdf("Ar.BP_topGO_sig_nodes.pdf")
-showSigOfNodes(Ar.BP.GOdata, score(Ar.BP.resultParentChild), firstSigNodes = 10, useInfo = 'all')
-dev.off()
-
-## Cellular Component
-
-# create topGOdata object
-Ar.CC.GOdata <- new("topGOdata",
-                 description = "CC gene set analysis", ontology = "CC",
-                 allGenes = ArgeneList, geneSel = selectFDR1,
-                 nodeSize = 10,
-                 annot = annFUN.gene2GO, gene2GO = geneID2GO)
-
-Ar.CC.GOdata
-
-# perform enrichment analysis using multiple methods
-Ar.CC.resultParentChild <- runTest(Ar.CC.GOdata, statistic = 'fisher', algorithm = 'parentchild')
-Ar.CC.resultParentChild
-
-Ar.CC.ResTable <- GenTable(Ar.CC.GOdata, parentchild = Ar.CC.resultParentChild, topNodes = 10)
-Ar.CC.ResTable
-
-# graph significant nodes
-
-pdf("Ar.CC_topGO_sig_nodes.pdf")
-showSigOfNodes(Ar.CC.GOdata, score(Ar.CC.resultParentChild), firstSigNodes = 10, useInfo = 'all')
-dev.off()
-
-
-#### Molecular Function
-
-# create topGOdata object
-Ar.MF.GOdata <- new("topGOdata",
-                 description = "MF gene set analysis", ontology = "MF",
-                 allGenes = ArgeneList, geneSel = selectFDR1,
-                 nodeSize = 10,
-                 annot = annFUN.gene2GO, gene2GO = geneID2GO)
-
-Ar.MF.GOdata
-
-# perform enrichment analysis using multiple methods
-Ar.MF.resultParentChild <- runTest(Ar.MF.GOdata, statistic = 'fisher', algorithm = 'parentchild')
-Ar.MF.resultParentChild
-
-Ar.MF.ResTable <- GenTable(Ar.MF.GOdata, parentchild = Ar.MF.resultParentChild, topNodes = 10)
-Ar.MF.ResTable
-
-# graph significant nodes
-
-pdf("Ar.MF_topGO_sig_nodes.pdf")
-showSigOfNodes(Ar.MF.GOdata, score(Ar.MF.resultParentChild), firstSigNodes = 10, useInfo = 'all')
-dev.off()
-```
 
 
 ## Session information ##
