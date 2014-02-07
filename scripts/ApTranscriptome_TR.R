@@ -280,7 +280,7 @@ Note that expression levels at each temperature treatment are highly correlated 
 ```{r exp_correlations, echo=FALSE, results='asis'}
 temp <- c(0, 3.5, 7, 10.5, 14, 17.5, 21, 24.5, 28, 31.5, 35, 38.5)
 cors <- c(round(cor(Ar_0_quant$TPM, A22_0_quant$TPM), 2), round(cor(Ar_3_quant$TPM, A22_3_quant$TPM), 2), round(cor(Ar_7_quant$TPM, A22_7_quant$TPM), 2), round(cor(Ar_10_quant$TPM, A22_10_quant$TPM), 2), round(cor(Ar_14_quant$TPM, A22_14_quant$TPM), 2), round(cor(Ar_17_quant$TPM, A22_17_quant$TPM), 2), round(cor(Ar_21_quant$TPM, A22_21_quant$TPM), 2), round(cor(Ar_24_quant$TPM, A22_24_quant$TPM), 2), round(cor(Ar_28_quant$TPM, A22_28_quant$TPM), 2), round(cor(Ar_31_quant$TPM, A22_31_quant$TPM), 2), round(cor(Ar_35_quant$TPM, A22_35_quant$TPM), 2), round(cor(Ar_38_quant$TPM, A22_38_quant$TPM), 2))
-
+## 
 cortable <- cbind(temp, cors)
 
 pandoc.table(cortable, style="rmarkdown", caption = "correlations between colonies at each temperature treatment")
@@ -488,8 +488,12 @@ Ap.BP.GOdata
 Ap.BP.resultParentChild <- runTest(Ap.BP.GOdata, statistic = 'fisher', algorithm = 'parentchild')
 Ap.BP.resultParentChild
 
-Ap.BP.ResTable <- GenTable(Ap.BP.GOdata, parentchild = Ap.BP.resultParentChild, topNodes = 40)
+Ap.BP.ResTable <- GenTable(Ap.BP.GOdata, parentchild = Ap.BP.resultParentChild, topNodes = 10)
 Ap.BP.ResTable
+write.table(Ap.BP.ResTable, file = "Ap_GO.BP_results.txt", quote=FALSE, row.names=FALSE, sep = "\t")
+pandoc.table(Ap.BP.ResTable)
+
+
 
 # graph significant nodes
 
@@ -577,6 +581,7 @@ Make plots of reponsive transcripts
 # scale expression values 
 Ap.dt[,exp.scaled:=scale(TPM), by = Transcript]
 str(Ap.dt)
+write.csv(Ap.dt, file = "Ap.dt.csv", quote=TRUE, row.names=FALSE, sep=",")
 
 # subset to genes with significant interaction
 Ap.dt.interaction <- Ap.dt[!is.na(Ap.dt$'coef.colony:val') | !is.na(Ap.dt$'coef.colony:I(val^2)')]
