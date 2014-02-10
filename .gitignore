@@ -31,3 +31,5 @@ data/
 !*.txt
 !*.tex
 
+.Rproj.user
+.Rproj
