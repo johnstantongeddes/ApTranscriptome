@@ -3,6 +3,8 @@ Thermal reactionome of the common ant species *Aphaenogaster*
   
 **Author:** [John Stanton-Geddes](john.stantongeddes.research@gmail.com)
 
+**February 10, 2014**
+
 **Technical Report No. 3**
 
 **Department of Biology**
@@ -27,13 +29,12 @@ library(plyr)
 # Load Bioconductor libraries
 #source("http://bioconductor.org/biocLite.R")
 #biocLite("topGO")
-#biocLite("qvalue")
 #biocLite("Rgraphviz")
 library(topGO) 
 suppressMessages(library(Rgraphviz))
 
 # load custom functions
-source("RxNseq.R")
+source("scripts/RxNseq.R")
 ```
 
 ## Summary ##
@@ -174,9 +175,9 @@ Then, for each sample, run the following command:
 
 Or, with a loop:                                                 
                                                  
-```{r sailfish, eval=TRUE, echo=TRUE, cache=TRUE}
+```{r sailfish, eval=FALSE, echo=TRUE, cache=TRUE}
 # directory containing trimmed reads
-readdir <- "../data/ind_files/" 
+readdir <- "data/ind_files/" 
 
 # list of reads in each of four trimmed classes
 readlist <- list.files(readdir)
@@ -198,20 +199,20 @@ for (j in 1:length(samples)) {
     samp.paired.r <- paste(readdir, paired.right[samp.pos], sep="")
     samp.unpaired.l <- paste(readdir, unpaired.left[samp.pos], sep="")
     samp.unpaired.r <- paste(readdir, unpaired.right[samp.pos], sep="")
-    sailfishcmd <- paste("sailfish quant -i ../results/trinity-full/sailfish-index -o ../results/trinity-full/sailfish-expression/", quantdir, " --reads ", samp.paired.l, " ", samp.paired.r, " ", samp.unpaired.l, " ", samp.unpaired.r, " -p 4", sep="")
+    sailfishcmd <- paste("sailfish quant -i results/trinity-full/sailfish-index -o results/trinity-full/sailfish-expression/", quantdir, " --reads ", samp.paired.l, " ", samp.paired.r, " ", samp.unpaired.l, " ", samp.unpaired.r, " -p 4", sep="")
     print(sailfishcmd)
-#    system(sailfishcmd)
+    system(sailfishcmd)
     message("Done with expression quantification for sample ", samples[j], ": ", Sys.time(), "\n")
 }
 ```
 
 This generated a directory for each sample
 
-`r list.files("../results/trinity-full/sailfish-expression")`
+`r list.files("results/trinity-full/sailfish-expression")`
 
 and within each directory there are the following r:
 
-`r list.files("../results/trinity-full/sailfish-expression/A22-0_quant")`
+`r list.files("results/trinity-full/sailfish-expression/A22-0_quant")`
 
 The file *quant_bias_corrected.sf* contains the following columns, following a number of header lines:
 
@@ -227,7 +228,7 @@ The TPM column for each sample was extracted and combined into a matrix for each
 #  read in each file using loop
 samples <- c("A22-0", "A22-3", "A22-7", "A22-10", "A22-14", "A22-17", "A22-21", "A22-24", "A22-28", "A22-31", "A22-35", "A22-38", "Ar-0", "Ar-3", "Ar-7", "Ar-10", "Ar-14", "Ar-17", "Ar-21", "Ar-24", "Ar-28", "Ar-31", "Ar-35", "Ar-38")
 
-fileinpath <- "../results/trinity-full/sailfish-expression/"
+fileinpath <- "results/trinity-full/sailfish-expression/"
 
 for (j in 1:length(samples)) {
     samp <- samples[j]
@@ -301,7 +302,7 @@ For this list of P-values, False Discovery Rate (FDR) is applied and q-values ar
 
 Preliminary [examination](https://minilims1.uvm.edu/BCProject-26-Cahan/methods.html#clustering-of-samples) of the data indicated that the A22_7 and Ar_7 samples may have been switched, so I remove these values from the analysis to be conservative). 
 
-```{r RxN, echo=TRUE, eval=TRUE}
+```{r RxN, echo=TRUE, eval=TRUE, cache=TRUE}
 A22.TPM.dt[,colony:="A22"]
 Ar.TPM.dt[,colony:="Ar"]
 TPM.dt <- rbind(A22.TPM.dt, Ar.TPM.dt)
@@ -572,69 +573,183 @@ Ap.BP.signif.term[grep("stress", Ap.BP.signif.term)]
 Ap.BP.signif.term[grep("immune", Ap.BP.signif.term)]
 ```
 
+Export data for interactive shiny app. 
 
-## Visualize responsive transcripts
-
-Make plots of reponsive transcripts
-
-```{r plot}
+```{r shiny_file}
 # scale expression values 
 Ap.dt[,exp.scaled:=scale(TPM), by = Transcript]
 str(Ap.dt)
-write.csv(Ap.dt, file = "Ap.dt.csv", quote=TRUE, row.names=FALSE, sep=",")
+write.csv(Ap.dt, file = "Ap.dt.csv", quote = TRUE, row.names = FALSE, sep = ",")
 
 # subset to genes with significant interaction
 Ap.dt.interaction <- Ap.dt[!is.na(Ap.dt$'coef.colony:val') | !is.na(Ap.dt$'coef.colony:I(val^2)')]
 str(Ap.dt.interaction)
+write.csv(Ap.dt.interaction, file = "Ap.dt.interaction.csv", quote = TRUE, row.names = FALSE, sep = ",")
+```
 
-# plot
+# Visualize responsive transcripts
 
-png("Ap_expression_by_colony.png")
-  p <- ggplot(Ap.dt.interaction, aes(x=val, y=exp.scaled, group=Transcript)) + geom_line()
-#  p + facet_grid(. ~ colony)
-  p + geom_line(aes(colour = colony))
-dev.off()
+Make plots for all significant transcripts
 
-pdf("Ap_high_expression_smooth_ggplot.pdf")
-  p <- ggplot(Ap.high.dt, aes(x=val, y=exp.scaled, group=transcript))
-  p + geom_smooth(aes(colour = colony))
-  #p + geom_smooth(aes(colour = lin.coef)) + scale_colour_gradient(low="red")
-dev.off()
+```{r plot_responsive, echo=FALSE, eval=TRUE, cache=TRUE}
+# Line plot, expression against temp, faceted by colony
+p1 <- ggplot(Ap.dt, aes(x=val, y=exp.scaled, group=Transcript)) +
+  geom_line() +
+  facet_grid(. ~ colony) +
+  scale_y_continuous(name="Expression (scaled)") +
+  scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
+p1
+
+
+# Smooth plot, expression against temp, faceted by colony
+p2 <- ggplot(Ap.dt, aes(x=val, y=exp.scaled, group=Transcript)) +
+  geom_smooth() +
+  facet_grid(. ~ colony) +
+  scale_y_continuous(name="Expression (scaled)") +
+  scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
+p2
+
+# Same as p1, faceted by expression type
+p3 <- ggplot(Ap.dt, aes(x=val, y=exp.scaled, group=Transcript)) +
+  geom_line() +
+  facet_grid(exp_type ~ colony) +
+  scale_y_continuous(name="Expression (scaled)") +
+  scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
+p3
+
+# Smooth plot, expression against temp, faceted by colony
+p4 <- ggplot(Ap.dt, aes(x=val, y=exp.scaled, group=Transcript)) +
+  geom_smooth() +
+  facet_grid(exp_type ~ colony) +
+  scale_y_continuous(name="Expression (scaled)") +
+  scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
+p4
+```
+
+
+Make plots for transcripts with significant temperature by colony interaction
+
+```{r plot_interaction_responsive, echo=FALSE, eval=TRUE, cache=TRUE}
+# Line plot, expression against temp, faceted by colony
+p1 <- ggplot(Ap.dt.interaction, aes(x=val, y=exp.scaled, group=Transcript)) +
+  geom_line() +
+  facet_grid(. ~ colony) +
+  scale_y_continuous(name="Expression (scaled)") +
+  scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
+p1
+
+
+# Smooth plot, expression against temp, faceted by colony
+p2 <- ggplot(Ap.dt.interaction, aes(x=val, y=exp.scaled, group=Transcript)) +
+  geom_smooth() +
+  facet_grid(. ~ colony) +
+  scale_y_continuous(name="Expression (scaled)") +
+  scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
+p2
+
+# Same as p1, faceted by expression type
+p3 <- ggplot(Ap.dt.interaction, aes(x=val, y=exp.scaled, group=Transcript)) +
+  geom_line() +
+  facet_grid(exp_type ~ colony) +
+  scale_y_continuous(name="Expression (scaled)") +
+  scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
+p3
+
+# Smooth plot, expression against temp, faceted by colony
+p4 <- ggplot(Ap.dt.interaction, aes(x=val, y=exp.scaled, group=Transcript)) +
+  geom_smooth() +
+  facet_grid(exp_type ~ colony) +
+  scale_y_continuous(name="Expression (scaled)") +
+  scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
+p4
 ```
 
 
 
-
-
-
-```{r hists, echo=FALSE, eval=FALSE}
-
-## IN PROGRESS ##
-
-# combine data
-# reshape long
-# make histogram
-
-png("hist_'(Intercept)'.png")
-  h <- ggplot(Ap.RxN.G.qcrit, aes('(Intercept)')) + geom_histogram(binwidth = 0.5) +
-#   scale_x_log10()
-    xlim(0, 100)
-  h
+```{r plot, echo=FALSE, eval=TRUE, cache=TRUE}
+# Line plot, expression against temp, faceted by colony
+png("Ap_expression_by_colony_line.png")
+  p1 <- ggplot(Ap.dt, aes(x=val, y=exp.scaled, group=Transcript)) +
+    geom_line() +
+    facet_grid(. ~ colony) +
+    scale_y_continuous(name="Expression (scaled)") +
+    scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
+  p1
 dev.off()
 
-png("hist_linear.png")
-  h <- ggplot(Ap.RxN.G.qcrit, aes(lin.coef)) + geom_histogram(binwidth = 0.5) +
-    xlim(-5,5)
-  h
+# Smooth plot, expression against temp, faceted by colony
+png("Ap_expression_by_colony_smooth.png")
+  p2 <- ggplot(Ap.dt, aes(x=val, y=exp.scaled, group=Transcript)) +
+    geom_smooth() +
+    facet_grid(. ~ colony) +
+    scale_y_continuous(name="Expression (scaled)") +
+    scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
+  p2
 dev.off()
 
-png("hist_quad.png")
-  h <- ggplot(Ap.RxN.G.qcrit, aes(quad.coef)) + geom_histogram(binwidth = 0.1) +
-    xlim(-1,1)
-  h
+# Same as p1, faceted by expression type
+png("Ap_expression_by_colony_exp_line.png")
+  p3 <- ggplot(Ap.dt, aes(x=val, y=exp.scaled, group=Transcript)) +
+    geom_line() +
+    facet_grid(exp_type ~ colony) +
+    scale_y_continuous(name="Expression (scaled)") +
+    scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
+  p3
+dev.off()
+
+# Smooth plot, expression against temp, faceted by colony
+png("Ap_expression_by_colony_exp_smooth.png")
+  p4 <- ggplot(Ap.dt, aes(x=val, y=exp.scaled, group=Transcript)) +
+    geom_smooth() +
+    facet_grid(exp_type ~ colony) +
+    scale_y_continuous(name="Expression (scaled)") +
+    scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
+  p4
 dev.off()
 ```
 
+
+```{r plot_interaction_responsive_to_file, echo=FALSE, eval=TRUE, cache=TRUE}
+# Line plot, expression against temp, faceted by colony
+png("Ap_expression_interaction_by_colony_line.png")
+  p1 <- ggplot(Ap.dt.interaction, aes(x=val, y=exp.scaled, group=Transcript)) +
+    geom_line() +
+    facet_grid(. ~ colony) +
+    scale_y_continuous(name="Expression (scaled)") +
+    scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
+  p1
+dev.off()
+
+# Smooth plot, expression against temp, faceted by colony
+png("Ap_expression_interaction_by_colony_smooth.png")
+  p2 <- ggplot(Ap.dt.interaction, aes(x=val, y=exp.scaled, group=Transcript)) +
+    geom_smooth() +
+    facet_grid(. ~ colony) +
+    scale_y_continuous(name="Expression (scaled)") +
+    scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
+  p2
+dev.off()
+
+# Same as p1, faceted by expression type
+png("Ap_expression_interaction_by_colony_exp_line.png")
+  p3 <- ggplot(Ap.dt.interaction, aes(x=val, y=exp.scaled, group=Transcript)) +
+    geom_line() +
+    facet_grid(exp_type ~ colony) +
+    scale_y_continuous(name="Expression (scaled)") +
+    scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
+  p3
+dev.off()
+
+# Smooth plot, expression against temp, faceted by colony
+png("Ap_expression_interaction_by_colony_exp_smooth.png")
+  p4 <- ggplot(Ap.dt.interaction, aes(x=val, y=exp.scaled, group=Transcript)) +
+    geom_smooth() +
+    facet_grid(exp_type ~ colony) +
+    scale_y_continuous(name="Expression (scaled)") +
+    scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
+  p4
+dev.off()
+```
 
 
 ## Session information ##
