@@ -5,35 +5,12 @@ Thermal reactionome of a common ant species
 
 ## Introduction
 
-Temperature plays a prominent role in structuring biological diversity from molecular to macroecological levels [@Kingsolver2009]. At an organismal level, thermal tolerance of individuals has been assessed for decades. In combination with environmental data, this thermal tolerance data has provided the backbone to dozens of studies examining species range limits [..] and local adaptation [...], as well as the potential for species to track warming climates. However, at the molecular level, less is known about the functional diversity of genes involved in thermal tolerance. 
+Temperature plays a prominent role in structuring biological diversity from molecular to macroecological scales [@Kingsolver2009]. At the population level, thermal tolerance has been assessed in dozens of studies [...] often demonstrating local adaptation [...]. In combination with environmental data, this thermal tolerance data has provided the backbone to dozens of studies examining limits to species geographic ranges [..], and the potential for species to track [...] and adapt to warming climates [...and climate change impacts on population growth [@Deutsch2008, Kingsolver2013]. At the organismal level, studies of thermal tolerance have largely focused on candidate genes such as heat shock proteins [@Dahlgaard1998, ...]. However, estimates of the standing genetic variation [@Krebs1997, Krebs1997, Williams2012], studies of differential gene expression [@Leemans2000], quantitative trait loci (QTL) [@Morgan2006] and knock-outs [@Takahasi2011] in the model system *Drosophila melanogaster* all implicate dozens of additional genes underlying thermal tolerance. Little is known about the diversity of these genes, especially in non-model species. 
 
-Thermal tolerance is a complex phenotype that integrates across many underlying traits including behavior, physiology, protein stability and heat shock protein expression. Underlying this phenotypic variation is the differential expression of many genes. While specific classes of genes (e.g. heat-shock proteins) that have major functional effects in thermal tolerance are often studied, little is known about the diversity and extent of whole organism transcriptional changes that occur in response to temperature.
+Ants are ecologically-important species involved in multiple symbioses and ecosystem-functioning processes. For example, in eastern North America, the ant species *Aphaenogaster rudis* disperses seeds for 30% of herbacious species [@...]. In addition, ants are key contributors to nutrient cycling [...] and .... . As ectothermic species, ants experience a wide range of temperature conditions. Throughout the year, ant colonies persist through freezings and hot summers, and at shorter time scales, individual workers can experience substantial thermal shock as they leave the buffered ant nest to forage for food [...]. Thus, we expect that at the organismal level, ants utilize multiple molecular pathways to deal with thermal stress in addition to colony-level traits such as changes in foraging behavior [@Gordon2013] and nest location [...]. 
+ 
+To explore the molecular toolkit used by ant species to cope with thermal stress, we performed a whole organism RNA sequencing (RNAseq) study using two colonies in the *Aphaenogaster fulva-picea-rudis* complex. One colony was from the interior of the species range in North Carolina, while the other was from a location approaching the northern range edge in Vermont. Our specific goals were to 1) generate the set of all genes (i.e. transcriptome) expressed by two colonies in the *Aphaenogaster fulva-picea-rudis* complex across physiologically-relevant temperatures, 2) identify genes that have responsive expression across this thermal gradient (i.e. thermal reactionome), 3) explore the functional annotations of these genes, and 4) examine differences in the thermal reactionome between the two colonies. Specifically, we hypothesize that the more southern of the two colonies will have higher constitutive expression of many of the genes that are up-regulated in response to heat shock of the more northern colony. Moreover, this study makes a methodological contribution as we analyze expression in a linear model, looking for *responsive* genes, rather than genes that are differentially-expressed.
 
-Understanding the genetic basis of thermal tolerance will improve our ability to predict the effects of climate change on species abundances and distributions. Specifically, genetic diversity of key genes involved in thermal tolerance can be assayed across a species range [...stickleback work...] , giving a proxy for genetic variance in this trait. As the the potential for evolution to prevent populations from going extinct in response to environmental change (i.e evolutionary rescue) depends in part on the genetic variation for thermal tolerance within populations [@Gomuclkiewcz2013].   
- . This is especially true for ectothermic species which are predicted to be more sensitive to temperature changes ...  
-
-Moreover, 
-
-
-
-Studies of gene expression...microarrays. Recently, RNAseq has become a prominent method... However, to date, RNAseq studies have focused on categorical differential gene expression using ANOVA-type statistical methods [...]. While this approach is appropriate for many cases where genes are either active or not (e.g. response to infection), for continuous environmental conditions such as temperature, gene expression is more likely to be continuous in nature. When only comparing conditions at the ends of a continuum (e.g. 'low' vs 'high' temperatures), genes involved in adaptation to conditions at optimal temperatures will be missed. In this study, we use an alternative approach. We measure gene expression across a thermal gradient and identify those genes that show a significant change in gene expression. This approach is powerful as identify not only genes that have large differential changes in expression between 'low' and 'high' conditions, but also genes with maximum intermediate expression.
-
-Ants are ecologically-important species involved in multiple symbioses and ecosystem-functioning processes. For example, in eastern North America, the ant species *Aphaenogaster rudis* disperses seeds for 30% of ... [@...]. In addition, ants recycle...decomposition. The recent 
-
-
-previous work
-
-In this study, we 1) generate the set of all genes (transcriptome) expressed by *Aphaenogaster* across physiologically-relevant temperatures, 2) identify genes that have differential expression across this thermal gradient, and 3) explore the functional annotations of these genes. 
-
---------------
-
-Ultimately, the inability of species to persist under certain temperatures is due to a failure of evolution; what prevents adaptation to these conditions [@antonovics]? 
-
-
-
- though biotic interactions clearly have an important role in determining the evolutionary potential of species to climate [@Price].  
-
-------------------
 
 ## Methods
 
@@ -94,3 +71,13 @@ The classes of genes over-represented included....
 
 
 
+---------------------
+
+
+Understanding the genetic basis of thermal tolerance will improve our ability to predict the effects of climate change on species abundances and distributions. Specifically, genetic diversity of key genes involved in thermal tolerance can be assayed across a species range [...] , giving a proxy for genetic variance in this trait. As the the potential for evolution to prevent populations from going extinct in response to environmental change (i.e evolutionary rescue) depends in part on the genetic variation for thermal tolerance within populations [@Gomuclkiewcz2013].   
+ . This is especially true for ectothermic species which are predicted to be highly sensitive to temperature changes ...  
+
+
+As ectothermic species, the fitness of ant colonies is highly susceptible to variation in temperature. Recent models based on thermal performance curves indicate that many temperate and tropical ectothermic species will be near their physiological limits by 2100 [@Kingsolver2013]. However, these models assume that natural selection will not act to change the thermal limits of this species. 
+
+The study of whole organism gene expression (e.g. transcriptomics) has rapidly increased in the past decade due to improved sequencing technology (RNAseq). However, to date RNAseq studies have focused on differential gene expression between treatment groups (e.g. ANOVA) [...]. While this approach is appropriate for situations where genes are either active or not (e.g. response to infection), for continuous environmental conditions such as temperature gene expression is more likely to be continuous in nature. When only comparing conditions at the ends of a continuum (e.g. 'low' vs 'high' temperatures), genes involved in adaptation to conditions at optimal temperatures will be missed. In this study, we use an alternative approach. We measure gene expression across a thermal gradient and identify those genes that show a significant change in gene expression. This approach is powerful as identify not only genes that have large differential changes in expression between 'low' and 'high' conditions, but also genes with maximum intermediate expression.
