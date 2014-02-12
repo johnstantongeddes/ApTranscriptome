@@ -35,6 +35,9 @@ suppressMessages(library(Rgraphviz))
 
 # load custom functions
 source("scripts/RxNseq.R")
+
+# directory to save results
+resultsdir <- "results/"
 ```
 
 ## Summary ##
@@ -175,9 +178,13 @@ Then, for each sample, run the following command:
 
 Or, with a loop:                                                 
                                                  
-```{r sailfish, eval=FALSE, echo=TRUE, cache=TRUE}
+```{r sailfish, eval=TRUE, echo=TRUE, cache=TRUE}
 # directory containing trimmed reads
 readdir <- "data/ind_files/" 
+# sailfish index directory
+sfindex <- "results/trinity-full/sailfish-index"
+# sailfish expression directory
+sfexpressionroot <- "results/trinity-full/sailfish-expression/"
 
 # list of reads in each of four trimmed classes
 readlist <- list.files(readdir)
@@ -193,13 +200,13 @@ samples <- c("A22-0", "A22-10", "A22-14", "A22-17", "A22-21", "A22-24", "A22-28"
 
 for (j in 1:length(samples)) {
     message("Start expression quantification for sample ", samples[j], ": ", Sys.time())
-    quantdir <- paste(samples[j], "_quant", sep="")
+    quantdir <- paste(sfexpressionroot, samples[j], "_quant", sep="")
     samp.pos <- grep(paste(paste(samples[j], "_", sep="")), paired.left)
     samp.paired.l <- paste(readdir, paired.left[samp.pos], sep="")
     samp.paired.r <- paste(readdir, paired.right[samp.pos], sep="")
     samp.unpaired.l <- paste(readdir, unpaired.left[samp.pos], sep="")
     samp.unpaired.r <- paste(readdir, unpaired.right[samp.pos], sep="")
-    sailfishcmd <- paste("sailfish quant -i results/trinity-full/sailfish-index -o results/trinity-full/sailfish-expression/", quantdir, " --reads ", samp.paired.l, " ", samp.paired.r, " ", samp.unpaired.l, " ", samp.unpaired.r, " -p 4", sep="")
+    sailfishcmd <- paste("sailfish quant -i ", sfindex, " -o ", quantdir, " --reads ", samp.paired.l, " ", samp.paired.r, " ", samp.unpaired.l, " ", samp.unpaired.r, " -p 4", sep="")
     print(sailfishcmd)
     system(sailfishcmd)
     message("Done with expression quantification for sample ", samples[j], ": ", Sys.time(), "\n")
@@ -208,11 +215,11 @@ for (j in 1:length(samples)) {
 
 This generated a directory for each sample
 
-`r list.files("results/trinity-full/sailfish-expression")`
+`r list.files(sfexpressionroot)`
 
 and within each directory there are the following r:
 
-`r list.files("results/trinity-full/sailfish-expression/A22-0_quant")`
+`r list.files(quantdir)`
 
 The file *quant_bias_corrected.sf* contains the following columns, following a number of header lines:
 
@@ -224,54 +231,49 @@ The file *quant_bias_corrected.sf* contains the following columns, following a n
 The TPM column for each sample was extracted and combined into a matrix for each colony.
 
 ```{r load_expression_data, eval=TRUE, echo=FALSE, results='hide'}
-    
-#  read in each file using loop
+# read in each file using loop
 samples <- c("A22-0", "A22-3", "A22-7", "A22-10", "A22-14", "A22-17", "A22-21", "A22-24", "A22-28", "A22-31", "A22-35", "A22-38", "Ar-0", "Ar-3", "Ar-7", "Ar-10", "Ar-14", "Ar-17", "Ar-21", "Ar-24", "Ar-28", "Ar-31", "Ar-35", "Ar-38")
-
-fileinpath <- "results/trinity-full/sailfish-expression/"
 
 for (j in 1:length(samples)) {
     samp <- samples[j]
     trtval <- as.numeric(str_split_fixed(samp, "-", 2)[2])
     outpre <- gsub("-", "_", samp)
     outname <- paste(outpre, "_quant", sep="")
-    read.sailfish.quant(filein=paste(fileinpath, samp, "_quant/quant_bias_corrected.sf", sep=""), outname=outname, samp = samp, trtval = trtval)
+    read.sailfish.quant(filein=paste(sfexpressionroot, samp, "_quant/quant_bias_corrected.sf", sep=""), outname=outname, samp = samp, trtval = trtval)
 }
 
 # combine into long format
-
 A22.TPM <- rbind(A22_0_quant, A22_3_quant, A22_7_quant, A22_10_quant, A22_14_quant, A22_17_quant, A22_21_quant, A22_24_quant, A22_28_quant, A22_31_quant, A22_35_quant, A22_38_quant)
 str(A22.TPM)
 
 # convert to data.table
-
-A22.TPM.dt <- data.table(A22.TPM)
-setkey(A22.TPM.dt, Transcript, val)
+A22.TPM <- data.table(A22.TPM)
+setkey(A22.TPM, Transcript, val)
 
 # set "trt" to true values - truncated in file names for convenience
 
-A22.TPM.dt[val==3,val:=3.5]
-A22.TPM.dt[val==10,val:=10.5]
-A22.TPM.dt[val==17,val:=17.5]
-A22.TPM.dt[val==24,val:=24.5]
-A22.TPM.dt[val==31,val:=31.5]
-A22.TPM.dt[val==38,val:=38.5]
-head(A22.TPM.dt)
-str(A22.TPM.dt)
+A22.TPM[val==3,val:=3.5]
+A22.TPM[val==10,val:=10.5]
+A22.TPM[val==17,val:=17.5]
+A22.TPM[val==24,val:=24.5]
+A22.TPM[val==31,val:=31.5]
+A22.TPM[val==38,val:=38.5]
+head(A22.TPM)
+str(A22.TPM)
 
 
 # Repeat for Ar
 Ar.TPM <- rbind(Ar_0_quant, Ar_3_quant, Ar_7_quant, Ar_10_quant, Ar_14_quant, Ar_17_quant, Ar_21_quant, Ar_24_quant, Ar_28_quant, Ar_31_quant, Ar_35_quant, Ar_38_quant)
-Ar.TPM.dt <- data.table(Ar.TPM)
-setkey(Ar.TPM.dt, Transcript, val)
-Ar.TPM.dt[val==3,val:=3.5]
-Ar.TPM.dt[val==10,val:=10.5]
-Ar.TPM.dt[val==17,val:=17.5]
-Ar.TPM.dt[val==24,val:=24.5]
-Ar.TPM.dt[val==31,val:=31.5]
-Ar.TPM.dt[val==38,val:=38.5]
-head(Ar.TPM.dt)
-str(Ar.TPM.dt)
+Ar.TPM <- data.table(Ar.TPM)
+setkey(Ar.TPM, Transcript, val)
+Ar.TPM[val==3,val:=3.5]
+Ar.TPM[val==10,val:=10.5]
+Ar.TPM[val==17,val:=17.5]
+Ar.TPM[val==24,val:=24.5]
+Ar.TPM[val==31,val:=31.5]
+Ar.TPM[val==38,val:=38.5]
+head(Ar.TPM)
+str(Ar.TPM)
 
 tables()
 ```
@@ -279,16 +281,15 @@ tables()
 Note that expression levels at each temperature treatment are highly correlated between the two colonies.
 
 ```{r exp_correlations, echo=FALSE, results='asis'}
+# Make Rmarkdown pandoc table of correlations among expression levels between colonies at each temp
+
 temp <- c(0, 3.5, 7, 10.5, 14, 17.5, 21, 24.5, 28, 31.5, 35, 38.5)
 cors <- c(round(cor(Ar_0_quant$TPM, A22_0_quant$TPM), 2), round(cor(Ar_3_quant$TPM, A22_3_quant$TPM), 2), round(cor(Ar_7_quant$TPM, A22_7_quant$TPM), 2), round(cor(Ar_10_quant$TPM, A22_10_quant$TPM), 2), round(cor(Ar_14_quant$TPM, A22_14_quant$TPM), 2), round(cor(Ar_17_quant$TPM, A22_17_quant$TPM), 2), round(cor(Ar_21_quant$TPM, A22_21_quant$TPM), 2), round(cor(Ar_24_quant$TPM, A22_24_quant$TPM), 2), round(cor(Ar_28_quant$TPM, A22_28_quant$TPM), 2), round(cor(Ar_31_quant$TPM, A22_31_quant$TPM), 2), round(cor(Ar_35_quant$TPM, A22_35_quant$TPM), 2), round(cor(Ar_38_quant$TPM, A22_38_quant$TPM), 2))
-## 
+
 cortable <- cbind(temp, cors)
 
 pandoc.table(cortable, style="rmarkdown", caption = "correlations between colonies at each temperature treatment")
 ```
-
-Expression levels are *highly* correlated between colonies. 
-
 
 ## Identification of thermally-responsive genes
 
@@ -303,9 +304,9 @@ For this list of P-values, False Discovery Rate (FDR) is applied and q-values ar
 Preliminary [examination](https://minilims1.uvm.edu/BCProject-26-Cahan/methods.html#clustering-of-samples) of the data indicated that the A22_7 and Ar_7 samples may have been switched, so I remove these values from the analysis to be conservative). 
 
 ```{r RxN, echo=TRUE, eval=TRUE, cache=TRUE}
-A22.TPM.dt[,colony:="A22"]
-Ar.TPM.dt[,colony:="Ar"]
-TPM.dt <- rbind(A22.TPM.dt, Ar.TPM.dt)
+A22.TPM[,colony:="A22"]
+Ar.TPM[,colony:="Ar"]
+TPM.dt <- rbind(A22.TPM, Ar.TPM)
 TPM.dt$colony <- as.factor(TPM.dt$colony)
 str(TPM.dt)
 
@@ -361,17 +362,13 @@ dim(responsive.transcripts)
 responsive.transcripts.ann <- annotationtable[responsive.transcripts]
 str(responsive.transcripts.ann)
 
-write.table(responsive.transcripts.ann, file = "Ap_responsive_transcripts_GO.txt", quote = FALSE, sep = "\t", row.names = FALSE)
+write.table(responsive.transcripts.ann, file = paste(resultsdir, "Ap_responsive_transcripts_GO.txt", sep=""), quote = FALSE, sep = "\t", row.names = FALSE)
 
 colony.transcripts <- signif.transcripts[!is.na(signif.transcripts$'coef.colony')]
 colony.transcripts.ann <- annotationtable[colony.transcripts]
 str(colony.transcripts.ann)
-write.table(colony.transcripts.ann, file = "Ap_colony_transcripts_GO.txt", quote = FALSE, sep = "\t", row.names = FALSE)
+write.table(colony.transcripts.ann, file = paste(resultsdir, "Ap_colony_transcripts_GO.txt", sep=""), quote = FALSE, sep = "\t", row.names = FALSE)
 ```
-
-Encouragingly, 2 known candidates (e.g. heat shock proteins) occur in this list:
-
-`r responsive.transcripts.ann[grep("heat shock", responsive.transcripts.ann$best.hit.to.nr), list(best.hit.to.nr)]`
 
 Identify shape of curve:
 
@@ -405,7 +402,6 @@ While most transcripts have a convex shape, this summary masks that most of thes
 
 
 ```{r maxmin, eval=TRUE, echo=FALSE, results = 'asis'}
-
 Ap.max.min.exp <- ddply(Ap.dt, .(Transcript), function(df) {
         lmout <- lm(TPM ~ val + I(val^2), data = df)
             vals <- c(0, 3.5, 10, 14, 17.5, 21, 24.5, 28, 31.5, 35, 38.5)
@@ -428,13 +424,16 @@ pandoc.table(expt, style="rmarkdown", caption = "Number of transcripts that have
 **Most** transcripts have maximum expression at high (>=31.5) or low (<=10) temperatures. As the genes invovled in each type of thermal response may differ, designate responsive transcripts by max expression at high, low or intermediate (14-28) temperatures.
 
 
-```{r, eval=TRUE}
+```{r exp_type, eval=TRUE}
 # set expression type
-responsive.transcripts.ann <- responsive.transcripts.ann[Ap.max.min.exp]
-responsive.transcripts.ann[ , exp_type:="intermediate"]
-responsive.transcripts.ann[max.val>31, exp_type:="high"]
-responsive.transcripts.ann[max.val<11, exp_type:="low"]
-head(responsive.transcripts.ann)
+Ap.max.min.exp <- data.table(Ap.max.min.exp)
+setkey(Ap.max.min.exp, Transcript)
+setkey(Ap.dt, Transcript)
+Ap.dt <- Ap.dt[Ap.max.min.exp]
+Ap.dt[ , exp_type:="intermediate"]
+Ap.dt[max.val>31, exp_type:="high"]
+Ap.dt[max.val<11, exp_type:="low"]
+head(Ap.dt)
 ```
 
 
@@ -465,10 +464,10 @@ str(head(geneID2GO))
 
 # create geneList. note that NA values cause problems with topGO
 # so set any NA to 1 as need to retain for GO analysis
-Ap.geneList <- RxNout.dt$pval
+Ap.geneList <- RxNout$pval
 Ap.geneList[which(is.na(Ap.geneList))] <- 1
 stopifnot(length(which(is.na(Ap.geneList))) == 0)
-names(Ap.geneList) <- RxNout.dt$Transcript
+names(Ap.geneList) <- RxNout$Transcript
 str(Ap.geneList)
 
 # Function to select top genes (defined above)
@@ -491,14 +490,12 @@ Ap.BP.resultParentChild
 
 Ap.BP.ResTable <- GenTable(Ap.BP.GOdata, parentchild = Ap.BP.resultParentChild, topNodes = 10)
 Ap.BP.ResTable
-write.table(Ap.BP.ResTable, file = "Ap_GO.BP_results.txt", quote=FALSE, row.names=FALSE, sep = "\t")
+write.table(Ap.BP.ResTable, file = paste(resultsdir, "Ap_GO.BP_results.txt", sep=""), quote=FALSE, row.names=FALSE, sep = "\t")
 pandoc.table(Ap.BP.ResTable)
-
-
 
 # graph significant nodes
 
-pdf("Ap.BP_topGO_sig_nodes.pdf")
+pdf(paste(resultsdir, "Ap.BP_topGO_sig_nodes.pdf", sep=""))
 showSigOfNodes(Ap.BP.GOdata, score(Ap.BP.resultParentChild), firstSigNodes = 10, useInfo = 'all')
 dev.off()
 ```
@@ -524,7 +521,7 @@ Ap.CC.ResTable
 
 # graph significant nodes
 
-pdf("Ap.CC_topGO_sig_nodes.pdf")
+pdf(paste(resultsdir, "Ap.CC_topGO_sig_nodes.pdf", sep=""))
 showSigOfNodes(Ap.CC.GOdata, score(Ap.CC.resultParentChild), firstSigNodes = 10, useInfo = 'all')
 dev.off()
 ```
@@ -550,7 +547,7 @@ Ap.MF.ResTable
 
 # graph significant nodes
 
-pdf("Ap.MF_topGO_sig_nodes.pdf")
+pdf(paste(resultsdir, "Ap.MF_topGO_sig_nodes.pdf", sep=""))
 showSigOfNodes(Ap.MF.GOdata, score(Ap.MF.resultParentChild), firstSigNodes = 10, useInfo = 'all')
 dev.off()
 
@@ -564,7 +561,7 @@ and this term is included in the list of enriched GO terms:
 
 ```{r GO_terms}
 # significant GO terms
-Ap.BP.signif.table <- GenTable(Ap.BP.GOdata, parentchild = Ap.BP.resultParentChild, topNodes = 406)
+Ap.BP.signif.table <- GenTable(Ap.BP.GOdata, parentchild = Ap.BP.resultParentChild, topNodes = 415)
 Ap.BP.signif <- Ap.BP.signif.table$GO.ID
 length(Ap.BP.signif)
 
@@ -579,12 +576,12 @@ Export data for interactive shiny app.
 # scale expression values 
 Ap.dt[,exp.scaled:=scale(TPM), by = Transcript]
 str(Ap.dt)
-write.csv(Ap.dt, file = "Ap.dt.csv", quote = TRUE, row.names = FALSE, sep = ",")
+write.csv(Ap.dt, file = paste(resultsdir, "Ap.dt.csv", sep=""), quote = TRUE, row.names = FALSE)
 
 # subset to genes with significant interaction
 Ap.dt.interaction <- Ap.dt[!is.na(Ap.dt$'coef.colony:val') | !is.na(Ap.dt$'coef.colony:I(val^2)')]
 str(Ap.dt.interaction)
-write.csv(Ap.dt.interaction, file = "Ap.dt.interaction.csv", quote = TRUE, row.names = FALSE, sep = ",")
+write.csv(Ap.dt.interaction, file = paste(resultsdir, "Ap.dt.interaction.csv", sep=""), quote = TRUE, row.names = FALSE)
 ```
 
 # Visualize responsive transcripts
@@ -625,7 +622,6 @@ p4 <- ggplot(Ap.dt, aes(x=val, y=exp.scaled, group=Transcript)) +
   scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
 p4
 ```
-
 
 Make plots for transcripts with significant temperature by colony interaction
 
@@ -668,7 +664,7 @@ p4
 
 ```{r plot, echo=FALSE, eval=TRUE, cache=TRUE}
 # Line plot, expression against temp, faceted by colony
-png("Ap_expression_by_colony_line.png")
+png(paste(resultsdir, "Ap_expression_by_colony_line.png", sep=""))
   p1 <- ggplot(Ap.dt, aes(x=val, y=exp.scaled, group=Transcript)) +
     geom_line() +
     facet_grid(. ~ colony) +
@@ -678,7 +674,7 @@ png("Ap_expression_by_colony_line.png")
 dev.off()
 
 # Smooth plot, expression against temp, faceted by colony
-png("Ap_expression_by_colony_smooth.png")
+png(paste(resultsdir, "Ap_expression_by_colony_smooth.png", sep=""))
   p2 <- ggplot(Ap.dt, aes(x=val, y=exp.scaled, group=Transcript)) +
     geom_smooth() +
     facet_grid(. ~ colony) +
@@ -688,7 +684,7 @@ png("Ap_expression_by_colony_smooth.png")
 dev.off()
 
 # Same as p1, faceted by expression type
-png("Ap_expression_by_colony_exp_line.png")
+png(paste(resultsdir, "Ap_expression_by_colony_exp_line.png", sep=""))
   p3 <- ggplot(Ap.dt, aes(x=val, y=exp.scaled, group=Transcript)) +
     geom_line() +
     facet_grid(exp_type ~ colony) +
@@ -698,7 +694,7 @@ png("Ap_expression_by_colony_exp_line.png")
 dev.off()
 
 # Smooth plot, expression against temp, faceted by colony
-png("Ap_expression_by_colony_exp_smooth.png")
+png(paste(resultsdir, "Ap_expression_by_colony_exp_smooth.png", sep=""))
   p4 <- ggplot(Ap.dt, aes(x=val, y=exp.scaled, group=Transcript)) +
     geom_smooth() +
     facet_grid(exp_type ~ colony) +
@@ -706,12 +702,13 @@ png("Ap_expression_by_colony_exp_smooth.png")
     scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
   p4
 dev.off()
+
 ```
 
 
 ```{r plot_interaction_responsive_to_file, echo=FALSE, eval=TRUE, cache=TRUE}
 # Line plot, expression against temp, faceted by colony
-png("Ap_expression_interaction_by_colony_line.png")
+png(paste(resultsdir, "Ap_expression_interaction_by_colony_line.png", sep=""))
   p1 <- ggplot(Ap.dt.interaction, aes(x=val, y=exp.scaled, group=Transcript)) +
     geom_line() +
     facet_grid(. ~ colony) +
@@ -721,7 +718,7 @@ png("Ap_expression_interaction_by_colony_line.png")
 dev.off()
 
 # Smooth plot, expression against temp, faceted by colony
-png("Ap_expression_interaction_by_colony_smooth.png")
+png(paste(resultsdir, "Ap_expression_interaction_by_colony_smooth.png", sep=""))
   p2 <- ggplot(Ap.dt.interaction, aes(x=val, y=exp.scaled, group=Transcript)) +
     geom_smooth() +
     facet_grid(. ~ colony) +
@@ -731,7 +728,7 @@ png("Ap_expression_interaction_by_colony_smooth.png")
 dev.off()
 
 # Same as p1, faceted by expression type
-png("Ap_expression_interaction_by_colony_exp_line.png")
+png(paste(resultsdir, "Ap_expression_interaction_by_colony_exp_line.png", sep=""))
   p3 <- ggplot(Ap.dt.interaction, aes(x=val, y=exp.scaled, group=Transcript)) +
     geom_line() +
     facet_grid(exp_type ~ colony) +
@@ -741,7 +738,7 @@ png("Ap_expression_interaction_by_colony_exp_line.png")
 dev.off()
 
 # Smooth plot, expression against temp, faceted by colony
-png("Ap_expression_interaction_by_colony_exp_smooth.png")
+png(paste(resultsdir, "Ap_expression_interaction_by_colony_exp_smooth.png", sep=""))
   p4 <- ggplot(Ap.dt.interaction, aes(x=val, y=exp.scaled, group=Transcript)) +
     geom_smooth() +
     facet_grid(exp_type ~ colony) +
