@@ -54,8 +54,23 @@ This script is completely reproducible assuming that R, `knitr` and the other re
 
 The assembled transcriptome, annotation and expression values are downloaded rather than re-run due to the computational demands, but the exact commands for each of these steps are documented below.
 
+## Data ##
+
+The raw Illumina fastq files are available from [https://minilims1.uvm.edu/BCProject-26-Cahan/_downloads/trimmomatic_output.tar.gz]
+
+We download and unzip the Trimmomatic filtered data available from [https://minilims1.uvm.edu/BCProject-26-Cahan/_downloads/trimmomatic_output.tar.gz]
+
+~~~
+# download
+wget --no-check-certificate https://minilims1.uvm.edu/BCProject-26-Cahan/_downloads/trimmomatic_output.tar.gz
+
+# move and unzip
+mv raw_data.tar.gz data/.
+tar -zxvf raw_data.tar.gz
+~~~
+
 ```{r download, echo = TRUE, results = "hide"}
-### Transcriptome assembly
+### Download 
 
 ### Expression data
 
@@ -330,6 +345,11 @@ Many of these are likely false positives, so I adjusted P-values using false dis
 ```{r fdr}
 RxNout$qval <- p.adjust(RxNout$pval, method = "fdr")
 
+# Plot FDR values against initial pvalues
+par(mfrow = c(2,1))
+hist(RxNout$pval)
+hist(RxNout$qval)
+
 # subset to significant transcripts
 signif.transcripts <- RxNout[which(RxNout$qval < 0.05), ]
 ```
@@ -370,70 +390,59 @@ str(colony.transcripts.ann)
 write.table(colony.transcripts.ann, file = paste(resultsdir, "Ap_colony_transcripts_GO.txt", sep=""), quote = FALSE, sep = "\t", row.names = FALSE)
 ```
 
-Identify shape of curve:
+For responsive transcripts, identify by shape of response:
 
-* increase - exrpression increases with temperature
-* decrease - expression decreases with temperature
-* concave - expression greatest at intermediate temperatures
-* convex - expression lowest at intermediate temperatures
+* High - increase expression with temperature
+* Low - decrease expression with temperature
+* Intermediate - maximum expression at intermediate temperatures (14 - 28C)
+* Bimodal - expressed greater than two standard deviations of expression at both low and high temperatures
 
-```{r shape, eval=TRUE, echo=FALSE, results = 'asis'}
+The 'Bimodal' class is of special interest as these transcripts may be those that constrain independent evolution of low and high temperature tolerance. 
+
+```{r expression_shape, eval=TRUE, echo=TRUE}
 # merge RxN results with expression values
 setkey(TPM.dt.sub, Transcript)
 Ap.dt <- TPM.dt.sub[responsive.transcripts.ann]
 
-# for each significant transcript, get all coefficients
-Ap.shape <- ddply(Ap.dt, .(Transcript), function(df) {
-    lmout <- lm(TPM ~ val + I(val^2), data = df)
-    coef(lmout)
-    shape = if(coef(lmout)['val'] > 0 & coef(lmout)['I(val^2)'] > 0) "increase" else {
-        if(coef(lmout)['val'] < 0 & coef(lmout)['I(val^2)'] < 0) "decrease" else {
-            if(coef(lmout)['val'] > 0 & coef(lmout)['I(val^2)'] < 0) "concave" else {
+Ap.max.min.exp <- ddply(Ap.dt, .(Transcript), function(df1) {
+    lmout <- lm(TPM ~ val + I(val^2), data = df1)
+    vals <- c(0, 3.5, 10, 14, 17.5, 21, 24.5, 28, 31.5, 35, 38.5)
+    newdf <- data.frame(val = vals)
+    pout <- predict(lmout, newdata=newdf)
+    pout <- data.frame(val = vals, exp = pout)
+
+    # get vals of max and min expression
+    max.val = vals[which(pout$exp == max(pout$exp))]
+    min.val = vals[which(pout$exp == min(pout$exp))]
+
+    # report coefficients
+    #coef(lmout)
+    shape = if(coef(lmout)['val'] > 0 & coef(lmout)['I(val^2)'] > 0) "High" else {
+        if(coef(lmout)['val'] < 0 & coef(lmout)['I(val^2)'] < 0) "Low" else {
+            if(coef(lmout)['val'] > 0 & coef(lmout)['I(val^2)'] < 0) "Intermediate" else {
                 "convex"}}}
+
+    # for transcripts with convex shape, check if expression is truly bimodal
+    if(shape == "convex") {
+        if(max(pout[pout$val <= 10, "exp"]) > 2*sd(pout$exp) &
+           max(pout[pout$val >= 31.5, "exp"]) > 2*sd(pout$exp)) shape = "Bimodal" else {
+           # linear increase?
+               if(max.val > min.val) shape = "High" else shape = "Low"
+           }
     }
-)
-
-shape.table <- table(Ap.shape$V1)
-
-pandoc.table(shape.table, style="rmarkdown", caption = "Number of transcripts that have maximum and minimum expression at each temperature level")
+           
+    # return values
+    return(c(max.val = vals[which(pout$exp == max(pout$exp))],
+             min.val = vals[which(pout$exp == min(pout$exp))],
+             shape = shape))
+    }
+ )
 ```
 
-While most transcripts have a convex shape, this summary masks that most of these have maximum expression at low or high, with zero to low elsewhere. Next, identify where maximum expression occurs.
-
-
-```{r maxmin, eval=TRUE, echo=FALSE, results = 'asis'}
-Ap.max.min.exp <- ddply(Ap.dt, .(Transcript), function(df) {
-        lmout <- lm(TPM ~ val + I(val^2), data = df)
-            vals <- c(0, 3.5, 10, 14, 17.5, 21, 24.5, 28, 31.5, 35, 38.5)
-            newdf <- data.frame(colony = rep("A22", 11), val = vals)
-            pout <- predict(lmout, newdata=newdf)
-            return(c(max.val = vals[which(pout == max(pout))],
-                                  min.val = vals[which(pout == min(pout))]))
-    }
-                        )
-
-# Table maximum and minium expression by temperature
-maxt <- table(Ap.max.min.exp$max.val)
-mint <- table(Ap.max.min.exp$min.val)
-
-expt <- rbind(Max = maxt, Min = mint)
-
-pandoc.table(expt, style="rmarkdown", caption = "Number of transcripts that have maximum and minimum expression at each temperature level")
-```
-
-**Most** transcripts have maximum expression at high (>=31.5) or low (<=10) temperatures. As the genes invovled in each type of thermal response may differ, designate responsive transcripts by max expression at high, low or intermediate (14-28) temperatures.
-
-
-```{r exp_type, eval=TRUE}
-# set expression type
-Ap.max.min.exp <- data.table(Ap.max.min.exp)
-setkey(Ap.max.min.exp, Transcript)
-setkey(Ap.dt, Transcript)
-Ap.dt <- Ap.dt[Ap.max.min.exp]
-Ap.dt[ , exp_type:="intermediate"]
-Ap.dt[max.val>31, exp_type:="high"]
-Ap.dt[max.val<11, exp_type:="low"]
-head(Ap.dt)
+```{r expression_shape_table, eval=TRUE, echo=FALSE, results='asis'}
+# Table type of response
+shape.table <- table(Ap.max.min.exp$shape)
+pandoc.table(shape.table, style="rmarkdown", caption = "Expression type of responsive transcripts. Bimodal are expressed at both high and low temperatures.")
 ```
 
 
