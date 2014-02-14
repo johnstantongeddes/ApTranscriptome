@@ -404,7 +404,7 @@ The 'Bimodal' class is of special interest as these transcripts may be those tha
 setkey(TPM.dt.sub, Transcript)
 Ap.dt <- TPM.dt.sub[responsive.transcripts.ann]
 
-Ap.max.min.exp <- ddply(Ap.dt, .(Transcript), function(df1) {
+Ap.exp_type <- ddply(Ap.dt, .(Transcript), function(df1) {
     lmout <- lm(TPM ~ val + I(val^2), data = df1)
     vals <- c(0, 3.5, 10, 14, 17.5, 21, 24.5, 28, 31.5, 35, 38.5)
     newdf <- data.frame(val = vals)
@@ -417,32 +417,35 @@ Ap.max.min.exp <- ddply(Ap.dt, .(Transcript), function(df1) {
 
     # report coefficients
     #coef(lmout)
-    shape = if(coef(lmout)['val'] > 0 & coef(lmout)['I(val^2)'] > 0) "High" else {
+    exp_type = if(coef(lmout)['val'] > 0 & coef(lmout)['I(val^2)'] > 0) "High" else {
         if(coef(lmout)['val'] < 0 & coef(lmout)['I(val^2)'] < 0) "Low" else {
             if(coef(lmout)['val'] > 0 & coef(lmout)['I(val^2)'] < 0) "Intermediate" else {
                 "convex"}}}
 
-    # for transcripts with convex shape, check if expression is truly bimodal
-    if(shape == "convex") {
+    # for transcripts with convex exp_type, check if expression is truly bimodal
+    if(exp_type == "convex") {
         if(max(pout[pout$val <= 10, "exp"]) > 2*sd(pout$exp) &
-           max(pout[pout$val >= 31.5, "exp"]) > 2*sd(pout$exp)) shape = "Bimodal" else {
+           max(pout[pout$val >= 31.5, "exp"]) > 2*sd(pout$exp)) exp_type = "Bimodal" else {
            # linear increase?
-               if(max.val > min.val) shape = "High" else shape = "Low"
+               if(max.val > min.val) exp_type = "High" else exp_type = "Low"
            }
     }
            
     # return values
     return(c(max.val = vals[which(pout$exp == max(pout$exp))],
              min.val = vals[which(pout$exp == min(pout$exp))],
-             shape = shape))
+             exp_type = exp_type))
     }
  )
+
+# merge 'exp_type' information with Ap.dt
+Ap.dt <- Ap.dt[Ap.exp_type]
 ```
 
-```{r expression_shape_table, eval=TRUE, echo=FALSE, results='asis'}
+```{r expression_exp_type_table, eval=TRUE, echo=FALSE, results='asis'}
 # Table type of response
-shape.table <- table(Ap.max.min.exp$shape)
-pandoc.table(shape.table, style="rmarkdown", caption = "Expression type of responsive transcripts. Bimodal are expressed at both high and low temperatures.")
+exp_type.table <- table(Ap.exp_type$exp_type)
+pandoc.table(exp_type.table, style="rmarkdown", caption = "Expression type of responsive transcripts. Bimodal are expressed at both high and low temperatures.")
 ```
 
 
@@ -473,7 +476,7 @@ str(head(geneID2GO))
 
 # create geneList. note that NA values cause problems with topGO
 # so set any NA to 1 as need to retain for GO analysis
-Ap.geneList <- RxNout$pval
+Ap.geneList <- RxNout$qval
 Ap.geneList[which(is.na(Ap.geneList))] <- 1
 stopifnot(length(which(is.na(Ap.geneList))) == 0)
 names(Ap.geneList) <- RxNout$Transcript
@@ -481,7 +484,7 @@ str(Ap.geneList)
 
 # Function to select top genes (defined above)
 selectFDR <- function(qvalue) {
-    return(qvalue < 0.5)
+    return(qvalue < 0.05)
 }
 
 # create topGOdata object
@@ -497,7 +500,7 @@ Ap.BP.GOdata
 Ap.BP.resultParentChild <- runTest(Ap.BP.GOdata, statistic = 'fisher', algorithm = 'parentchild')
 Ap.BP.resultParentChild
 
-Ap.BP.ResTable <- GenTable(Ap.BP.GOdata, parentchild = Ap.BP.resultParentChild, topNodes = 10)
+Ap.BP.ResTable <- GenTable(Ap.BP.GOdata, parentchild = Ap.BP.resultParentChild, topNodes = 106)
 Ap.BP.ResTable
 write.table(Ap.BP.ResTable, file = paste(resultsdir, "Ap_GO.BP_results.txt", sep=""), quote=FALSE, row.names=FALSE, sep = "\t")
 pandoc.table(Ap.BP.ResTable)
@@ -525,7 +528,7 @@ Ap.CC.GOdata
 Ap.CC.resultParentChild <- runTest(Ap.CC.GOdata, statistic = 'fisher', algorithm = 'parentchild')
 Ap.CC.resultParentChild
 
-Ap.CC.ResTable <- GenTable(Ap.CC.GOdata, parentchild = Ap.CC.resultParentChild, topNodes = 40)
+Ap.CC.ResTable <- GenTable(Ap.CC.GOdata, parentchild = Ap.CC.resultParentChild, topNodes = 22)
 Ap.CC.ResTable
 
 # graph significant nodes
@@ -562,21 +565,24 @@ dev.off()
 
 ```
 
-Note that among responsive transcripts, there are 26 transcripts with GO term "response to stress":
+Note that among responsive transcripts, there are 25 transcripts with GO term "response to stress":
 
 `r unique(Ap.dt[grep("GO:0006950", Ap.dt$GO.Biological.Process), Transcript])`
 
-and this term is included in the list of enriched GO terms:
+ and two heat shock proteins:
+
+`r unique(Ap.dt[grep("heat shock", Ap.dt$best.hit.to.nr), Transcript])`
+
+List of enriched GO Biological process terms:
 
 ```{r GO_terms}
 # significant GO terms
-Ap.BP.signif.table <- GenTable(Ap.BP.GOdata, parentchild = Ap.BP.resultParentChild, topNodes = 415)
-Ap.BP.signif <- Ap.BP.signif.table$GO.ID
+Ap.BP.signif <- Ap.BP.ResTable$GO.ID
 length(Ap.BP.signif)
 
-Ap.BP.signif.term <- Ap.BP.signif.table$Term
-Ap.BP.signif.term[grep("stress", Ap.BP.signif.term)]
-Ap.BP.signif.term[grep("immune", Ap.BP.signif.term)]
+Ap.BP.signif.term <- Ap.BP.ResTable$Term
+Ap.BP.signif.term[grep("response", Ap.BP.signif.term)]
+Ap.BP.signif.term[grep("DNA", Ap.BP.signif.term)]
 ```
 
 Export data for interactive shiny app. 

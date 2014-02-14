@@ -6,6 +6,7 @@
 data/        
 results/
 cache/ 
+figure/
 
 # Ignore these file types
 *.Rproj
