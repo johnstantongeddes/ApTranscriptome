@@ -314,7 +314,7 @@ $$ TPM = \beta_0 + \beta_1(colony) + \beta_2(temp) + \beta_3(temp^2) + \beta_4(c
 
 where TPM is transcripts per million. 
 
-For this list of P-values, False Discovery Rate (FDR) is applied and q-values are calculated using the [qvalue]() package.
+For this list of P-values, correct for multiple testing using False Discovery Rate (FDR).
 
 Preliminary [examination](https://minilims1.uvm.edu/BCProject-26-Cahan/methods.html#clustering-of-samples) of the data indicated that the A22_7 and Ar_7 samples may have been switched, so I remove these values from the analysis to be conservative). 
 
@@ -343,15 +343,15 @@ Of the `r nrow(RxNout)` transcripts, `r length(which(RxNout$pval < 0.05))` have 
 Many of these are likely false positives, so I adjusted P-values using false discovery rate (FDR) to identify only those transcripts with less than 5% FDR as significant. 
 
 ```{r fdr}
-RxNout$qval <- p.adjust(RxNout$pval, method = "fdr")
+RxNout$padj <- p.adjust(RxNout$pval, method = "fdr")
 
 # Plot FDR values against initial pvalues
 par(mfrow = c(2,1))
 hist(RxNout$pval)
-hist(RxNout$qval)
+hist(RxNout$padj)
 
 # subset to significant transcripts
-signif.transcripts <- RxNout[which(RxNout$qval < 0.05), ]
+signif.transcripts <- RxNout[which(RxNout$padj < 0.05), ]
 ```
 
 ## Functional annotation
@@ -456,7 +456,7 @@ In the previous section, I identified transcripts that show significant response
 
 ## Gene set enrichment analysis ##
 
-I use [topGO](http://www.bioconductor.org/packages/2.12/bioc/html/topGO.html) to perform gene set enrichment analysis
+I use [topGO](http://www.bioconductor.org/packages/2.12/bioc/html/topGO.html) to perform gene set enrichment analysis seperately for each expression type (bimodal, intermediate, high, low).
 
 First need to create gene ID to GO term map file
 
@@ -476,15 +476,15 @@ str(head(geneID2GO))
 
 # create geneList. note that NA values cause problems with topGO
 # so set any NA to 1 as need to retain for GO analysis
-Ap.geneList <- RxNout$qval
+Ap.geneList <- RxNout$padj
 Ap.geneList[which(is.na(Ap.geneList))] <- 1
 stopifnot(length(which(is.na(Ap.geneList))) == 0)
 names(Ap.geneList) <- RxNout$Transcript
 str(Ap.geneList)
 
 # Function to select top genes (defined above)
-selectFDR <- function(qvalue) {
-    return(qvalue < 0.05)
+selectFDR <- function(padj) {
+    return(padj < 0.05)
 }
 
 # create topGOdata object
@@ -495,15 +495,40 @@ Ap.BP.GOdata <- new("topGOdata",
                  annot = annFUN.gene2GO, gene2GO = geneID2GO)
 
 Ap.BP.GOdata
+```
+
+##GSEA for bimodally-expressed transcripts##
+
+```{r bi.gsea, echo=TRUE, eval=TRUE}
+# add 'exp_type' to RxN df
+RxNout.t <- merge(RxNout, Ap.exp_type, by="Transcript", all=TRUE)
+length(which(!is.na(RxNout.t$exp_type)))
+
+RxNout.bimodal <- RxNout.t[which(RxNout.t$exp_type == "Bimodal"), ]
+dim(RxNout.bimodal)
+
+Ap.bi.geneList <- RxNout.bimodal$padj 
+names(Ap.bi.geneList) <- RxNout.bimodal$Transcript
+str(Ap.bi.geneList)
+
+# create topGOdata object
+Ap.bi.BP.GOdata <- new("topGOdata",
+                 description = "BP gene set analysis", ontology = "BP",
+                 allGenes = Ap.bi.geneList, geneSel = selectFDR,
+                 nodeSize = 10,
+                 annot = annFUN.gene2GO, gene2GO = geneID2GO)
+
 
 # perform enrichment analysis using multiple methods
-Ap.BP.resultParentChild <- runTest(Ap.BP.GOdata, statistic = 'fisher', algorithm = 'parentchild')
-Ap.BP.resultParentChild
+Ap.bi.BP.resultParentChild <- runTest(Ap.bi.BP.GOdata, statistic = 'fisher', algorithm = 'parentchild')
+Ap.bi.BP.resultParentChild
 
-Ap.BP.ResTable <- GenTable(Ap.BP.GOdata, parentchild = Ap.BP.resultParentChild, topNodes = 106)
-Ap.BP.ResTable
-write.table(Ap.BP.ResTable, file = paste(resultsdir, "Ap_GO.BP_results.txt", sep=""), quote=FALSE, row.names=FALSE, sep = "\t")
-pandoc.table(Ap.BP.ResTable)
+#################### continue from here #####################
+
+Ap.bi.BP.ResTable <- GenTable(Ap.bi.BP.GOdata, parentchild = Ap.bi.BP.resultParentChild, topNodes = 106)
+Ap.bi.BP.ResTable
+write.table(Ap.bi.BP.ResTable, file = paste(resultsdir, "Ap_bimodal_GO.BP_results.txt", sep=""), quote=FALSE, row.names=FALSE, sep = "\t")
+pandoc.table(Ap.bi.BP.ResTable)
 
 # graph significant nodes
 
