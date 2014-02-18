@@ -58,14 +58,19 @@ The raw Illumina reads are available at [...], the script for analysis and versi
 
 **Assembly**
 
+The Trinity *de novo* transcriptome assembly included 126,172 transcripts with a total length of 100 million bp. Filtering to remove redundant or chimeric reads resulted in an assembly with 96,253 contigs and a total of 105,536 transcripts. For all transcripts, the total length was 63 million bp with an N_[50] length of 895 bp and a mean contig size of 593 bp. 
+
 
 **Functional annotation**
 
-Of the 105,536 filtered transcripts, 55,432 had hits to the NCBI-nr database. Of these, 38,711 transcripts mapped to GO terms, 1,659 transcripts were identified to an enzyme and 18,935 transcripts mapped to a domain with >50% coverage. Of these, 5,787 are hits to putatitive genes in the genome sequence of the ant species *Solenopsis invicta* and XXXX are hits to species with the class Insecta.
+Of the 105,536 filtered transcripts, 55,432 had hits to the NCBI-nr database. Of these, 38,711 transcripts mapped to GO terms, 1,659 transcripts were identified to an enzyme and 18,935 transcripts mapped to a domain with >50% coverage. Of these, 5,787 transcripts are annotated to putative genes in the genome sequence of the ant species *Solenopsis invicta* and XXXX are annotated to genes previously identified from organisms within the class Insecta.
 
 **Thermal responsive transcripts**
 
 We identified 22,582 transcripts with overall model fits of P < 0.05, retaining 8,753 after correcting for FDR, with 5,540 significantly changing expression with temperature. Of these, 822 increase with temperature, 2,058 decrease with temperature, 710 have maximum expression at intermediate temperatures and 1,990 are expressed at both low and high temperatures. 
+
+**Gene set enrichment analysis**
+
 
 ## Discussion
 
