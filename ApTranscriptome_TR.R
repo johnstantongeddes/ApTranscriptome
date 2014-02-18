@@ -222,7 +222,7 @@ for (j in 1:length(samples)) {
     samp.unpaired.l <- paste(readdir, unpaired.left[samp.pos], sep="")
     samp.unpaired.r <- paste(readdir, unpaired.right[samp.pos], sep="")
     sailfishcmd <- paste("sailfish quant -i ", sfindex, " -o ", quantdir, " --reads ", samp.paired.l, " ", samp.paired.r, " ", samp.unpaired.l, " ", samp.unpaired.r, " -p 4", sep="")
-    print(sailfishcmd)
+#   print(sailfishcmd)
     system(sailfishcmd)
     message("Done with expression quantification for sample ", samples[j], ": ", Sys.time(), "\n")
 }
@@ -344,7 +344,6 @@ Many of these are likely false positives, so I adjusted P-values using false dis
 
 ```{r fdr}
 RxNout$padj <- p.adjust(RxNout$pval, method = "fdr")
-
 # Plot FDR values against initial pvalues
 par(mfrow = c(2,1))
 hist(RxNout$pval)
@@ -354,7 +353,10 @@ hist(RxNout$padj)
 signif.transcripts <- RxNout[which(RxNout$padj < 0.05), ]
 ```
 
-## Functional annotation
+## Functional annotation ##
+
+In the previous section, I identified transcripts that show significant responses in expression. Next, I add gene annotation and ontology information to these transcripts.  
+
 
 ```{r annotation}
 # add annotation information
@@ -377,17 +379,22 @@ Of these, subset to those that have significant responses to temperature, either
 ```{r responsive_transcripts}
 responsive.transcripts <- signif.transcripts[!is.na(signif.transcripts$'coef.val') | !is.na(signif.transcripts$'coef.I(val^2)') | !is.na(signif.transcripts$'coef.colony:val') | !is.na(signif.transcripts$'coef.colony:I(val^2)')]
 dim(responsive.transcripts)
-
 # join signif transcripts with annotation
-responsive.transcripts.ann <- annotationtable[responsive.transcripts]
-str(responsive.transcripts.ann)
+responsive.transcripts <- annotationtable[responsive.transcripts]
+str(responsive.transcripts)
 
-write.table(responsive.transcripts.ann, file = paste(resultsdir, "Ap_responsive_transcripts_GO.txt", sep=""), quote = FALSE, sep = "\t", row.names = FALSE)
-
+# transcripts that differ in expression by colony
 colony.transcripts <- signif.transcripts[!is.na(signif.transcripts$'coef.colony')]
-colony.transcripts.ann <- annotationtable[colony.transcripts]
-str(colony.transcripts.ann)
-write.table(colony.transcripts.ann, file = paste(resultsdir, "Ap_colony_transcripts_GO.txt", sep=""), quote = FALSE, sep = "\t", row.names = FALSE)
+colony.transcripts <- annotationtable[colony.transcripts]
+str(colony.transcripts)
+colony.transcripts <- colony.transcripts[order(colony.transcripts$padj), ]
+write.table(colony.transcripts, file = paste(resultsdir, "Ap_colony_transcripts_GO.txt", sep=""), quote = FALSE, sep = "\t", row.names = FALSE)
+
+
+# transcripts that have colony by temperature interactions
+interaction.transcripts <- signif.transcripts[!is.na(signif.transcripts$'coef.colony:val') | !is.na(signif.transcripts$'coef.colony:I(val^2)')]
+interaction.transcripts <- annotationtable[interaction.transcripts]
+str(interaction.transcripts)
 ```
 
 For responsive transcripts, identify by shape of response:
@@ -397,12 +404,11 @@ For responsive transcripts, identify by shape of response:
 * Intermediate - maximum expression at intermediate temperatures (14 - 28C)
 * Bimodal - expressed greater than two standard deviations of expression at both low and high temperatures
 
-The 'Bimodal' class is of special interest as these transcripts may be those that constrain independent evolution of low and high temperature tolerance. 
-
 ```{r expression_shape, eval=TRUE, echo=TRUE}
 # merge RxN results with expression values
 setkey(TPM.dt.sub, Transcript)
-Ap.dt <- TPM.dt.sub[responsive.transcripts.ann]
+Ap.dt <- TPM.dt.sub[responsive.transcripts]
+setkey(Ap.dt, Transcript)
 
 Ap.exp_type <- ddply(Ap.dt, .(Transcript), function(df1) {
     lmout <- lm(TPM ~ val + I(val^2), data = df1)
@@ -439,41 +445,86 @@ Ap.exp_type <- ddply(Ap.dt, .(Transcript), function(df1) {
  )
 
 # merge 'exp_type' information with Ap.dt
+Ap.exp_type <- data.table(Ap.exp_type)
+setkey(Ap.exp_type, Transcript)
 Ap.dt <- Ap.dt[Ap.exp_type]
+
+# merge 'exp_type' with responsive.transcripts
+setkey(responsive.transcripts, Sequence.Name)
+responsive.transcripts <- Ap.exp_type[responsive.transcripts]
+dim(responsive.transcripts)
+# order by padj
+responsive.transcripts <- responsive.transcripts[order(responsive.transcripts$padj), ]
+# save results to file
+write.table(responsive.transcripts, file = paste(resultsdir, "Ap_responsive_transcripts_GO.txt", sep=""), quote = FALSE, sep = "\t", row.names = FALSE)
+
+# merge 'exp_type' with interaction transcripts
+setkey(interaction.transcripts, Sequence.Name)
+interaction.transcripts <- Ap.exp_type[interaction.transcripts]
+dim(interaction.transcripts)
+# order by padj
+interaction.transcripts <- interaction.transcripts[order(interaction.transcripts$padj), ]
+# save results to file
+write.table(interaction.transcripts, file = paste(resultsdir, "Ap_interaction_transcripts_GO.txt", sep=""), quote = FALSE, sep = "\t", row.names = FALSE)
 ```
 
 ```{r expression_exp_type_table, eval=TRUE, echo=FALSE, results='asis'}
 # Table type of response
 exp_type.table <- table(Ap.exp_type$exp_type)
-pandoc.table(exp_type.table, style="rmarkdown", caption = "Expression type of responsive transcripts. Bimodal are expressed at both high and low temperatures.")
+pandoc.table(exp_type.table, style="rmarkdown", caption = "Number of transcripts with maximum expression at high, low, intermediate or both high and low (bimodal) temperatures.")
 ```
 
+Note that among responsive transcripts, there are 25 transcripts with GO term "response to stress" and various heat shock related proteins:
 
-## Functional annotation ##
+```{r}
+unique(Ap.dt[grep("GO:0006950", Ap.dt$GO.Biological.Process), list(Transcript, best.hit.to.nr)])
+unique(Ap.dt[grep("heat shock", Ap.dt$best.hit.to.nr), ])
+unique(Ap.dt[grep("Heat shock", Ap.dt$best.hit.to.nr), list(Transcript, best.hit.to.nr)])
+```
 
-In the previous section, I identified transcripts that show significant responses in expression. Next, I add gene annotation and ontology information to these transcripts.  
+Export data for interactive shiny app. 
+
+```{r shiny_file}
+# scale expression values 
+Ap.dt[,exp.scaled:=scale(TPM), by = Transcript]
+str(Ap.dt)
+write.csv(Ap.dt, file = paste(resultsdir, "Ap.dt.csv", sep=""), quote = TRUE, row.names = FALSE)
+
+# subset to genes with significant interaction
+Ap.dt.interaction <- Ap.dt[!is.na(Ap.dt$'coef.colony:val') | !is.na(Ap.dt$'coef.colony:I(val^2)')]
+str(Ap.dt.interaction)
+write.csv(Ap.dt.interaction, file = paste(resultsdir, "Ap.dt.interaction.csv", sep=""), quote = TRUE, row.names = FALSE)
+```
 
 
 ## Gene set enrichment analysis ##
 
-I use [topGO](http://www.bioconductor.org/packages/2.12/bioc/html/topGO.html) to perform gene set enrichment analysis seperately for each expression type (bimodal, intermediate, high, low).
+I use [topGO](http://www.bioconductor.org/packages/2.12/bioc/html/topGO.html) to perform gene set enrichment analysis (GSEA) seperately for each expression type (bimodal, intermediate, high, low).
 
 First need to create gene ID to GO term map file
 
-```{r geneid2go, echo=TRUE, eval=TRUE}
+```{r geneid2go, echo=TRUE, eval=TRUE, cache=TRUE}
 # create geneid2go.map file from FastAnnotator AnnotationTable.txt
 geneid2GOmap(annotationfile)
 ```
 
-Using this gene2GO map file, perform gene set enrichment analysis.
+then read map file.
 
-Provide qvalues as the gene score, and select genes with q < 0.05 using custom `selectFDR` function.
-
-```{r gsea, echo=TRUE, eval=TRUE}
+```{r readmap, echo=TRUE, eval=TRUE}
 # read mappings file
 geneID2GO <- readMappings(file = "geneid2go.map")
 str(head(geneID2GO))
+```
 
+### GSEA for thermally-responsive transcripts ###
+
+Using this gene2GO map file, perform GSEA for:
+
+**1) all responsive transcripts**
+
+Use `selectFDR` function to select transcripts with adjusted P < 0.05.
+
+```{r gsea_all}
 # create geneList. note that NA values cause problems with topGO
 # so set any NA to 1 as need to retain for GO analysis
 Ap.geneList <- RxNout$padj
@@ -495,40 +546,16 @@ Ap.BP.GOdata <- new("topGOdata",
                  annot = annFUN.gene2GO, gene2GO = geneID2GO)
 
 Ap.BP.GOdata
-```
 
-##GSEA for bimodally-expressed transcripts##
+# perform enrichment analysis using parentchild method
+Ap.BP.resultParentChild <- runTest(Ap.BP.GOdata, statistic = 'fisher', algorithm = 'parentchild')
+Ap.BP.resultParentChild
 
-```{r bi.gsea, echo=TRUE, eval=TRUE}
-# add 'exp_type' to RxN df
-RxNout.t <- merge(RxNout, Ap.exp_type, by="Transcript", all=TRUE)
-length(which(!is.na(RxNout.t$exp_type)))
-
-RxNout.bimodal <- RxNout.t[which(RxNout.t$exp_type == "Bimodal"), ]
-dim(RxNout.bimodal)
-
-Ap.bi.geneList <- RxNout.bimodal$padj 
-names(Ap.bi.geneList) <- RxNout.bimodal$Transcript
-str(Ap.bi.geneList)
-
-# create topGOdata object
-Ap.bi.BP.GOdata <- new("topGOdata",
-                 description = "BP gene set analysis", ontology = "BP",
-                 allGenes = Ap.bi.geneList, geneSel = selectFDR,
-                 nodeSize = 10,
-                 annot = annFUN.gene2GO, gene2GO = geneID2GO)
-
-
-# perform enrichment analysis using multiple methods
-Ap.bi.BP.resultParentChild <- runTest(Ap.bi.BP.GOdata, statistic = 'fisher', algorithm = 'parentchild')
-Ap.bi.BP.resultParentChild
-
-#################### continue from here #####################
-
-Ap.bi.BP.ResTable <- GenTable(Ap.bi.BP.GOdata, parentchild = Ap.bi.BP.resultParentChild, topNodes = 106)
-Ap.bi.BP.ResTable
-write.table(Ap.bi.BP.ResTable, file = paste(resultsdir, "Ap_bimodal_GO.BP_results.txt", sep=""), quote=FALSE, row.names=FALSE, sep = "\t")
-pandoc.table(Ap.bi.BP.ResTable)
+# table results
+Ap.BP.ResTable <- GenTable(Ap.BP.GOdata, parentchild = Ap.BP.resultParentChild, topNodes = 118)
+#Ap.BP.ResTable
+write.table(Ap.BP.ResTable, file = paste(resultsdir, "Ap_GO.BP_results.txt", sep=""), quote=FALSE, row.names=FALSE, sep = "\t")
+pandoc.table(Ap.BP.ResTable)
 
 # graph significant nodes
 
@@ -537,94 +564,199 @@ showSigOfNodes(Ap.BP.GOdata, score(Ap.BP.resultParentChild), firstSigNodes = 10,
 dev.off()
 ```
 
-GO analysis for cellular component
+**2) High and low expressed transcripts**
 
-```{r GO_CC, echo=TRUE, eval=TRUE}
+Use `selectTranscript` function to select transcripts based on 'exp_type'. As only significant transcripts have an 'exp_type' assigned, this is a small subset of the above.
+
+```{r exp_type_function}
+selectTranscript <- function(score) {
+    return(score == 1)
+}
+
+# To select genes, add 'exp_type' to RxN df
+RxNout.t <- merge(RxNout, Ap.exp_type, by="Transcript", all=TRUE)
+length(which(!is.na(RxNout.t$exp_type)))
+```
+
+
+```{r bim.gsea, echo=TRUE, eval=TRUE}
+# create geneList
+Ap.bim.geneList <- rep(0, length = nrow(RxNout.t))
+Ap.bim.geneList[which(RxNout.t$exp_type=="Bimodal")] <- 1
+names(Ap.bim.geneList) <- RxNout.t$Transcript
+str(Ap.bim.geneList)
+table(Ap.bim.geneList)
+
 # create topGOdata object
-Ap.CC.GOdata <- new("topGOdata",
-                 description = "CC gene set analysis", ontology = "CC",
-                 allGenes = Ap.geneList, geneSel = selectFDR,
+Ap.bim.BP.GOdata <- new("topGOdata",
+                 description = "BP gene set analysis",
+                 ontology = "BP",
+                 allGenes = Ap.bim.geneList,
+                 geneSel = selectTranscript,
                  nodeSize = 10,
-                 annot = annFUN.gene2GO, gene2GO = geneID2GO)
+                 annot = annFUN.gene2GO,
+                 gene2GO = geneID2GO)
 
-Ap.CC.GOdata
+Ap.bim.BP.GOdata
 
-# perform enrichment analysis using multiple methods
-Ap.CC.resultParentChild <- runTest(Ap.CC.GOdata, statistic = 'fisher', algorithm = 'parentchild')
-Ap.CC.resultParentChild
+# perform enrichment analysis using parentchild method
+Ap.bim.BP.resultParentChild <- runTest(Ap.bim.BP.GOdata, statistic = 'fisher', algorithm = 'parentchild')
+Ap.bim.BP.resultParentChild
+```
 
-Ap.CC.ResTable <- GenTable(Ap.CC.GOdata, parentchild = Ap.CC.resultParentChild, topNodes = 22)
-Ap.CC.ResTable
+Enriched gene sets for genes expressed at both high and low temperatures.
 
+```{r, echo=FALSE, results="asis"}
+Ap.bim.BP.ResTable <- GenTable(Ap.bim.BP.GOdata, parentchild = Ap.bim.BP.resultParentChild, topNodes = 52)
+#Ap.bim.BP.ResTable
+write.table(Ap.bim.BP.ResTable, file = paste(resultsdir, "Ap_bimodal_GO.BP_results.txt", sep=""), quote=FALSE, row.names=FALSE, sep = "\t")
+pandoc.table(Ap.bim.BP.ResTable)
+```
+
+
+**3) Intermediate-temperature expressed transcripts**
+
+```{r int.gsea, echo=TRUE, eval=TRUE}
+# create geneList
+Ap.int.geneList <- rep(0, length = nrow(RxNout.t))
+Ap.int.geneList[which(RxNout.t$exp_type=="Intermediate")] <- 1
+names(Ap.int.geneList) <- RxNout.t$Transcript
+str(Ap.int.geneList)
+table(Ap.int.geneList)
+
+# create topGOdata object
+Ap.int.BP.GOdata <- new("topGOdata",
+                 description = "BP gene set analysis",
+                 ontology = "BP",
+                 allGenes = Ap.int.geneList,
+                 geneSel = selectTranscript,
+                 nodeSize = 10,
+                 annot = annFUN.gene2GO,
+                 gene2GO = geneID2GO)
+
+Ap.int.BP.GOdata
+
+# perform enrichment analysis using parentchild method
+Ap.int.BP.resultParentChild <- runTest(Ap.int.BP.GOdata, statistic = 'fisher', algorithm = 'parentchild')
+Ap.int.BP.resultParentChild
+```
+
+Enriched gene sets for genes expressed at intermediate temperatures.
+
+```{r, echo=FALSE, results="asis"}
+Ap.int.BP.ResTable <- GenTable(Ap.int.BP.GOdata, parentchild = Ap.int.BP.resultParentChild, topNodes=16)
+Ap.int.BP.ResTable
+write.table(Ap.int.BP.ResTable, file = paste(resultsdir, "Ap_intermediate_GO.BP_results.txt", sep=""), quote=FALSE, row.names=FALSE, sep = "\t")
+pandoc.table(Ap.int.BP.ResTable)
+```
+
+
+**4) High temperature expressed transcripts**
+
+
+```{r hig.gsea, echo=TRUE, eval=TRUE}
+# create geneList
+Ap.hig.geneList <- rep(0, length = nrow(RxNout.t))
+Ap.hig.geneList[which(RxNout.t$exp_type=="High")] <- 1
+names(Ap.hig.geneList) <- RxNout.t$Transcript
+str(Ap.hig.geneList)
+table(Ap.hig.geneList)
+
+# create topGOdata object
+Ap.hig.BP.GOdata <- new("topGOdata",
+                 description = "BP gene set analysis",
+                 ontology = "BP",
+                 allGenes = Ap.hig.geneList,
+                 geneSel = selectTranscript,
+                 nodeSize = 10,
+                 annot = annFUN.gene2GO,
+                 gene2GO = geneID2GO)
+
+Ap.hig.BP.GOdata
+
+# perform enrichment analysis using parentchild method
+Ap.hig.BP.resultParentChild <- runTest(Ap.hig.BP.GOdata, statistic = 'fisher', algorithm = 'parentchild')
+Ap.hig.BP.resultParentChild
+```
+
+Enriched gene sets for genes expressed at both high temperatures only.
+
+```{r, echo=FALSE, results="asis"}
+Ap.hig.BP.ResTable <- GenTable(Ap.hig.BP.GOdata, parentchild = Ap.hig.BP.resultParentChild, topNodes=12)
+#Ap.hig.BP.ResTable
+write.table(Ap.hig.BP.ResTable, file = paste(resultsdir, "Ap_high_GO.BP_results.txt", sep=""), quote=FALSE, row.names=FALSE, sep = "\t")
+pandoc.table(Ap.hig.BP.ResTable)
+```
+
+
+**5) Low temperature expressed transcripts**
+
+```{r low.gsea, echo=TRUE, eval=TRUE}
+# create geneList
+Ap.low.geneList <- rep(0, length = nrow(RxNout.t))
+Ap.low.geneList[which(RxNout.t$exp_type=="Low")] <- 1
+names(Ap.low.geneList) <- RxNout.t$Transcript
+str(Ap.low.geneList)
+table(Ap.low.geneList)
+
+# create topGOdata object
+Ap.low.BP.GOdata <- new("topGOdata",
+                 description = "BP gene set analysis",
+                 ontology = "BP",
+                 allGenes = Ap.low.geneList,
+                 geneSel = selectTranscript,
+                 nodeSize = 10,
+                 annot = annFUN.gene2GO,
+                 gene2GO = geneID2GO)
+
+Ap.low.BP.GOdata
+
+# perform enrichment analysis using parentchild method
+Ap.low.BP.resultParentChild <- runTest(Ap.low.BP.GOdata, statistic = 'fisher', algorithm = 'parentchild')
+Ap.low.BP.resultParentChild
+```
+
+Enriched gene sets for genes expressed at low temperatures only.
+
+```{r, echo=FALSE, results="asis"}
+Ap.low.BP.ResTable <- GenTable(Ap.low.BP.GOdata, parentchild = Ap.low.BP.resultParentChild, topNodes=26)
+Ap.low.BP.ResTable
+write.table(Ap.low.BP.ResTable, file = paste(resultsdir, "Ap_low_GO.BP_results.txt", sep=""), quote=FALSE, row.names=FALSE, sep = "\t")
+pandoc.table(Ap.low.BP.ResTable)
+```
+
+
+```{r, echo=FALSE}
 # graph significant nodes
+pdf(paste(resultsdir, "Ap_bimodal_BP_topGO_sig_nodes.pdf", sep=""))
+showSigOfNodes(Ap.bim.BP.GOdata, score(Ap.bim.BP.resultParentChild), firstSigNodes = 52, useInfo = 'all')
+dev.off()
 
-pdf(paste(resultsdir, "Ap.CC_topGO_sig_nodes.pdf", sep=""))
-showSigOfNodes(Ap.CC.GOdata, score(Ap.CC.resultParentChild), firstSigNodes = 10, useInfo = 'all')
+pdf(paste(resultsdir, "Ap_intermediate_BP_topGO_sig_nodes.pdf", sep=""))
+showSigOfNodes(Ap.int.BP.GOdata, score(Ap.int.BP.resultParentChild), firstSigNodes = 16, useInfo = 'all')
+dev.off()
+
+pdf(paste(resultsdir, "Ap_high_BP_topGO_sig_nodes.pdf", sep=""))
+showSigOfNodes(Ap.hig.BP.GOdata, score(Ap.hig.BP.resultParentChild), firstSigNodes = 12, useInfo = 'all')
+dev.off()
+
+pdf(paste(resultsdir, "Ap_low_BP_topGO_sig_nodes.pdf", sep=""))
+showSigOfNodes(Ap.low.BP.GOdata, score(Ap.low.BP.resultParentChild), firstSigNodes = 26, useInfo = 'all')
 dev.off()
 ```
 
-GO analysis for molecular function
+## Comparison of expression patterns between colonies
 
-```{r GO_MF, echo=TRUE, eval=TRUE}
-# create topGOdata object
-Ap.MF.GOdata <- new("topGOdata",
-                 description = "MF gene set analysis", ontology = "MF",
-                 allGenes = Ap.geneList, geneSel = selectFDR,
-                 nodeSize = 10,
-                 annot = annFUN.gene2GO, gene2GO = geneID2GO)
+A set of `r nrow(interaction.transcripts)` transcripts have expression patterns that depend on colony. In this section, I examine how these transcripts differ between colonies. Specifically, I expect genes that are up-regulated at high temperatures in the northern *A22* colony to be at constitutively higher expression in the more southern *Ar* colony. Conversely, I will examine the extent to which genes upregulated at colder temperatures in the *Ar* colony are constitutively expressed in the *A22* colony.
 
-Ap.MF.GOdata
 
-# perform enrichment analysis using multiple methods
-Ap.MF.resultParentChild <- runTest(Ap.MF.GOdata, statistic = 'fisher', algorithm = 'parentchild')
-Ap.MF.resultParentChild
 
-Ap.MF.ResTable <- GenTable(Ap.MF.GOdata, parentchild = Ap.MF.resultParentChild, topNodes = 20)
-Ap.MF.ResTable
 
-# graph significant nodes
 
-pdf(paste(resultsdir, "Ap.MF_topGO_sig_nodes.pdf", sep=""))
-showSigOfNodes(Ap.MF.GOdata, score(Ap.MF.resultParentChild), firstSigNodes = 10, useInfo = 'all')
-dev.off()
 
-```
 
-Note that among responsive transcripts, there are 25 transcripts with GO term "response to stress":
 
-`r unique(Ap.dt[grep("GO:0006950", Ap.dt$GO.Biological.Process), Transcript])`
-
- and two heat shock proteins:
-
-`r unique(Ap.dt[grep("heat shock", Ap.dt$best.hit.to.nr), Transcript])`
-
-List of enriched GO Biological process terms:
-
-```{r GO_terms}
-# significant GO terms
-Ap.BP.signif <- Ap.BP.ResTable$GO.ID
-length(Ap.BP.signif)
-
-Ap.BP.signif.term <- Ap.BP.ResTable$Term
-Ap.BP.signif.term[grep("response", Ap.BP.signif.term)]
-Ap.BP.signif.term[grep("DNA", Ap.BP.signif.term)]
-```
-
-Export data for interactive shiny app. 
-
-```{r shiny_file}
-# scale expression values 
-Ap.dt[,exp.scaled:=scale(TPM), by = Transcript]
-str(Ap.dt)
-write.csv(Ap.dt, file = paste(resultsdir, "Ap.dt.csv", sep=""), quote = TRUE, row.names = FALSE)
-
-# subset to genes with significant interaction
-Ap.dt.interaction <- Ap.dt[!is.na(Ap.dt$'coef.colony:val') | !is.na(Ap.dt$'coef.colony:I(val^2)')]
-str(Ap.dt.interaction)
-write.csv(Ap.dt.interaction, file = paste(resultsdir, "Ap.dt.interaction.csv", sep=""), quote = TRUE, row.names = FALSE)
-```
-
-# Visualize responsive transcripts
+## Visualize responsive transcripts
 
 Make plots for all significant transcripts
 
@@ -794,4 +926,10 @@ dev.off()
 ```{r session}
 save.image()
 sessionInfo()
+```
+
+## References
+
+```{r references}
+bibliography("html")
 ```
