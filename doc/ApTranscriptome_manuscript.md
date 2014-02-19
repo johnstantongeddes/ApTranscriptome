@@ -63,13 +63,20 @@ The Trinity *de novo* transcriptome assembly included 126,172 transcripts with a
 
 **Functional annotation**
 
-Of the 105,536 filtered transcripts, 55,432 had hits to the NCBI-nr database. Of these, 38,711 transcripts mapped to GO terms, 1,659 transcripts were identified to an enzyme and 18,935 transcripts mapped to a domain with >50% coverage. Of these, 5,787 transcripts are annotated to putative genes in the genome sequence of the ant species *Solenopsis invicta* and XXXX are annotated to genes previously identified from organisms within the class Insecta.
+Of the 105,536 filtered transcripts, 55,432 had hits to the NCBI-nr database. Of these, 38,711 transcripts mapped to GO terms, 1,659 transcripts were identified to an enzyme and 18,935 transcripts mapped to a domain with >50% coverage. Of these, 5,787 transcripts are annotated to putative genes in the genome sequence of the ant species *Solenopsis invicta* and XXXX are annotated to genes previously identified from organisms within the class Insecta. Over-represented functional words in the transcriptome annotation are shown in figure 1.
+
+![Figure 1. Word cloud of functional annotation terms in the *Aphaenogaster* transcriptome](wordcloud2.png)
+
+
 
 **Thermal responsive transcripts**
 
-We identified 22,582 transcripts with overall model fits of P < 0.05, retaining 8,753 after correcting for FDR, with 5,540 significantly changing expression with temperature. Of these, 822 increase with temperature, 2,058 decrease with temperature, 710 have maximum expression at intermediate temperatures and 1,990 are expressed at both low and high temperatures. 
+We identified 22,582 transcripts with overall model fits of P < 0.05, retaining 8,753 after correcting for FDR, with 5,540 significantly changing expression with temperature. Of these, 822 increase with temperature, 2,058 decrease with temperature, 710 have maximum expression at intermediate temperatures and 1,990 are expressed at both low and high temperatures (Fig. 1).
+
+![Figure 2. Smoothed line plots of scaled expression values for the thermally-responsive transcripts that show bimodal (n = 1,990), intermediate (n = 710), high (n = 822) and low temperature (n = 2,058) expression for the northern (ApVT) and southern (ApNC) *Aphaenogaster* colonies.](../figure/plot_responsive4.png)
 
 **Gene set enrichment analysis**
+
 
 
 ## Discussion
