@@ -3,10 +3,10 @@
 ## 2014-02-12
 
 # Ignore these directories
-data/        
-results/
-cache/ 
-figure/
+data
+results
+cache
+figure
 
 # Ignore these file types
 *.Rproj
@@ -19,7 +19,9 @@ figure/
 *.aux
 *.log
 *.out
-
-
-
+*.map
+*.csv
+*.txt
+*~
+*.tgz
 

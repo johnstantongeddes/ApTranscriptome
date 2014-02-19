@@ -3,7 +3,7 @@ Thermal reactionome of the common ant species *Aphaenogaster*
   
 **Author:** [John Stanton-Geddes](john.stantongeddes.research@gmail.com)
 
-**February 10, 2014**
+**February 18, 2014**
 
 **Technical Report No. 3**
 
@@ -40,6 +40,7 @@ source("scripts/RxNseq.R")
 resultsdir <- "results/"
 ```
 
+
 ## Summary ##
   
 In this technical report, which accompanies the manuscript **Thermal reactionome of a common ant species** (Stanton-Geddes et al., in press), we:
@@ -54,45 +55,29 @@ This script is completely reproducible assuming that R, `knitr` and the other re
 
 The assembled transcriptome, annotation and expression values are downloaded rather than re-run due to the computational demands, but the exact commands for each of these steps are documented below.
 
+
+
 ## Data ##
 
-The raw Illumina fastq files are available from [https://minilims1.uvm.edu/BCProject-26-Cahan/_downloads/trimmomatic_output.tar.gz]
-
-We download and unzip the Trimmomatic filtered data available from [https://minilims1.uvm.edu/BCProject-26-Cahan/_downloads/trimmomatic_output.tar.gz]
+The Illumina fastq files are available from [https://minilims1.uvm.edu/BCProject-26-Cahan/downloads.html]. The Trimmomatic filtered fastq files should be downloaded, uncompressed and moved to the appropriate directory using the following code.
 
 ~~~
-# download
+# download filtered fastq files, uncompress and move
 wget --no-check-certificate https://minilims1.uvm.edu/BCProject-26-Cahan/_downloads/trimmomatic_output.tar.gz
-
-# move and unzip
-mv raw_data.tar.gz data/.
-tar -zxvf raw_data.tar.gz
+tar -zxvf trimmomatic_output.tar.gz
+mkdir -p data/
+mv ind_files data/.
 ~~~
 
-```{r download, echo = TRUE, results = "hide"}
-### Download 
 
-### Expression data
-
-### Annotation file
-# from either AWS or GoogleDrive
-annotationURL <- getURL("http://johnstantongeddes.org/assets/files/Aphaeno_transcriptome_AnnotationTable.txt")
-#a2 <- getURL("https://googledrive.com/host/0B75IymziRJ_9Tlg1U1Vxbjk1bzg") # GoogleDrive link
-
-annotationfile <- read.csv(textConnection(annotationURL), header = TRUE, sep = "\t", stringsAsFactors = FALSE)
-head(annotationfile)
-str(annotationfile)
-
-# Convert to data.table
-annotationtable <- data.table(annotationfile)
-head(annotationtable)
-```
 
 ## Sample description ##
 
 Two ant colonies were used for the transcriptome sequencing. The first, designated A22, was collected at Molly Bog, Vermont in August 2012 by Nick Gotelli and Andrew Nguyen. This colony was putatively identifed as *A. picea*. The second colony, designated Ar, was collected by Lauren Nichols in Raleigh, North Carolina. These colonies were maintained in the lab for 6 months prior to sample collection. 
 
 For each colony, three ants were exposed to one of 12 temperature treatments, every 3.5C ranging from 0C to 38.5C, for one hour in glass tubes in a water bath. The ants were flash frozen and stored at -80C until RNA was extracted using a two step extraction; [RNAzol RT](http://www.mrcgene.com/rnazol.htm) (Molecular Research Center, Inc) followed by an [RNeasy Micro](http://www.qiagen.com/products/catalog/sample-technologies/rna-sample-technologies/total-rna/rneasy-micro-kit) column (Qiagen). Samples from each colony were pooled and sequenced in separate lanes on a 100bp paired-end run of an Illumina HiSeq at the University of Minnesota Genomics Center, yielding 20e6 and 16e6 reads for the A22 and Ar samples, respectively.
+
+
 
 ## Transcriptome assembly ##
 
@@ -140,9 +125,7 @@ Subsequent to running `cap3`, we ran [uclust](http://drive5.com/usearch/manual/u
     # convert uclust to fasta format
     uclust --uc2fasta Trinity_cap3_uclust.out --input Trinity_cap3_uclust.fasta
 
-
 These post-processing step removed `r round((126172-105536)/126172 * 100, 0)`% of the initial reads (Table 1).
-
 
 ```{r assemstats, results = "asis", echo=FALSE}
 # make table
@@ -155,6 +138,18 @@ colnames(assemstats) <- c("Total contigs", "Total length", "Median contig size",
 pandoc.table(assemstats, style="rmarkdown", caption = "Table 1: Statistics for Trinity and cap3+uclust reduced transcriptome assemblies")
 ```
 
+Running Trinity is time and computationally-intensive, so the final filtered assembly can be downloaded from [http://johnstantongeddes.org/assets/files/Trinity_filtered_assembly.tgz] 
+
+~~~
+# download filtered Trinity assembly, uncompress and move
+wget http://johnstantongeddes.org/assets/files/Trinity_filtered_assembly.tgz
+tar -zxvf trimmomatic_output.tar.gz
+mkdir -p results/
+mkdir -p results/trinity-full/
+mv Trinity_cap3_uclust.fasta /results/trinity-full/.
+~~~
+
+
 
 ## Transcriptome annotation ##
 
@@ -162,7 +157,70 @@ Annotation was performed by uploading the reduced assembly "Trinity_cap3_uclust.
 
 Results are available as job ID [13894410176993](http://fastannotator.cgu.edu.tw/job.php?jobid=13894410176993#page=basicinfo).
 
+This annotation file can be read directly to R:
 
+```{r download, echo = TRUE, results = "hide"}
+### Annotation file
+# from either AWS or GoogleDrive
+annotationURL <- getURL("http://johnstantongeddes.org/assets/files/Aphaeno_transcriptome_AnnotationTable.txt")
+#a2 <- getURL("https://googledrive.com/host/0B75IymziRJ_9Tlg1U1Vxbjk1bzg") # GoogleDrive link
+
+annotationfile <- read.csv(textConnection(annotationURL), header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+str(annotationfile)
+
+# Convert to data.table
+annotationtable <- data.table(annotationfile)
+head(annotationtable)
+```
+
+Transcriptome annotations are nearly impossible to visualize in a meaningful way. For lack of better ideas, I created a word cloud.
+
+```{r wordcloud, cache=TRUE}
+library(tm)
+library(wordcloud)
+library(RColorBrewer)
+library(stringr)
+
+# subset and extract unique best hits to NCBI nr database
+ann <- unique(annotationfile$best.hit.to.nr)
+annsplit <- str_split_fixed(ann, pattern = " ", n=2)
+annvec <- annsplit[,2]
+
+# create Corpus of terms. convert to dataframe for plotting wordcloud
+ap.corpus <- Corpus(VectorSource(annvec))
+ap.corpus <- tm_map(ap.corpus, removePunctuation)
+ap.corpus <- tm_map(ap.corpus, tolower)
+ap.corpus <- tm_map(ap.corpus, function(x) removeWords(x, stopwords("english")))
+tdm <- TermDocumentMatrix(ap.corpus)
+m <- as.matrix(tdm)
+v <- sort(rowSums(m),decreasing=TRUE)
+d <- data.frame(word = names(v),freq=v)
+pal <- brewer.pal(4, "Dark2")
+pal <- pal[-(1:2)]
+
+#png("wordcloud.png", width=1280,height=800)
+wordcloud(d$word,d$freq, scale=c(8,.3),min.freq=2,max.words=100, random.order=T, rot.per=.15, colors=pal, vfont=c("sans serif","plain"))
+#dev.off()
+```
+
+This wordcloud shows that we do not know much about the transcriptome - mostly hypothetical or predicted proteins. I removed these uninformative words and generated a new wordcloud. 
+
+```{r wordcloud2, cache=TRUE}
+# remove 'protein', 'predicted' and 'hypothetical'
+rmwords <- c("hypothetical", "protein", "isoform", "subunit", "family", "putative", "partial", "domain", "containing", "predicted", "domaincontaining", "uncharacterized")
+ap.corpus.rmwords <- tm_map(ap.corpus, removeWords, rmwords)
+tdm <- TermDocumentMatrix(ap.corpus.rmwords)
+m <- as.matrix(tdm)
+v <- sort(rowSums(m),decreasing=TRUE)
+d <- data.frame(word = names(v),freq=v)
+pal <- brewer.pal(8, "Dark2")
+pal <- pal[-(1:2)]
+#png("wordcloud2.png", width=1280,height=800)
+wordcloud(d$word,d$freq, scale=c(8,.3),min.freq=2,max.words=100, random.order=T, rot.per=.15, colors=pal, vfont=c("sans serif","plain"))
+#dev.off()
+```
+                                                 
+                                                
 ## Identification of thermally-responsive genes ##
 
 ### Quantify gene expression ###
@@ -725,7 +783,6 @@ write.table(Ap.low.BP.ResTable, file = paste(resultsdir, "Ap_low_GO.BP_results.t
 pandoc.table(Ap.low.BP.ResTable)
 ```
 
-
 ```{r, echo=FALSE}
 # graph significant nodes
 pdf(paste(resultsdir, "Ap_bimodal_BP_topGO_sig_nodes.pdf", sep=""))
@@ -744,6 +801,29 @@ pdf(paste(resultsdir, "Ap_low_BP_topGO_sig_nodes.pdf", sep=""))
 showSigOfNodes(Ap.low.BP.GOdata, score(Ap.low.BP.resultParentChild), firstSigNodes = 26, useInfo = 'all')
 dev.off()
 ```
+
+Visualize differens in GO terms among expression types using a wordcloud.
+
+```{gsea_wordcloud, cache=TRUE}
+# create Corpus for text mining
+GO.dfs <- c(paste(Ap.low.BP.ResTable$Term, collapse=" "), paste(Ap.hig.BP.ResTable$Term, collapse=" "),
+            paste(Ap.int.BP.ResTable$Term, collapse=" "), paste(Ap.bim.BP.ResTable$Term, collapse=" "))
+
+vs <- VectorSource(GO.dfs)
+GO.corp <- Corpus(vs)
+GO.corp
+
+GO.corp <- tm_map(GO.corp, removePunctuation)
+
+# create matrix of terms
+term.matrix <- TermDocumentMatrix(GO.corp)
+term.matrix <- as.matrix(term.matrix)
+colnames(term.matrix) <- c('low', 'high', 'intermediate', 'bimodal')
+
+# comparison cloud
+comparison.cloud(term.matrix, max.words=200, random.order=FALSE, scale=c(0.25, 0.5))
+```
+
 
 ## Comparison of expression patterns between colonies
 
