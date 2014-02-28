@@ -3,7 +3,7 @@ Thermal reactionome of the common ant species *Aphaenogaster*
   
 **Author:** [John Stanton-Geddes](john.stantongeddes.research@gmail.com)
 
-**February 18, 2014**
+**February 28, 2014**
 
 **Technical Report No. 3**
 
@@ -35,6 +35,9 @@ suppressMessages(library(Rgraphviz))
 
 # load custom functions
 source("scripts/RxNseq.R")
+
+# knitr options
+opts_chunk$set(cache=TRUE)
 
 # directory to save results
 resultsdir <- "results/"
@@ -536,8 +539,9 @@ Note that among responsive transcripts, there are 25 transcripts with GO term "r
 
 ```{r}
 unique(Ap.dt[grep("GO:0006950", Ap.dt$GO.Biological.Process), list(Transcript, best.hit.to.nr)])
-unique(Ap.dt[grep("heat shock", Ap.dt$best.hit.to.nr), ])
-unique(Ap.dt[grep("Heat shock", Ap.dt$best.hit.to.nr), list(Transcript, best.hit.to.nr)])
+unique(Ap.dt[grep("shock", Ap.dt$best.hit.to.nr), list(Transcript, best.hit.to.nr)])
+
+unique(Ap.dt.interaction[grep("Heat shock", Ap.dt.interaction$best.hit.to.nr), list(Transcript, best.hit.to.nr)])
 ```
 
 Export data for interactive shiny app. 
@@ -553,6 +557,67 @@ Ap.dt.interaction <- Ap.dt[!is.na(Ap.dt$'coef.colony:val') | !is.na(Ap.dt$'coef.
 str(Ap.dt.interaction)
 write.csv(Ap.dt.interaction, file = paste(resultsdir, "Ap.dt.interaction.csv", sep=""), quote = TRUE, row.names = FALSE)
 ```
+
+
+## Colony-level comparison ##
+
+Compare the expression levels at optimum (21C) between the two colonies for genes in each expression group. Specifically, are genes that are upregulated at high temperatures in A22 more highly expressed at 21C in Ar? Conversely, are genes that are upregulated at low temps more highly expressed at 21C in A22? 
+
+```{r, cache=TRUE, eval=FALSE}
+# for each transcript in interaction group
+#     predict 
+#     predict expression at 21C for each colony
+
+# function
+## NOTE QUITE WHAT I WANT AS colony IS HARDCODED
+RxN.exp.type <- function(df1) {
+    lmout <- lm(TPM ~ colony + val + I(val^2) + colony:val + colony:I(val^2), data = df1)
+    vals <- c(0, 3.5, 10, 14, 17.5, 21, 24.5, 28, 31.5, 35, 38.5)
+    colony <- "A22"
+    newdf <- data.frame(colony = colony, val = vals)
+    pout <- predict(lmout, newdata=newdf)
+    pout <- data.frame(val = vals, exp = pout)
+
+    # get vals of max and min expression
+    max.val = vals[which(pout$exp == max(pout$exp))]
+    min.val = vals[which(pout$exp == min(pout$exp))]
+
+    # report coefficients
+    #coef(lmout)
+    exp_type = if(coef(lmout)['val'] > 0 & coef(lmout)['I(val^2)'] > 0) "High" else {
+        if(coef(lmout)['val'] < 0 & coef(lmout)['I(val^2)'] < 0) "Low" else {
+            if(coef(lmout)['val'] > 0 & coef(lmout)['I(val^2)'] < 0) "Intermediate" else {
+                "convex"}}}
+
+    # for transcripts with convex exp_type, check if expression is truly bimodal
+    if(exp_type == "convex") {
+        if(max(pout[pout$val <= 10, "exp"]) > 2*sd(pout$exp) &
+           max(pout[pout$val >= 31.5, "exp"]) > 2*sd(pout$exp)) exp_type = "Bimodal" else {
+           # linear increase?
+               if(max.val > min.val) exp_type = "High" else exp_type = "Low"
+           }
+    }
+           
+    # return values
+    return(c(max.val = vals[which(pout$exp == max(pout$exp))],
+             min.val = vals[which(pout$exp == min(pout$exp))],
+             exp_type = exp_type))
+    }
+
+setkey(Ap.dt.interaction, colony)
+A22.exp <- ddply(Ap.dt.interaction, .(Transcript), RxN.exp.type)
+
+
+Ar.exp <- ddply(Ap.dt.interaction, .(Transcript), RxN.exp.type)
+
+#
+# identify 
+```
+
+
+Compare the width of the 'stable' region for intermediate-expressed transcripts between the colonies. 
+
+Compare the width of the inverse of the bimodally-expressed transcripts between the colonies.
 
 
 ## Gene set enrichment analysis ##
@@ -840,7 +905,7 @@ A set of `r nrow(interaction.transcripts)` transcripts have expression patterns 
 
 Make plots for all significant transcripts
 
-```{r plot_responsive, echo=FALSE, eval=TRUE, cache=TRUE}
+```{r plot_responsive, echo=FALSE, eval=FALSE, cache=TRUE}
 # Line plot, expression against temp, faceted by colony
 p1 <- ggplot(Ap.dt, aes(x=val, y=exp.scaled, group=Transcript)) +
   geom_line() +
@@ -877,7 +942,7 @@ p4
 
 Make plots for transcripts with significant temperature by colony interaction
 
-```{r plot_interaction_responsive, echo=FALSE, eval=TRUE, cache=TRUE}
+```{r plot_interaction_responsive, echo=FALSE, eval=FALSE, cache=TRUE}
 # Line plot, expression against temp, faceted by colony
 p1 <- ggplot(Ap.dt.interaction, aes(x=val, y=exp.scaled, group=Transcript)) +
   geom_line() +
@@ -914,7 +979,7 @@ p4
 
 
 
-```{r plot, echo=FALSE, eval=TRUE, cache=TRUE}
+```{r plot, echo=FALSE, eval=FALSE, cache=TRUE}
 # Line plot, expression against temp, faceted by colony
 png(paste(resultsdir, "Ap_expression_by_colony_line.png", sep=""))
   p1 <- ggplot(Ap.dt, aes(x=val, y=exp.scaled, group=Transcript)) +
@@ -958,7 +1023,7 @@ dev.off()
 ```
 
 
-```{r plot_interaction_responsive_to_file, echo=FALSE, eval=TRUE, cache=TRUE}
+```{r plot_interaction_responsive_to_file, echo=FALSE, eval=FALSE, cache=TRUE}
 # Line plot, expression against temp, faceted by colony
 png(paste(resultsdir, "Ap_expression_interaction_by_colony_line.png", sep=""))
   p1 <- ggplot(Ap.dt.interaction, aes(x=val, y=exp.scaled, group=Transcript)) +
@@ -1010,6 +1075,6 @@ sessionInfo()
 
 ## References
 
-```{r references}
-bibliography("html")
+```{r references, results='asis'}
+bibliography()
 ```
