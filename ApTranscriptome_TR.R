@@ -471,38 +471,39 @@ Ap.dt <- TPM.dt.sub[responsive.transcripts]
 setkey(Ap.dt, Transcript)
 
 Ap.exp_type <- ddply(Ap.dt, .(Transcript), function(df1) {
-    lmout <- lm(TPM ~ val + I(val^2), data = df1)
-    vals <- c(0, 3.5, 10, 14, 17.5, 21, 24.5, 28, 31.5, 35, 38.5)
-    newdf <- data.frame(val = vals)
-    pout <- predict(lmout, newdata=newdf)
-    pout <- data.frame(val = vals, exp = pout)
+  
+  lmout <- lm(TPM ~ val + I(val^2), data = df1)
+  vals <- c(0, 3.5, 10, 14, 17.5, 21, 24.5, 28, 31.5, 35, 38.5)
+  newdf <- data.frame(val = vals)
+  pout <- predict(lmout, newdata=newdf)
+  pout <- data.frame(val = vals, exp = pout)
 
-    # get vals of max and min expression
-    max.val = vals[which(pout$exp == max(pout$exp))]
-    min.val = vals[which(pout$exp == min(pout$exp))]
-
-    # report coefficients
-    #coef(lmout)
-    exp_type = if(coef(lmout)['val'] > 0 & coef(lmout)['I(val^2)'] > 0) "High" else {
-        if(coef(lmout)['val'] < 0 & coef(lmout)['I(val^2)'] < 0) "Low" else {
-            if(coef(lmout)['val'] > 0 & coef(lmout)['I(val^2)'] < 0) "Intermediate" else {
-                "convex"}}}
-
-    # for transcripts with convex exp_type, check if expression is truly bimodal
-    if(exp_type == "convex") {
-        if(max(pout[pout$val <= 10, "exp"]) > 2*sd(pout$exp) &
-           max(pout[pout$val >= 31.5, "exp"]) > 2*sd(pout$exp)) exp_type = "Bimodal" else {
+  # get vals of max and min expression
+  max.val = vals[which(pout$exp == max(pout$exp))]
+  min.val = vals[which(pout$exp == min(pout$exp))]
+  
+  # report coefficients
+  #coef(lmout)
+  exp_type = if(coef(lmout)['val'] > 0 & coef(lmout)['I(val^2)'] > 0) "High" else {
+    if(coef(lmout)['val'] < 0 & coef(lmout)['I(val^2)'] < 0) "Low" else {
+      if(coef(lmout)['val'] > 0 & coef(lmout)['I(val^2)'] < 0) "Intermediate" else {
+        "convex"}}}
+  
+  # for transcripts with convex exp_type, check if expression is truly bimodal
+  if(exp_type == "convex") {
+    if(max(pout[pout$val <= 10, "exp"]) > 2*sd(pout$exp) &
+         max(pout[pout$val >= 31.5, "exp"]) > 2*sd(pout$exp)) exp_type = "Bimodal" else {
            # linear increase?
-               if(max.val > min.val) exp_type = "High" else exp_type = "Low"
-           }
-    }
-           
-    # return values
-    return(c(max.val = vals[which(pout$exp == max(pout$exp))],
-             min.val = vals[which(pout$exp == min(pout$exp))],
-             exp_type = exp_type))
-    }
- )
+           if(max.val > min.val) exp_type = "High" else exp_type = "Low"
+         }
+  }
+  
+  # return values
+  return(c(max.val = vals[which(pout$exp == max(pout$exp))],
+           min.val = vals[which(pout$exp == min(pout$exp))],
+           exp_type = exp_type))
+}
+)
 
 # merge 'exp_type' information with Ap.dt
 Ap.exp_type <- data.table(Ap.exp_type)
@@ -585,8 +586,14 @@ A22_high_df <- exp_by_colony[which(exp_by_colony$Transcript %in% A22_high_transc
 
 # Compare expression at optimum temp (19.25C) between colonies using t-test
 A22_high_df$colony <- as.factor(A22_high_df$colony)
+boxplot(data = A22_high_df, opt.exp ~ colony)
 boxplot(data = A22_high_df, log(opt.exp+1) ~ colony)
-t.test(opt.exp ~ colony, data = A22_high_df)
+t.test(A22_high_df[which(A22_high_df$colony == "Ar"), "opt.exp"],  A22_high_df[which(A22_high_df$colony == "A22"), "opt.exp"])
+
+# remove outlier
+A22_high_df_out <- A22_high_df[-which(A22_high_df$opt.exp > 1000), ]
+t.test(A22_high_df_out[which(A22_high_df_out$colony == "Ar"), "opt.exp"],  A22_high_df_out[which(A22_high_df_out$colony == "A22"), "opt.exp"])
+
 
 # repeate using scaled expression values so outliers don't drive results
 boxplot(data = A22_high_df, opt.exp.scaled ~ colony)
@@ -594,12 +601,130 @@ t.test(opt.exp.scaled ~ colony, data = A22_high_df)
 
 # this seems wrong...uses absolute values when I actually just want to compare signs. use Wilcoxon signed rank-test
 
-w1 <- wilcox.test(opt.exp ~ colony, data = A22_high_df, alternative = "two.sided", conf.int = TRUE)
+w1 <- wilcox.test(opt.exp ~ colony, data = A22_high_df, alternative = "two.sided", paired = TRUE, conf.int = TRUE)
 w1
+
+w2 <- wilcox.test(A22_high_df[which(A22_high_df$colony == "A22"), "opt.exp"],  A22_high_df[which(A22_high_df$colony == "Ar"), "opt.exp"], alternative = "two.sided", paired = TRUE, conf.int = TRUE)
+w2
+```
+
+Note that A22 had the larger library size so if this was due to TPM not correctly accounting for differences in reads between samples, we would expect to see a positive instead of negative value here.
+
+To confirm that there are not sample-level issues, perform same comparison using transcripts where I do *not* expect to see a difference in expression.
+
+```{r}
+# list of transcripts that are 'Intermediate' expressed in A22
+A22_int_transcripts <- exp_by_colony[which(exp_by_colony$colony == "A22" & exp_by_colony$exp_type == "Intermediate"), "Transcript"]
+# dataframe of transcripts from both colonies that are 'high' expressed in A22
+A22_int_df <- exp_by_colony[which(exp_by_colony$Transcript %in% A22_int_transcripts), ]
+
+# Compare expression at optimum temp (19.25C) between colonies using t-test
+A22_int_df$colony <- as.factor(A22_int_df$colony)
+boxplot(data = A22_int_df, opt.exp ~ colony)
+boxplot(data = A22_int_df, log(opt.exp+1) ~ colony)
+t.test(A22_int_df[which(A22_int_df$colony == "Ar"), "opt.exp"],  A22_int_df[which(A22_int_df$colony == "A22"), "opt.exp"])
+
+# repeate using scaled expression values so outliers don't drive results
+boxplot(data = A22_int_df, opt.exp.scaled ~ colony)
+t.test(opt.exp.scaled ~ colony, data = A22_int_df)
+
+# this seems wrong...uses absolute values when I actually just want to compare signs. use Wilcoxon signed rank-test
+
+wilcox.test(opt.exp ~ colony, data = A22_int_df, alternative = "two.sided", paired = TRUE, conf.int = TRUE)
+wilcox.test(A22_int_df[which(A22_int_df$colony == "A22"), "opt.exp"],  A22_int_df[which(A22_int_df$colony == "Ar"), "opt.exp"], alternative = "two.sided", paired = TRUE, conf.int = TRUE)
+```
+
+```{r}
+# list of transcripts that are 'Intermediate' expressed in A22
+Ar_int_transcripts <- exp_by_colony[which(exp_by_colony$colony == "Ar" & exp_by_colony$exp_type == "Intermediate"), "Transcript"]
+# dataframe of transcripts from both colonies that are 'high' expressed in Ar
+Ar_int_df <- exp_by_colony[which(exp_by_colony$Transcript %in% Ar_int_transcripts), ]
+
+# Compare expression at optimum temp (19.25C) between colonies using t-test
+Ar_int_df$colony <- as.factor(Ar_int_df$colony)
+boxplot(data = Ar_int_df, opt.exp ~ colony)
+boxplot(data = Ar_int_df, log(opt.exp+1) ~ colony)
+t.test(Ar_int_df[which(Ar_int_df$colony == "A22"), "opt.exp"],  Ar_int_df[which(Ar_int_df$colony == "Ar"), "opt.exp"])
+
+# repeate using scaled expression values so outliers don't drive results
+boxplot(data = Ar_int_df, opt.exp.scaled ~ colony)
+t.test(opt.exp.scaled ~ colony, data = Ar_int_df)
+
+# this seems wrong...uses absolute values when I actually just want to compare signs. use Wilcoxon signed rank-test
+
+wilcox.test(opt.exp ~ colony, data = Ar_int_df, alternative = "two.sided", paired = TRUE, conf.int = TRUE)
+wilcox.test(Ar_int_df[which(Ar_int_df$colony == "A22"), "opt.exp"],  Ar_int_df[which(Ar_int_df$colony == "Ar"), "opt.exp"], alternative = "two.sided", paired = TRUE, conf.int = TRUE)
+```
+
+That done, now I compare the expression levels at the optimum temperature between the two colonies for transcripts that are up-regulated at low temperatures in Ar. 
+
+```{r Ar_low}
+# list of transcripts that are 'Intermediate' expressed in A22
+Ar_low_transcripts <- exp_by_colony[which(exp_by_colony$colony == "Ar" & exp_by_colony$exp_type == "Low"), "Transcript"]
+# dataframe of transcripts from both colonies that are 'high' expressed in A22
+Ar_low_df <- exp_by_colony[which(exp_by_colony$Transcript %in% Ar_low_transcripts), ]
+dim(Ar_low_df)
+
+# Compare expression at optimum temp (19.25C) between colonies using t-test
+Ar_low_df$colony <- as.factor(Ar_low_df$colony)
+boxplot(data = Ar_low_df, opt.exp ~ colony)
+boxplot(data = Ar_low_df, log(opt.exp+1) ~ colony)
+t.test(Ar_low_df[which(Ar_low_df$colony == "Ar"), "opt.exp"],  Ar_low_df[which(Ar_low_df$colony == "A22"), "opt.exp"])
+
+# repeate using scaled expression values so outliers don't drive results
+boxplot(data = Ar_low_df, opt.exp.scaled ~ colony)
+t.test(opt.exp.scaled ~ colony, data = Ar_low_df)
+
+# this seems wrong...uses absolute values when I actually just want to compare signs. use Wilcoxon signed rank-test
+wilcox.test(Ar_low_df[which(Ar_low_df$colony == "A22"), "opt.exp"],  Ar_low_df[which(Ar_low_df$colony == "Ar"), "opt.exp"], alternative = "two.sided", paired = TRUE, conf.int = TRUE)
 ```
 
 
 Compare the width of the 'stable' region for intermediate-expressed transcripts between the colonies. 
+
+```{r eval_stable_A22}
+# set up datatable to calcuate region over which expression does not change
+keycols <- c("colony", "exp_type")
+setkeyv(Ap.dt, keycols)
+A22.dt.int <- Ap.dt[colony == "A22" & exp_type == "Intermediate"]
+str(A22.dt.int)
+
+# fit lm to each transcript
+A22_stable <- ddply(A22.dt.int, .(Transcript), function(df2) {
+  lmout <- lm(TPM ~ val + I(val^2), data = df2)
+  vals <- seq(from = 0, to = 38.5, length.out = 100)
+  newdf <- data.frame(val = vals)
+  pout <- predict(lmout, newdata=newdf)
+  pout <- data.frame(val = vals, exp = pout)
+  
+  # if all coefs are zero, break
+  if(coef(lmout)['(Intercept)'] == 0 & coef(lmout)['val'] == 0 & coef(lmout)['I(val^2)'] == 0) {
+    print("No expression for this transcript")
+  } else { # else set values based on predicted expression levels
+  
+  # find inflection points
+  infl <- c(FALSE, diff(diff(pout$exp)>0)!=0)
+  
+  # plot to check
+  plot(pout$val, pout$exp)
+  points(vals[infl], pout[infl, "exp"], col="blue", cex=2)
+  
+  
+  # calculate range between inflection points
+  }
+}
+)
+
+
+````
+
+
+<- exp_by_colony[which(exp_by_colony$colony == "Ar" & exp_by_colony$exp_type == "Low"), "Transcript"]
+# dataframe of transcripts from both colonies that are 'high' expressed in A22
+Ar_low_df <- exp_by_colony[which(exp_by_colony$Transcript %in% Ar_low_transcripts), ]
+dim(Ar_low_df)
+
+```
 
 Compare the width of the inverse of the bimodally-expressed transcripts between the colonies.
 
