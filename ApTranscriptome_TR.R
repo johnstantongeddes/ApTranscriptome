@@ -158,7 +158,7 @@ mv Trinity_cap3_uclust.fasta /results/trinity-full/.
 
 Annotation was performed by uploading the reduced assembly "Trinity_cap3_uclust.fasta" to the web-based annotation program [FastAnnotator](http://fastannotator.cgu.edu.tw/index.php) `r citep("10.1186/1471-2164-13-S7-S9")`.
 
-Results are available as job ID [13894410176993](http://fastannotator.cgu.edu.tw/job.php?jobid=13894410176993#page=basicinfo).
+#Results are available as job ID [13894410176993](http://fastannotator.cgu.edu.tw/job.php?jobid=13894410176993#page=basicinfo).
 
 This annotation file can be read directly to R:
 
@@ -377,7 +377,7 @@ where TPM is transcripts per million.
 
 For this list of P-values, correct for multiple testing using False Discovery Rate (FDR).
 
-Preliminary [examination](https://minilims1.uvm.edu/BCProject-26-Cahan/methods.html#clustering-of-samples) of the data indicated that the A22_7 and Ar_7 samples may have been switched, so I remove these values from the analysis to be conservative). 
+#Preliminary [examination](https://minilims1.uvm.edu/BCProject-26-Cahan/methods.html#clustering-of-samples) of the data indicated that the A22_7 and Ar_7 samples may have been switched, so I remove these values from the analysis to be conservative). 
 
 ```{r RxN, echo=TRUE, eval=TRUE, cache=TRUE}
 A22.TPM[,colony:="A22"]
@@ -450,7 +450,6 @@ colony.transcripts <- annotationtable[colony.transcripts]
 str(colony.transcripts)
 colony.transcripts <- colony.transcripts[order(colony.transcripts$padj), ]
 write.table(colony.transcripts, file = paste(resultsdir, "Ap_colony_transcripts_GO.txt", sep=""), quote = FALSE, sep = "\t", row.names = FALSE)
-
 
 # transcripts that have colony by temperature interactions
 interaction.transcripts <- signif.transcripts[!is.na(signif.transcripts$'coef.colony:val') | !is.na(signif.transcripts$'coef.colony:I(val^2)')]
@@ -541,8 +540,9 @@ Note that among responsive transcripts, there are 25 transcripts with GO term "r
 unique(Ap.dt[grep("GO:0006950", Ap.dt$GO.Biological.Process), list(Transcript, best.hit.to.nr)])
 unique(Ap.dt[grep("shock", Ap.dt$best.hit.to.nr), list(Transcript, best.hit.to.nr)])
 
-unique(Ap.dt.interaction[grep("Heat shock", Ap.dt.interaction$best.hit.to.nr), list(Transcript, best.hit.to.nr)])
-```
+unique(Ap.dt.interaction[grep("shock", Ap.dt.interaction$best.hit.to.nr), list(Transcript, best.hit.to.nr)])
+```                                                    
+
 
 Export data for interactive shiny app. 
 
@@ -568,50 +568,34 @@ Compare the expression levels at optimum (21C) between the two colonies for gene
 #     predict 
 #     predict expression at 21C for each colony
 
-# function
-## NOTE QUITE WHAT I WANT AS colony IS HARDCODED
-RxN.exp.type <- function(df1) {
-    lmout <- lm(TPM ~ colony + val + I(val^2) + colony:val + colony:I(val^2), data = df1)
-    vals <- c(0, 3.5, 10, 14, 17.5, 21, 24.5, 28, 31.5, 35, 38.5)
-    colony <- "A22"
-    newdf <- data.frame(colony = colony, val = vals)
-    pout <- predict(lmout, newdata=newdf)
-    pout <- data.frame(val = vals, exp = pout)
+exp_by_colony <- ddply(Ap.dt.interaction, .(Transcript, colony), RxNply)
 
-    # get vals of max and min expression
-    max.val = vals[which(pout$exp == max(pout$exp))]
-    min.val = vals[which(pout$exp == min(pout$exp))]
+# check that correct number of rows are output - 2 times the number of transcripts
+stopifnot(all.equal(2*length(unique(Ap.dt.interaction$Transcript)), nrow(exp_by_colony)))                
+# change 'opt.exp' to numeric
+exp_by_colony$opt.exp <- as.numeric(exp_by_colony$opt.exp)
+# scale expression values by Transcript so that large expression transcripts don't drive overall pattern
+exp_by_colony <- ddply(exp_by_colony, .(Transcript), transform, 
+  opt.exp.scaled = scale(opt.exp))
 
-    # report coefficients
-    #coef(lmout)
-    exp_type = if(coef(lmout)['val'] > 0 & coef(lmout)['I(val^2)'] > 0) "High" else {
-        if(coef(lmout)['val'] < 0 & coef(lmout)['I(val^2)'] < 0) "Low" else {
-            if(coef(lmout)['val'] > 0 & coef(lmout)['I(val^2)'] < 0) "Intermediate" else {
-                "convex"}}}
+# list of transcripts that are 'high' expressed in A22
+A22_high_transcripts <- exp_by_colony[which(exp_by_colony$colony == "A22" & exp_by_colony$exp_type == "High"), "Transcript"]
+# dataframe of transcripts from both colonies that are 'high' expressed in A22
+A22_high_df <- exp_by_colony[which(exp_by_colony$Transcript %in% A22_high_transcripts), ]
 
-    # for transcripts with convex exp_type, check if expression is truly bimodal
-    if(exp_type == "convex") {
-        if(max(pout[pout$val <= 10, "exp"]) > 2*sd(pout$exp) &
-           max(pout[pout$val >= 31.5, "exp"]) > 2*sd(pout$exp)) exp_type = "Bimodal" else {
-           # linear increase?
-               if(max.val > min.val) exp_type = "High" else exp_type = "Low"
-           }
-    }
-           
-    # return values
-    return(c(max.val = vals[which(pout$exp == max(pout$exp))],
-             min.val = vals[which(pout$exp == min(pout$exp))],
-             exp_type = exp_type))
-    }
+# Compare expression at optimum temp (19.25C) between colonies using t-test
+A22_high_df$colony <- as.factor(A22_high_df$colony)
+boxplot(data = A22_high_df, log(opt.exp+1) ~ colony)
+t.test(opt.exp ~ colony, data = A22_high_df)
 
-setkey(Ap.dt.interaction, colony)
-A22.exp <- ddply(Ap.dt.interaction, .(Transcript), RxN.exp.type)
+# repeate using scaled expression values so outliers don't drive results
+boxplot(data = A22_high_df, opt.exp.scaled ~ colony)
+t.test(opt.exp.scaled ~ colony, data = A22_high_df)
 
+# this seems wrong...uses absolute values when I actually just want to compare signs. use Wilcoxon signed rank-test
 
-Ar.exp <- ddply(Ap.dt.interaction, .(Transcript), RxN.exp.type)
-
-#
-# identify 
+w1 <- wilcox.test(opt.exp ~ colony, data = A22_high_df, alternative = "two.sided", conf.int = TRUE)
+w1
 ```
 
 
