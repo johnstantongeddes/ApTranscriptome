@@ -175,7 +175,7 @@ head(annotationtable)
 
 Transcriptome annotations are nearly impossible to visualize in a meaningful way. For lack of better ideas, I created a word cloud.
 
-```{r wordcloud, cache=TRUE}
+```{r wordcloud, cache=TRUE, eval=FALSE}
 library(tm)
 library(wordcloud)
 library(RColorBrewer)
@@ -937,22 +937,22 @@ dev.off()
 
 # Same as p1, faceted by expression type
 png(paste(resultsdir, "Ap_expression_by_colony_exp_line.png", sep=""))
-  p3 <- ggplot(Ap.dt, aes(x=val, y=exp.scaled, group=Transcript)) +
-    geom_line() +
-    facet_grid(exp_type ~ colony) +
-    scale_y_continuous(name="Expression (scaled)") +
-    scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
-  p3
+p3 <- ggplot(Ap.dt, aes(x=val, y=exp.scaled, group=Transcript)) +
+  geom_line() +
+  facet_grid(exp_type ~ colony) +
+  scale_y_continuous(name="Expression (scaled)") +
+  scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
+p3
 dev.off()
 
 # Smooth plot, expression against temp, faceted by colony
 png(paste(resultsdir, "Ap_expression_by_colony_exp_smooth.png", sep=""))
-  p4 <- ggplot(Ap.dt, aes(x=val, y=exp.scaled, group=Transcript)) +
-    geom_smooth() +
-    facet_grid(exp_type ~ colony) +
-    scale_y_continuous(name="Expression (scaled)") +
-    scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
-  p4
+p4 <- ggplot(Ap.dt, aes(x=val, y=exp.scaled, group=Transcript)) +
+  geom_smooth() +
+  facet_grid(exp_type ~ colony) +
+  scale_y_continuous(name="Expression (scaled)") +
+  scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
+p4
 dev.off()
 
 ```
