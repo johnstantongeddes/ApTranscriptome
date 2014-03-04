@@ -3,13 +3,14 @@ Thermal reactionome of the common ant species *Aphaenogaster*
   
 **Author:** [John Stanton-Geddes](john.stantongeddes.research@gmail.com)
 
-**February 10, 2014**
+**February 28, 2014**
 
 **Technical Report No. 3**
 
 **Department of Biology**
 
 **University of Vermont**
+
 
 
 
@@ -28,41 +29,20 @@ This script is completely reproducible assuming that R, `knitr` and the other re
 
 The assembled transcriptome, annotation and expression values are downloaded rather than re-run due to the computational demands, but the exact commands for each of these steps are documented below.
 
+
+
 ## Data ##
 
-The raw Illumina fastq files are available from [https://minilims1.uvm.edu/BCProject-26-Cahan/_downloads/trimmomatic_output.tar.gz]
-
-We download and unzip the Trimmomatic filtered data available from [https://minilims1.uvm.edu/BCProject-26-Cahan/_downloads/trimmomatic_output.tar.gz]
+The Illumina fastq files are available from [https://minilims1.uvm.edu/BCProject-26-Cahan/downloads.html]. The Trimmomatic filtered fastq files should be downloaded, uncompressed and moved to the appropriate directory using the following code.
 
 ~~~
-# download
+# download filtered fastq files, uncompress and move
 wget --no-check-certificate https://minilims1.uvm.edu/BCProject-26-Cahan/_downloads/trimmomatic_output.tar.gz
-
-# move and unzip
-mv raw_data.tar.gz data/.
-tar -zxvf raw_data.tar.gz
+tar -zxvf trimmomatic_output.tar.gz
+mkdir -p data/
+mv ind_files data/.
 ~~~
 
-
-```r
-### Download
-
-### Expression data
-
-### Annotation file from either AWS or GoogleDrive
-annotationURL <- getURL("http://johnstantongeddes.org/assets/files/Aphaeno_transcriptome_AnnotationTable.txt")
-# a2 <- getURL('https://googledrive.com/host/0B75IymziRJ_9Tlg1U1Vxbjk1bzg')
-# # GoogleDrive link
-
-annotationfile <- read.csv(textConnection(annotationURL), header = TRUE, sep = "\t", 
-    stringsAsFactors = FALSE)
-head(annotationfile)
-str(annotationfile)
-
-# Convert to data.table
-annotationtable <- data.table(annotationfile)
-head(annotationtable)
-```
 
 
 ## Sample description ##
@@ -70,6 +50,8 @@ head(annotationtable)
 Two ant colonies were used for the transcriptome sequencing. The first, designated A22, was collected at Molly Bog, Vermont in August 2012 by Nick Gotelli and Andrew Nguyen. This colony was putatively identifed as *A. picea*. The second colony, designated Ar, was collected by Lauren Nichols in Raleigh, North Carolina. These colonies were maintained in the lab for 6 months prior to sample collection. 
 
 For each colony, three ants were exposed to one of 12 temperature treatments, every 3.5C ranging from 0C to 38.5C, for one hour in glass tubes in a water bath. The ants were flash frozen and stored at -80C until RNA was extracted using a two step extraction; [RNAzol RT](http://www.mrcgene.com/rnazol.htm) (Molecular Research Center, Inc) followed by an [RNeasy Micro](http://www.qiagen.com/products/catalog/sample-technologies/rna-sample-technologies/total-rna/rneasy-micro-kit) column (Qiagen). Samples from each colony were pooled and sequenced in separate lanes on a 100bp paired-end run of an Illumina HiSeq at the University of Minnesota Genomics Center, yielding 20e6 and 16e6 reads for the A22 and Ar samples, respectively.
+
+
 
 ## Transcriptome assembly ##
 
@@ -117,9 +99,7 @@ Subsequent to running `cap3`, we ran [uclust](http://drive5.com/usearch/manual/u
     # convert uclust to fasta format
     uclust --uc2fasta Trinity_cap3_uclust.out --input Trinity_cap3_uclust.fasta
 
-
 These post-processing step removed 16% of the initial reads (Table 1).
-
 
 
 |    &nbsp;     |  Total contigs  |  Total length  |  Median contig size  |
@@ -137,6 +117,18 @@ Table: Table 1: Statistics for Trinity and cap3+uclust reduced transcriptome ass
 |  **reduced**  |        593         |    15,491    |     895      |
 
 
+Running Trinity is time and computationally-intensive, so the final filtered assembly can be downloaded from [http://johnstantongeddes.org/assets/files/Trinity_filtered_assembly.tgz] 
+
+~~~
+# download filtered Trinity assembly, uncompress and move
+wget http://johnstantongeddes.org/assets/files/Trinity_filtered_assembly.tgz
+tar -zxvf trimmomatic_output.tar.gz
+mkdir -p results/
+mkdir -p results/trinity-full/
+mv Trinity_cap3_uclust.fasta /results/trinity-full/.
+~~~
+
+
 
 ## Transcriptome annotation ##
 
@@ -144,7 +136,154 @@ Annotation was performed by uploading the reduced assembly "Trinity_cap3_uclust.
 
 Results are available as job ID [13894410176993](http://fastannotator.cgu.edu.tw/job.php?jobid=13894410176993#page=basicinfo).
 
+This annotation file can be read directly to R:
 
+
+```r
+### Annotation file from either AWS or GoogleDrive
+annotationURL <- getURL("http://johnstantongeddes.org/assets/files/Aphaeno_transcriptome_AnnotationTable.txt")
+# a2 <- getURL('https://googledrive.com/host/0B75IymziRJ_9Tlg1U1Vxbjk1bzg')
+# # GoogleDrive link
+
+annotationfile <- read.csv(textConnection(annotationURL), header = TRUE, sep = "\t", 
+    stringsAsFactors = FALSE)
+str(annotationfile)
+
+# Convert to data.table
+annotationtable <- data.table(annotationfile)
+head(annotationtable)
+```
+
+
+Transcriptome annotations are nearly impossible to visualize in a meaningful way. For lack of better ideas, I created a word cloud.
+
+
+```r
+library(tm)
+library(wordcloud)
+library(RColorBrewer)
+library(stringr)
+
+# subset and extract unique best hits to NCBI nr database
+ann <- unique(annotationfile$best.hit.to.nr)
+annsplit <- str_split_fixed(ann, pattern = " ", n = 2)
+annvec <- annsplit[, 2]
+
+# create Corpus of terms. convert to dataframe for plotting wordcloud
+ap.corpus <- Corpus(VectorSource(annvec))
+ap.corpus <- tm_map(ap.corpus, removePunctuation)
+ap.corpus <- tm_map(ap.corpus, tolower)
+ap.corpus <- tm_map(ap.corpus, function(x) removeWords(x, stopwords("english")))
+tdm <- TermDocumentMatrix(ap.corpus)
+m <- as.matrix(tdm)
+```
+
+```
+## Error: cannot allocate vector of length 1013898960
+```
+
+```r
+v <- sort(rowSums(m), decreasing = TRUE)
+```
+
+```
+## Error: error in evaluating the argument 'x' in selecting a method for function 'sort': Error in is.data.frame(x) : object 'm' not found
+## Calls: rowSums -> is.data.frame
+```
+
+```r
+d <- data.frame(word = names(v), freq = v)
+```
+
+```
+## Error: object 'v' not found
+```
+
+```r
+pal <- brewer.pal(4, "Dark2")
+pal <- pal[-(1:2)]
+
+# png('wordcloud.png', width=1280,height=800)
+wordcloud(d$word, d$freq, scale = c(8, 0.3), min.freq = 2, max.words = 100, 
+    random.order = T, rot.per = 0.15, colors = pal, vfont = c("sans serif", 
+        "plain"))
+```
+
+```
+## Error: object 'd' not found
+```
+
+```r
+# dev.off()
+```
+
+
+This wordcloud shows that we do not know much about the transcriptome - mostly hypothetical or predicted proteins. I removed these uninformative words and generated a new wordcloud. 
+
+
+```r
+# remove 'protein', 'predicted' and 'hypothetical'
+rmwords <- c("hypothetical", "protein", "isoform", "subunit", "family", "putative", 
+    "partial", "domain", "containing", "predicted", "domaincontaining", "uncharacterized")
+ap.corpus.rmwords <- tm_map(ap.corpus, removeWords, rmwords)
+```
+
+```
+## Error: object 'ap.corpus' not found
+```
+
+```r
+tdm <- TermDocumentMatrix(ap.corpus.rmwords)
+```
+
+```
+## Error: object 'ap.corpus.rmwords' not found
+```
+
+```r
+m <- as.matrix(tdm)
+```
+
+```
+## Error: error in evaluating the argument 'x' in selecting a method for function 'as.matrix': Error: object 'tdm' not found
+```
+
+```r
+v <- sort(rowSums(m), decreasing = TRUE)
+```
+
+```
+## Error: error in evaluating the argument 'x' in selecting a method for function 'sort': Error in is.data.frame(x) : object 'm' not found
+## Calls: rowSums -> is.data.frame
+```
+
+```r
+d <- data.frame(word = names(v), freq = v)
+```
+
+```
+## Error: object 'v' not found
+```
+
+```r
+pal <- brewer.pal(8, "Dark2")
+pal <- pal[-(1:2)]
+# png('wordcloud2.png', width=1280,height=800)
+wordcloud(d$word, d$freq, scale = c(8, 0.3), min.freq = 2, max.words = 100, 
+    random.order = T, rot.per = 0.15, colors = pal, vfont = c("sans serif", 
+        "plain"))
+```
+
+```
+## Error: object 'd' not found
+```
+
+```r
+# dev.off()
+```
+
+                                                 
+                                                
 ## Identification of thermally-responsive genes ##
 
 ### Quantify gene expression ###
@@ -390,11 +529,11 @@ for (j in 1:length(samples)) {
 
 This generated a directory for each sample
 
-A22-00_trimclip_quant, A22-03_trimclip_quant, A22-07_trimclip_quant, A22-0_quant, A22-10_quant, A22-10_trimclip_quant, A22-14_quant, A22-14_trimclip_quant, A22-17_quant, A22-17_trimclip_quant, A22-21_quant, A22-21_trimclip_quant, A22-24_quant, A22-24_trimclip_quant, A22-28_quant, A22-28_trimclip_quant, A22-31_quant, A22-31_trimclip_quant, A22-35_quant, A22-35_trimclip_quant, A22-38_quant, A22-38_trimclip_quant, A22-3_quant, A22-7_quant, Ar-00_trimclip_quant, Ar-03_trimclip_quant, Ar-07_trimclip_quant, Ar-0_quant, Ar-10_quant, Ar-10_trimclip_quant, Ar-14_quant, Ar-14_trimclip_quant, Ar-17_quant, Ar-17_trimclip_quant, Ar-21_quant, Ar-21_trimclip_quant, Ar-24_quant, Ar-24_trimclip_quant, Ar-28_quant, Ar-28_trimclip_quant, Ar-31_quant, Ar-31_trimclip_quant, Ar-35_quant, Ar-35_trimclip_quant, Ar-38_quant, Ar-38_trimclip_quant, Ar-3_quant, Ar-7_quant
+
 
 and within each directory there are the following r:
 
-quant_bias_corrected.sf, quant.sf, reads.count_info, reads.sfc
+
 
 The file *quant_bias_corrected.sf* contains the following columns, following a number of header lines:
 
@@ -406,27 +545,123 @@ The file *quant_bias_corrected.sf* contains the following columns, following a n
 The TPM column for each sample was extracted and combined into a matrix for each colony.
 
 
+```
+## Warning: cannot open file
+## 'results/trinity-full/sailfish-expression/A22-0_quant/quant_bias_corrected.sf':
+## No such file or directory
+```
+
+```
+## Error: cannot open the connection
+```
+
+```
+## Error: object 'A22_0_quant' not found
+```
+
+```
+## Error: object 'A22.TPM' not found
+```
+
+```
+## Error: object 'A22.TPM' not found
+```
+
+```
+## Error: object 'A22.TPM' not found
+```
+
+```
+## Error: object 'A22.TPM' not found
+```
+
+```
+## Error: object 'A22.TPM' not found
+```
+
+```
+## Error: object 'A22.TPM' not found
+```
+
+```
+## Error: object 'A22.TPM' not found
+```
+
+```
+## Error: object 'A22.TPM' not found
+```
+
+```
+## Error: object 'A22.TPM' not found
+```
+
+```
+## Error: error in evaluating the argument 'x' in selecting a method for function 'head': Error: object 'A22.TPM' not found
+```
+
+```
+## Error: object 'A22.TPM' not found
+```
+
+```
+## Error: object 'Ar_0_quant' not found
+```
+
+```
+## Error: object 'Ar.TPM' not found
+```
+
+```
+## Error: object 'Ar.TPM' not found
+```
+
+```
+## Error: object 'Ar.TPM' not found
+```
+
+```
+## Error: object 'Ar.TPM' not found
+```
+
+```
+## Error: object 'Ar.TPM' not found
+```
+
+```
+## Error: object 'Ar.TPM' not found
+```
+
+```
+## Error: object 'Ar.TPM' not found
+```
+
+```
+## Error: object 'Ar.TPM' not found
+```
+
+```
+## Error: error in evaluating the argument 'x' in selecting a method for function 'head': Error: object 'Ar.TPM' not found
+```
+
+```
+## Error: object 'Ar.TPM' not found
+```
 
 
 Note that expression levels at each temperature treatment are highly correlated between the two colonies.
 
 
-|  temp  |  cors  |
-|:------:|:------:|
-|   0    |  0.99  |
-|  3.5   |  0.98  |
-|   7    |  0.99  |
-|  10.5  |   1    |
-|   14   |  0.99  |
-|  17.5  |  0.97  |
-|   21   |  0.98  |
-|  24.5  |  0.99  |
-|   28   |  0.99  |
-|  31.5  |   1    |
-|   35   |  0.99  |
-|  38.5  |  0.99  |
+```
+## Error: object 'A22_0_quant' not found
+```
 
-Table: correlations between colonies at each temperature treatment
+```
+## Error: object 'cors' not found
+```
+
+```
+## Error: object 'cortable' not found
+```
 
 
 ## Identification of thermally-responsive genes
@@ -1207,17 +1442,22 @@ then read map file.
 ```r
 # read mappings file
 geneID2GO <- readMappings(file = "geneid2go.map")
+```
+
+```
+## Warning: cannot open file 'geneid2go.map': No such file or directory
+```
+
+```
+## Error: cannot open the connection
+```
+
+```r
 str(head(geneID2GO))
 ```
 
 ```
-## List of 6
-##  $ 0|*|Contig6267        : chr [1:6] "GO:0035335" "GO:0000188" "GO:0006570" "GO:0017017" ...
-##  $ 1|*|comp150820_c2_seq6: chr [1:6] "GO:0030036" "GO:0015074" "GO:0003676" "GO:0003779" ...
-##  $ 2|*|Contig6262        : chr [1:6] "GO:0035335" "GO:0000188" "GO:0006570" "GO:0017017" ...
-##  $ 3|*|comp149397_c1_seq2: chr [1:4] "GO:0006508" "GO:0005634" "GO:0003677" "GO:0004252"
-##  $ 4|*|Contig4755        : chr [1:10] "GO:0055114" "GO:0006355" "GO:0009395" "GO:0005634" ...
-##  $ 5|*|Contig3727        : chr [1:7] "GO:0007269" "GO:0050803" "GO:0048488" "GO:0042967" ...
+## Error: error in evaluating the argument 'x' in selecting a method for function 'head': Error: object 'geneID2GO' not found
 ```
 
 
@@ -1260,11 +1500,11 @@ Ap.BP.GOdata <- new("topGOdata", description = "BP gene set analysis", ontology 
 
 ```
 ## 
-## Building most specific GOs .....	( 5600 GO terms found. )
-## 
-## Build GO DAG topology ..........	( 9054 GO terms and 19829 relations. )
-## 
-## Annotating nodes ...............	( 33173 genes annotated to the GO terms. )
+## Building most specific GOs .....
+```
+
+```
+## Error: object 'geneID2GO' not found
 ```
 
 ```r
@@ -1273,21 +1513,7 @@ Ap.BP.GOdata
 ```
 
 ```
-## 
-## ------------------------- topGOdata object -------------------------
-## 
-##  Description:
-##    -  BP gene set analysis 
-## 
-##  Ontology:
-##    -  BP 
-## 
-##  105536 available genes (all genes from the array):
-##    - symbol:  0|*|Contig6267 100000|*|comp2663136_c0_seq1 100001|*|comp3439067_c0_seq1 100002|*|comp2050457_c0_seq1 100003|*|comp2029723_c0_seq1  ...
-```
-
-```
-## Error: invalid 'digits' argument
+## Error: object 'Ap.BP.GOdata' not found
 ```
 
 ```r
@@ -1297,44 +1523,7 @@ Ap.BP.resultParentChild <- runTest(Ap.BP.GOdata, statistic = "fisher", algorithm
 ```
 
 ```
-## 
-## 			 -- Parent-Child Algorithm -- 
-## 
-## 		 the algorithm is scoring 3029 nontrivial nodes
-## 		 parameters: 
-## 			 test statistic:  fisher : joinFun = union 
-## 
-## 	 Level 17:	2 nodes to be scored.
-## 
-## 	 Level 16:	7 nodes to be scored.
-## 
-## 	 Level 15:	9 nodes to be scored.
-## 
-## 	 Level 14:	21 nodes to be scored.
-## 
-## 	 Level 13:	47 nodes to be scored.
-## 
-## 	 Level 12:	132 nodes to be scored.
-## 
-## 	 Level 11:	204 nodes to be scored.
-## 
-## 	 Level 10:	314 nodes to be scored.
-## 
-## 	 Level 9:	415 nodes to be scored.
-## 
-## 	 Level 8:	442 nodes to be scored.
-## 
-## 	 Level 7:	446 nodes to be scored.
-## 
-## 	 Level 6:	418 nodes to be scored.
-## 
-## 	 Level 5:	327 nodes to be scored.
-## 
-## 	 Level 4:	175 nodes to be scored.
-## 
-## 	 Level 3:	52 nodes to be scored.
-## 
-## 	 Level 2:	17 nodes to be scored.
+## Error: error in evaluating the argument 'object' in selecting a method for function 'runTest': Error: object 'Ap.BP.GOdata' not found
 ```
 
 ```r
@@ -1342,16 +1531,7 @@ Ap.BP.resultParentChild
 ```
 
 ```
-## 
-## Description: BP gene set analysis 
-## Ontology: BP 
-## 'parentchild' algorithm with the 'fisher : joinFun = union' test
-## 3585 GO terms scored: 106 terms with p < 0.01
-## Annotation data:
-##     Annotated genes: 33173 
-##     Significant genes: 2558 
-##     Min. no. of genes annotated to a GO: 10 
-##     Nontrivial nodes: 3029
+## Error: object 'Ap.BP.resultParentChild' not found
 ```
 
 ```r
@@ -1359,565 +1539,28 @@ Ap.BP.resultParentChild
 # table results
 Ap.BP.ResTable <- GenTable(Ap.BP.GOdata, parentchild = Ap.BP.resultParentChild, 
     topNodes = 118)
+```
+
+```
+## Error: error in evaluating the argument 'object' in selecting a method for function 'GenTable': Error: object 'Ap.BP.GOdata' not found
+```
+
+```r
 # Ap.BP.ResTable
 write.table(Ap.BP.ResTable, file = paste(resultsdir, "Ap_GO.BP_results.txt", 
     sep = ""), quote = FALSE, row.names = FALSE, sep = "\t")
+```
+
+```
+## Error: object 'Ap.BP.ResTable' not found
+```
+
+```r
 pandoc.table(Ap.BP.ResTable)
 ```
 
 ```
-## 
-## -------------------------------------------------------------------
-##   GO.ID                 Term               Annotated   Significant 
-## ---------- ------------------------------ ----------- -------------
-## GO:0043170    macromolecule metabolic        14917        1293     
-##                  process                                           
-## 
-## GO:0019538   protein metabolic process       7991          766     
-## 
-## GO:0015074        DNA integration             910          132     
-## 
-## GO:0006278 RNA-dependent DNA replication      763          119     
-## 
-## GO:0006664  glycolipid metabolic process      220          41      
-## 
-## GO:0070085         glycosylation              155          25      
-## 
-## GO:0044260     cellular macromolecule        13102        1120     
-##                 metabolic process                                  
-## 
-## GO:0006643    membrane lipid metabolic        251          43      
-##                  process                                           
-## 
-## GO:0046039     GTP metabolic process          953          99      
-## 
-## GO:0006771  riboflavin metabolic process      97           16      
-## 
-## GO:0006665 sphingolipid metabolic process     170          29      
-##                                                                    
-## 
-## GO:0009141    nucleoside triphosphate        2123          161     
-##                 metabolic proces...                                
-## 
-## GO:0043010  camera-type eye development       72           15      
-## 
-## GO:1901068 guanosine-containing compound      997          100     
-##                    metabolic ...                                   
-## 
-## GO:0065003     macromolecular complex         744          84      
-##                 assembly                                           
-## 
-## GO:0006260        DNA replication            1440          160     
-## 
-## GO:0006030    chitin metabolic process        190          32      
-## 
-## GO:0009259    ribonucleotide metabolic       2436          174     
-##                  process                                           
-## 
-## GO:1901069 guanosine-containing compound      898          90      
-##                    catabolic ...                                   
-## 
-## GO:0009966      regulation of signal          903          104     
-##                transduction                                        
-## 
-## GO:0006184     GTP catabolic process          897          90      
-## 
-## GO:0006644 phospholipid metabolic process     530          62      
-##                                                                    
-## 
-## GO:0000209   protein polyubiquitination       21            8      
-## 
-## GO:0042439    ethanolamine-containing         41            9      
-##                 compound metabol...                                
-## 
-## GO:1901071     glucosamine-containing         207          33      
-##                 compound metaboli...                               
-## 
-## GO:0007264  small GTPase mediated signal      666          80      
-##                    transductio...                                  
-## 
-## GO:0009101   glycoprotein biosynthetic        169          28      
-##                   process                                          
-## 
-## GO:0009100 glycoprotein metabolic process     181          30      
-##                                                                    
-## 
-## GO:0019220    regulation of phosphate         810          87      
-##                 metabolic proces...                                
-## 
-## GO:0006996     organelle organization        1983          199     
-## 
-## GO:0009247    glycolipid biosynthetic         76           15      
-##                  process                                           
-## 
-## GO:0044267   cellular protein metabolic      5560          532     
-##                   process                                          
-## 
-## GO:1900542      regulation of purine          522          55      
-##                nucleotide metaboli...                              
-## 
-## GO:0051174    regulation of phosphorus        812          87      
-##                  metabolic proce...                                
-## 
-## GO:0023051    regulation of signaling         974          108     
-## 
-## GO:0002088      lens development in           11            5      
-##                camera-type eye                                     
-## 
-## GO:0030811    regulation of nucleotide        508          54      
-##                  catabolic proce...                                
-## 
-## GO:0046907    intracellular transport         985          92      
-## 
-## GO:0048583   regulation of response to       1095          116     
-##                   stimulus                                         
-## 
-## GO:0045196  establishment or maintenance      14            5      
-##                    of neurobla...                                  
-## 
-## GO:0033121      regulation of purine          508          54      
-##                nucleotide cataboli...                              
-## 
-## GO:0009069    serine family amino acid       1317          104     
-##                  metabolic proce...                                
-## 
-## GO:0019497     hexachlorocyclohexane          106          13      
-##                 metabolic process                                  
-## 
-## GO:0050794 regulation of cellular process    8768          741     
-##                                                                    
-## 
-## GO:0010033 response to organic substance      590          58      
-## 
-## GO:0046434   organophosphate catabolic       2128          165     
-##                   process                                          
-## 
-## GO:0022406        membrane docking            35            9      
-## 
-## GO:0010646       regulation of cell           974          107     
-##               communication                                        
-## 
-## GO:0009894    regulation of catabolic         623          64      
-##                  process                                           
-## 
-## GO:0001501  skeletal system development       64           12      
-## 
-## GO:0006140    regulation of nucleotide        529          55      
-##                  metabolic proce...                                
-## 
-## GO:0009118    regulation of nucleoside        508          54      
-##                  metabolic proce...                                
-## 
-## GO:0048278        vesicle docking             34            9      
-## 
-## GO:0046467  membrane lipid biosynthetic       85           15      
-##                    process                                         
-## 
-## GO:0030879   mammary gland development        12            5      
-## 
-## GO:0042726   flavin-containing compound       97           16      
-##                   metabolic pro...                                 
-## 
-## GO:0009166  nucleotide catabolic process     1890          137     
-## 
-## GO:0046474      glycerophospholipid           103          19      
-##                biosynthetic process                                
-## 
-## GO:0071840       cellular component          4671          409     
-##               organization or bioge...                             
-## 
-## GO:0060041     retina development in          50           10      
-##                 camera-type eye                                    
-## 
-## GO:0006413    translational initiation        384          45      
-## 
-## GO:0007243  intracellular protein kinase      227          32      
-##                    cascade                                         
-## 
-## GO:0022904 respiratory electron transport     396          38      
-##                     chain                                          
-## 
-## GO:0043413  macromolecule glycosylation       145          25      
-## 
-## GO:0031329     regulation of cellular         580          60      
-##                 catabolic process                                  
-## 
-## GO:0001503          ossification              39            9      
-## 
-## GO:0065007     biological regulation         9646          804     
-## 
-## GO:0006446  regulation of translational       353          44      
-##                    initiation                                      
-## 
-## GO:0009395 phospholipid catabolic process     196          26      
-##                                                                    
-## 
-## GO:0022900    electron transport chain        430          43      
-## 
-## GO:0007405    neuroblast proliferation        41            8      
-## 
-## GO:0033036   macromolecule localization      1692          141     
-## 
-## GO:0006461    protein complex assembly        437          52      
-## 
-## GO:0051049    regulation of transport         280          31      
-## 
-## GO:0043085     positive regulation of         338          46      
-##                 catalytic activit...                               
-## 
-## GO:0043412   macromolecule modification      3379          331     
-## 
-## GO:0006334      nucleosome assembly           135          21      
-## 
-## GO:0051510  regulation of unidimensional      13            4      
-##                    cell growth                                     
-## 
-## GO:0030149 sphingolipid catabolic process     11            4      
-##                                                                    
-## 
-## GO:0006497       protein lipidation           58           13      
-## 
-## GO:0051649 establishment of localization     1360          117     
-##                     in cell                                        
-## 
-## GO:0050766     positive regulation of         10            3      
-##                 phagocytosis                                       
-## 
-## GO:0050789    regulation of biological       9285          772     
-##                  process                                           
-## 
-## GO:0043067 regulation of programmed cell      284          34      
-##                     death                                          
-## 
-## GO:0055001    muscle cell development         174          20      
-## 
-## GO:0006656      phosphatidylcholine           14            4      
-##                biosynthetic process                                
-## 
-## GO:0050878    regulation of body fluid        82           14      
-##                  levels                                            
-## 
-## GO:0008654   phospholipid biosynthetic        240          30      
-##                   process                                          
-## 
-## GO:0010562     positive regulation of         118          17      
-##                 phosphorus metabo...                               
-## 
-## GO:0008217  regulation of blood pressure      10            4      
-## 
-## GO:0045937     positive regulation of         118          17      
-##                 phosphate metabol...                               
-## 
-## GO:0051051     negative regulation of         50            9      
-##                 transport                                          
-## 
-## GO:0006486     protein glycosylation          145          25      
-## 
-## GO:0042327     positive regulation of         104          16      
-##                 phosphorylation                                    
-## 
-## GO:0045017   glycerolipid biosynthetic        145          20      
-##                   process                                          
-## 
-## GO:0042158    lipoprotein biosynthetic        73           13      
-##                  process                                           
-## 
-## GO:0016192   vesicle-mediated transport       750          68      
-## 
-## GO:0016032         viral process              118          16      
-## 
-## GO:0010608 posttranscriptional regulation     912          87      
-##                     of gene e...                                   
-## 
-## GO:0046146 tetrahydrobiopterin metabolic      15            4      
-##                     process                                        
-## 
-## GO:0044093     positive regulation of         382          50      
-##                 molecular functio...                               
-## 
-## GO:0009164  nucleoside catabolic process     1851          137     
-## 
-## GO:0009640       photomorphogenesis           15            4      
-## 
-## GO:0044070 regulation of anion transport      13            4      
-## 
-## GO:0052652    cyclic purine nucleotide        71            8      
-##                  metabolic proce...                                
-## 
-## GO:0043269  regulation of ion transport       84           13      
-## 
-## GO:0071310  cellular response to organic      383          40      
-##                    substance                                       
-## 
-## GO:0030239       myofibril assembly           30            7      
-## 
-## GO:0071453  cellular response to oxygen       19            5      
-##                    levels                                          
-## 
-## GO:0009561       megagametogenesis            18            5      
-## 
-## GO:0007369          gastrulation              69           13      
-## 
-## GO:0009826   unidimensional cell growth       42            7      
-## 
-## GO:0035315   hair cell differentiation        41            7      
-## 
-## GO:0043112   receptor metabolic process       30            7      
-## 
-## GO:1901861  regulation of muscle tissue       68           10      
-##                    development                                     
-## 
-## GO:0009560      embryo sac egg cell           14            4      
-##                differentiation                                     
-## 
-## GO:0001763  morphogenesis of a branching      56           10      
-##                    structure                                       
-## 
-## GO:0070271   protein complex biogenesis       437          52      
-## -------------------------------------------------------------------
-## 
-## Table: Table continues below
-## 
-##  
-## ------------------------
-##  Expected   parentchild 
-## ---------- -------------
-##    1150       1.4e-13   
-## 
-##   616.2       7.5e-13   
-## 
-##   70.17       2.6e-09   
-## 
-##   58.84       3.5e-09   
-## 
-##   16.96       5.9e-08   
-## 
-##   11.95       1.8e-07   
-## 
-##    1010       4.5e-07   
-## 
-##   19.35       5.8e-07   
-## 
-##   73.49       5.9e-07   
-## 
-##    7.48       6.5e-06   
-## 
-##   13.11       7.9e-06   
-## 
-##   163.7       1.2e-05   
-## 
-##    5.55       1.2e-05   
-## 
-##   76.88       2.7e-05   
-## 
-##   57.37       2.7e-05   
-## 
-##    111        4.5e-05   
-## 
-##   14.65       6.3e-05   
-## 
-##   187.8       9.2e-05   
-## 
-##   69.25       0.00011   
-## 
-##   69.63       0.00011   
-## 
-##   69.17       0.00013   
-## 
-##   40.87       0.00014   
-## 
-##    1.62       0.00015   
-## 
-##    3.16       0.00017   
-## 
-##   15.96       0.00018   
-## 
-##   51.36       0.00019   
-## 
-##   13.03       0.00020   
-## 
-##   13.96       0.00021   
-## 
-##   62.46       0.00022   
-## 
-##   152.9       0.00028   
-## 
-##    5.86       0.00035   
-## 
-##   428.7       0.00036   
-## 
-##   40.25       0.00056   
-## 
-##   62.61       0.00061   
-## 
-##   75.11       0.00063   
-## 
-##    0.85       0.00064   
-## 
-##   39.17       0.00081   
-## 
-##   75.95       0.00088   
-## 
-##   84.44       0.00091   
-## 
-##    1.08       0.00092   
-## 
-##   39.17       0.00097   
-## 
-##   101.6       0.00098   
-## 
-##    8.17       0.00100   
-## 
-##   676.1       0.00109   
-## 
-##    45.5       0.00120   
-## 
-##   164.1       0.00132   
-## 
-##    2.7        0.00133   
-## 
-##   75.11       0.00140   
-## 
-##   48.04       0.00145   
-## 
-##    4.94       0.00169   
-## 
-##   40.79       0.00178   
-## 
-##   39.17       0.00192   
-## 
-##    2.62       0.00201   
-## 
-##    6.55       0.00204   
-## 
-##    0.93       0.00215   
-## 
-##    7.48       0.00228   
-## 
-##   145.7       0.00237   
-## 
-##    7.94       0.00239   
-## 
-##   360.2       0.00241   
-## 
-##    3.86       0.00282   
-## 
-##   29.61       0.00290   
-## 
-##    17.5       0.00297   
-## 
-##   30.54       0.00297   
-## 
-##   11.18       0.00297   
-## 
-##   44.72       0.00310   
-## 
-##    3.01       0.00344   
-## 
-##   743.8       0.00358   
-## 
-##   27.22       0.00382   
-## 
-##   15.11       0.00392   
-## 
-##   33.16       0.00402   
-## 
-##    3.16       0.00415   
-## 
-##   130.5       0.00441   
-## 
-##    33.7       0.00459   
-## 
-##   21.59       0.00471   
-## 
-##   26.06       0.00484   
-## 
-##   260.6       0.00485   
-## 
-##   10.41       0.00487   
-## 
-##     1         0.00508   
-## 
-##    0.85       0.00509   
-## 
-##    4.47       0.00512   
-## 
-##   104.9       0.00525   
-## 
-##    0.77       0.00567   
-## 
-##    716        0.00569   
-## 
-##    21.9       0.00570   
-## 
-##   13.42       0.00580   
-## 
-##    1.08       0.00595   
-## 
-##    6.32       0.00596   
-## 
-##   18.51       0.00609   
-## 
-##    9.1        0.00609   
-## 
-##    0.77       0.00614   
-## 
-##    9.1        0.00648   
-## 
-##    3.86       0.00656   
-## 
-##   11.18       0.00670   
-## 
-##    8.02       0.00716   
-## 
-##   11.18       0.00740   
-## 
-##    5.63       0.00758   
-## 
-##   57.83       0.00764   
-## 
-##    9.1        0.00866   
-## 
-##   70.33       0.00893   
-## 
-##    1.16       0.00914   
-## 
-##   29.46       0.00916   
-## 
-##   142.7       0.00918   
-## 
-##    1.16       0.00924   
-## 
-##     1         0.00961   
-## 
-##    5.47       0.00979   
-## 
-##    6.48       0.00992   
-## 
-##   29.53       0.01044   
-## 
-##    2.31       0.01064   
-## 
-##    1.47       0.01092   
-## 
-##    1.39       0.01108   
-## 
-##    5.32       0.01128   
-## 
-##    3.24       0.01137   
-## 
-##    3.16       0.01141   
-## 
-##    2.31       0.01160   
-## 
-##    5.24       0.01177   
-## 
-##    1.08       0.01198   
-## 
-##    4.32       0.01224   
-## 
-##    33.7       0.01242   
-## ------------------------
+## Error: object 'Ap.BP.ResTable' not found
 ```
 
 ```r
@@ -1930,13 +1573,7 @@ showSigOfNodes(Ap.BP.GOdata, score(Ap.BP.resultParentChild), firstSigNodes = 10,
 ```
 
 ```
-## $dag
-## A graphNEL graph with directed edges
-## Number of Nodes = 62 
-## Number of Edges = 109 
-## 
-## $complete.dag
-## [1] "A graph with 62 nodes."
+## Error: error in evaluating the argument 'x' in selecting a method for function 'score': Error: object 'Ap.BP.resultParentChild' not found
 ```
 
 ```r
@@ -2004,11 +1641,11 @@ Ap.bim.BP.GOdata <- new("topGOdata", description = "BP gene set analysis", ontol
 
 ```
 ## 
-## Building most specific GOs .....	( 5600 GO terms found. )
-## 
-## Build GO DAG topology ..........	( 9054 GO terms and 19829 relations. )
-## 
-## Annotating nodes ...............	( 33173 genes annotated to the GO terms. )
+## Building most specific GOs .....
+```
+
+```
+## Error: object 'geneID2GO' not found
 ```
 
 ```r
@@ -2017,21 +1654,7 @@ Ap.bim.BP.GOdata
 ```
 
 ```
-## 
-## ------------------------- topGOdata object -------------------------
-## 
-##  Description:
-##    -  BP gene set analysis 
-## 
-##  Ontology:
-##    -  BP 
-## 
-##  105536 available genes (all genes from the array):
-##    - symbol:  0|*|Contig6267 100000|*|comp2663136_c0_seq1 100001|*|comp3439067_c0_seq1 100002|*|comp2050457_c0_seq1 100003|*|comp2029723_c0_seq1  ...
-```
-
-```
-## Error: invalid 'digits' argument
+## Error: object 'Ap.bim.BP.GOdata' not found
 ```
 
 ```r
@@ -2042,44 +1665,7 @@ Ap.bim.BP.resultParentChild <- runTest(Ap.bim.BP.GOdata, statistic = "fisher",
 ```
 
 ```
-## 
-## 			 -- Parent-Child Algorithm -- 
-## 
-## 		 the algorithm is scoring 2122 nontrivial nodes
-## 		 parameters: 
-## 			 test statistic:  fisher : joinFun = union 
-## 
-## 	 Level 17:	1 nodes to be scored.
-## 
-## 	 Level 16:	6 nodes to be scored.
-## 
-## 	 Level 15:	7 nodes to be scored.
-## 
-## 	 Level 14:	11 nodes to be scored.
-## 
-## 	 Level 13:	30 nodes to be scored.
-## 
-## 	 Level 12:	78 nodes to be scored.
-## 
-## 	 Level 11:	138 nodes to be scored.
-## 
-## 	 Level 10:	203 nodes to be scored.
-## 
-## 	 Level 9:	271 nodes to be scored.
-## 
-## 	 Level 8:	298 nodes to be scored.
-## 
-## 	 Level 7:	312 nodes to be scored.
-## 
-## 	 Level 6:	300 nodes to be scored.
-## 
-## 	 Level 5:	258 nodes to be scored.
-## 
-## 	 Level 4:	149 nodes to be scored.
-## 
-## 	 Level 3:	43 nodes to be scored.
-## 
-## 	 Level 2:	16 nodes to be scored.
+## Error: error in evaluating the argument 'object' in selecting a method for function 'runTest': Error: object 'Ap.bim.BP.GOdata' not found
 ```
 
 ```r
@@ -2087,279 +1673,24 @@ Ap.bim.BP.resultParentChild
 ```
 
 ```
-## 
-## Description: BP gene set analysis 
-## Ontology: BP 
-## 'parentchild' algorithm with the 'fisher : joinFun = union' test
-## 3585 GO terms scored: 52 terms with p < 0.01
-## Annotation data:
-##     Annotated genes: 33173 
-##     Significant genes: 674 
-##     Min. no. of genes annotated to a GO: 10 
-##     Nontrivial nodes: 2122
+## Error: object 'Ap.bim.BP.resultParentChild' not found
 ```
 
 
 Enriched gene sets for genes expressed at both high and low temperatures.
 
 
--------------------------------------------------------------------
-  GO.ID                 Term               Annotated   Significant 
----------- ------------------------------ ----------- -------------
-GO:0006643    membrane lipid metabolic        251          16      
-                 process                                           
-
-GO:0043412   macromolecule modification      3379          103     
-
-GO:0009141    nucleoside triphosphate        2123          52      
-                metabolic proces...                                
-
-GO:0019538   protein metabolic process       7991          196     
-
-GO:0009966      regulation of signal          903          37      
-               transduction                                        
-
-GO:0044763    single-organism cellular       12692         296     
-                 process                                           
-
-GO:0006664  glycolipid metabolic process      220          15      
-
-GO:0060548  negative regulation of cell       154          10      
-                   death                                           
-
-GO:2000147  positive regulation of cell       24            4      
-                   motility                                        
-
-GO:0043170    macromolecule metabolic        14917         325     
-                 process                                           
-
-GO:0009166  nucleotide catabolic process     1890          47      
-
-GO:0010632 regulation of epithelial cell      12            3      
-                    migration                                      
-
-GO:0023051    regulation of signaling         974          38      
-
-GO:0006665 sphingolipid metabolic process     170          11      
-                                                                   
-
-GO:0030206      chondroitin sulfate           16            3      
-               biosynthetic process                                
-
-GO:0050650      chondroitin sulfate           16            3      
-              proteoglycan biosynt...                              
-
-GO:0044267   cellular protein metabolic      5560          147     
-                  process                                          
-
-GO:0016226  iron-sulfur cluster assembly      44            5      
-
-GO:0040017     positive regulation of         42            5      
-                locomotion                                         
-
-GO:0036211  protein modification process     2948          93      
-
-GO:0010646       regulation of cell           974          37      
-              communication                                        
-
-GO:0001503          ossification              39            5      
-
-GO:0019220    regulation of phosphate         810          30      
-                metabolic proces...                                
-
-GO:0046434   organophosphate catabolic       2128          55      
-                  process                                          
-
-GO:0051174    regulation of phosphorus        812          30      
-                 metabolic proce...                                
-
-GO:0048583   regulation of response to       1095          39      
-                  stimulus                                         
-
-GO:0009259    ribonucleotide metabolic       2436          54      
-                 process                                           
-
-GO:0043010  camera-type eye development       72            6      
-
-GO:0043269  regulation of ion transport       84            7      
-
-GO:0031398 positive regulation of protein     19            4      
-                    ubiquitin...                                   
-
-GO:0030204 chondroitin sulfate metabolic      20            3      
-                    process                                        
-
-GO:0050654      chondroitin sulfate           20            3      
-              proteoglycan metabol...                              
-
-GO:0043112   receptor metabolic process       30            4      
-
-GO:0006029 proteoglycan metabolic process     31            5      
-                                                                   
-
-GO:0051272     positive regulation of         27            4      
-                cellular componen...                               
-
-GO:0044260     cellular macromolecule        13102         286     
-                metabolic process                                  
-
-GO:0050790    regulation of catalytic        1018          36      
-                 activity                                          
-
-GO:0065009    regulation of molecular        1079          38      
-                 function                                          
-
-GO:0006761   dihydrofolate biosynthetic       21            2      
-                  process                                          
-
-GO:0046039     GTP metabolic process          953          31      
-
-GO:0043069     negative regulation of         145           9      
-                programmed cell d...                               
-
-GO:0044786   cell cycle DNA replication       26            3      
-
-GO:0006464 cellular protein modification     2948          93      
-                    process                                        
-
-GO:1901658  glycosyl compound catabolic      1852          47      
-                   process                                         
-
-GO:0050794 regulation of cellular process    8768          204     
-                                                                   
-
-GO:0030166   proteoglycan biosynthetic        25            4      
-                  process                                          
-
-GO:0031163     metallo-sulfur cluster         44            5      
-                assembly                                           
-
-GO:0048856      anatomical structure         2704          66      
-               development                                         
-
-GO:1901292 nucleoside phosphate catabolic    1894          47      
-                    process                                        
-
-GO:0030335  positive regulation of cell       23            3      
-                   migration                                       
-
-GO:0006140    regulation of nucleotide        529          19      
-                 metabolic proce...                                
-
-GO:0009118    regulation of nucleoside        508          19      
-                 metabolic proce...                                
--------------------------------------------------------------------
-
-Table: Table continues below
-
- 
-------------------------
- Expected   parentchild 
----------- -------------
-   5.1        9.2e-05   
-
-  68.65       9.4e-05   
-
-  43.13       9.4e-05   
-
-  162.4       0.00016   
-
-  18.35       0.00017   
-
-  257.9       0.00018   
-
-   4.47       0.00021   
-
-   3.13       0.00029   
-
-   0.49       0.00034   
-
-  303.1       0.00055   
-
-   38.4       0.00065   
-
-   0.24       0.00065   
-
-  19.79       0.00066   
-
-   3.45       0.00068   
-
-   0.33       0.00078   
-
-   0.33       0.00114   
-
-   113        0.00117   
-
-   0.89       0.00126   
-
-   0.85       0.00130   
-
-   59.9       0.00144   
-
-  19.79       0.00146   
-
-   0.79       0.00170   
-
-  16.46       0.00175   
-
-  43.24       0.00181   
-
-   16.5       0.00215   
-
-  22.25       0.00219   
-
-  49.49       0.00271   
-
-   1.46       0.00280   
-
-   1.71       0.00288   
-
-   0.39       0.00341   
-
-   0.41       0.00376   
-
-   0.41       0.00387   
-
-   0.61       0.00390   
-
-   0.63       0.00419   
-
-   0.55       0.00445   
-
-  266.2       0.00474   
-
-  20.68       0.00478   
-
-  21.92       0.00518   
-
-   0.43       0.00523   
-
-  19.36       0.00538   
-
-   2.95       0.00655   
-
-   0.53       0.00685   
-
-   59.9       0.00708   
-
-  37.63       0.00755   
-
-  178.2       0.00766   
-
-   0.51       0.00860   
-
-   0.89       0.00901   
-
-  54.94       0.00919   
-
-  38.48       0.00936   
-
-   0.47       0.00969   
-
-  10.75       0.00980   
-
-  10.32       0.00983   
-------------------------
+```
+## Error: error in evaluating the argument 'object' in selecting a method for function 'GenTable': Error: object 'Ap.bim.BP.GOdata' not found
+```
+
+```
+## Error: object 'Ap.bim.BP.ResTable' not found
+```
+
+```
+## Error: object 'Ap.bim.BP.ResTable' not found
+```
 
 
 
@@ -2399,11 +1730,11 @@ Ap.int.BP.GOdata <- new("topGOdata", description = "BP gene set analysis", ontol
 
 ```
 ## 
-## Building most specific GOs .....	( 5600 GO terms found. )
-## 
-## Build GO DAG topology ..........	( 9054 GO terms and 19829 relations. )
-## 
-## Annotating nodes ...............	( 33173 genes annotated to the GO terms. )
+## Building most specific GOs .....
+```
+
+```
+## Error: object 'geneID2GO' not found
 ```
 
 ```r
@@ -2412,21 +1743,7 @@ Ap.int.BP.GOdata
 ```
 
 ```
-## 
-## ------------------------- topGOdata object -------------------------
-## 
-##  Description:
-##    -  BP gene set analysis 
-## 
-##  Ontology:
-##    -  BP 
-## 
-##  105536 available genes (all genes from the array):
-##    - symbol:  0|*|Contig6267 100000|*|comp2663136_c0_seq1 100001|*|comp3439067_c0_seq1 100002|*|comp2050457_c0_seq1 100003|*|comp2029723_c0_seq1  ...
-```
-
-```
-## Error: invalid 'digits' argument
+## Error: object 'Ap.int.BP.GOdata' not found
 ```
 
 ```r
@@ -2437,44 +1754,7 @@ Ap.int.BP.resultParentChild <- runTest(Ap.int.BP.GOdata, statistic = "fisher",
 ```
 
 ```
-## 
-## 			 -- Parent-Child Algorithm -- 
-## 
-## 		 the algorithm is scoring 1220 nontrivial nodes
-## 		 parameters: 
-## 			 test statistic:  fisher : joinFun = union 
-## 
-## 	 Level 17:	1 nodes to be scored.
-## 
-## 	 Level 16:	2 nodes to be scored.
-## 
-## 	 Level 15:	3 nodes to be scored.
-## 
-## 	 Level 14:	6 nodes to be scored.
-## 
-## 	 Level 13:	10 nodes to be scored.
-## 
-## 	 Level 12:	31 nodes to be scored.
-## 
-## 	 Level 11:	67 nodes to be scored.
-## 
-## 	 Level 10:	97 nodes to be scored.
-## 
-## 	 Level 9:	130 nodes to be scored.
-## 
-## 	 Level 8:	152 nodes to be scored.
-## 
-## 	 Level 7:	182 nodes to be scored.
-## 
-## 	 Level 6:	186 nodes to be scored.
-## 
-## 	 Level 5:	182 nodes to be scored.
-## 
-## 	 Level 4:	112 nodes to be scored.
-## 
-## 	 Level 3:	41 nodes to be scored.
-## 
-## 	 Level 2:	17 nodes to be scored.
+## Error: error in evaluating the argument 'object' in selecting a method for function 'runTest': Error: object 'Ap.int.BP.GOdata' not found
 ```
 
 ```r
@@ -2482,140 +1762,28 @@ Ap.int.BP.resultParentChild
 ```
 
 ```
-## 
-## Description: BP gene set analysis 
-## Ontology: BP 
-## 'parentchild' algorithm with the 'fisher : joinFun = union' test
-## 3585 GO terms scored: 16 terms with p < 0.01
-## Annotation data:
-##     Annotated genes: 33173 
-##     Significant genes: 203 
-##     Min. no. of genes annotated to a GO: 10 
-##     Nontrivial nodes: 1220
+## Error: object 'Ap.int.BP.resultParentChild' not found
 ```
 
 
 Enriched gene sets for genes expressed at intermediate temperatures.
 
-        GO.ID                                        Term Annotated
-1  GO:0043413                 macromolecule glycosylation       145
-2  GO:0006486                       protein glycosylation       145
-3  GO:0009101           glycoprotein biosynthetic process       169
-4  GO:0070085                               glycosylation       155
-5  GO:0009100              glycoprotein metabolic process       181
-6  GO:0051649       establishment of localization in cell      1360
-7  GO:0051965     positive regulation of synapse assembly        16
-8  GO:0002088         lens development in camera-type eye        11
-9  GO:0007067                                     mitosis       235
-10 GO:0046474    glycerophospholipid biosynthetic process       103
-11 GO:0044089 positive regulation of cellular componen...        16
-12 GO:0015031                           protein transport      1104
-13 GO:0046907                     intracellular transport       985
-14 GO:0007216 G-protein coupled glutamate receptor sig...        20
-15 GO:0071840 cellular component organization or bioge...      4671
-16 GO:0051962 positive regulation of nervous system de...        16
-   Significant Expected parentchild
-1            7     0.89     4.9e-06
-2            7     0.89     7.4e-06
-3            7     1.03     7.7e-05
-4            7     0.95     8.1e-05
-5            7     1.11     0.00015
-6           17     8.32     0.00184
-7            2     0.10     0.00215
-8            2     0.07     0.00234
-9            6     1.44     0.00480
-10           4     0.63     0.00491
-11           2     0.10     0.00501
-12          13     6.76     0.00583
-13          13     6.03     0.00587
-14           2     0.12     0.00603
-15          42    28.58     0.00622
-16           2     0.10     0.00843
 
--------------------------------------------------------------------
-  GO.ID                 Term               Annotated   Significant 
----------- ------------------------------ ----------- -------------
-GO:0043413  macromolecule glycosylation       145           7      
+```
+## Error: error in evaluating the argument 'object' in selecting a method for function 'GenTable': Error: object 'Ap.int.BP.GOdata' not found
+```
 
-GO:0006486     protein glycosylation          145           7      
+```
+## Error: object 'Ap.int.BP.ResTable' not found
+```
 
-GO:0009101   glycoprotein biosynthetic        169           7      
-                  process                                          
+```
+## Error: object 'Ap.int.BP.ResTable' not found
+```
 
-GO:0070085         glycosylation              155           7      
-
-GO:0009100 glycoprotein metabolic process     181           7      
-                                                                   
-
-GO:0051649 establishment of localization     1360          17      
-                    in cell                                        
-
-GO:0051965 positive regulation of synapse     16            2      
-                    assembly                                       
-
-GO:0002088      lens development in           11            2      
-               camera-type eye                                     
-
-GO:0007067            mitosis                 235           6      
-
-GO:0046474      glycerophospholipid           103           4      
-               biosynthetic process                                
-
-GO:0044089     positive regulation of         16            2      
-                cellular componen...                               
-
-GO:0015031       protein transport           1104          13      
-
-GO:0046907    intracellular transport         985          13      
-
-GO:0007216  G-protein coupled glutamate       20            2      
-                  receptor sig...                                  
-
-GO:0071840       cellular component          4671          42      
-              organization or bioge...                             
-
-GO:0051962 positive regulation of nervous     16            2      
-                    system de...                                   
--------------------------------------------------------------------
-
-Table: Table continues below
-
- 
-------------------------
- Expected   parentchild 
----------- -------------
-   0.89       4.9e-06   
-
-   0.89       7.4e-06   
-
-   1.03       7.7e-05   
-
-   0.95       8.1e-05   
-
-   1.11       0.00015   
-
-   8.32       0.00184   
-
-   0.1        0.00215   
-
-   0.07       0.00234   
-
-   1.44       0.00480   
-
-   0.63       0.00491   
-
-   0.1        0.00501   
-
-   6.76       0.00583   
-
-   6.03       0.00587   
-
-   0.12       0.00603   
-
-  28.58       0.00622   
-
-   0.1        0.00843   
-------------------------
+```
+## Error: object 'Ap.int.BP.ResTable' not found
+```
 
 
 
@@ -2656,11 +1824,11 @@ Ap.hig.BP.GOdata <- new("topGOdata", description = "BP gene set analysis", ontol
 
 ```
 ## 
-## Building most specific GOs .....	( 5600 GO terms found. )
-## 
-## Build GO DAG topology ..........	( 9054 GO terms and 19829 relations. )
-## 
-## Annotating nodes ...............	( 33173 genes annotated to the GO terms. )
+## Building most specific GOs .....
+```
+
+```
+## Error: object 'geneID2GO' not found
 ```
 
 ```r
@@ -2669,21 +1837,7 @@ Ap.hig.BP.GOdata
 ```
 
 ```
-## 
-## ------------------------- topGOdata object -------------------------
-## 
-##  Description:
-##    -  BP gene set analysis 
-## 
-##  Ontology:
-##    -  BP 
-## 
-##  105536 available genes (all genes from the array):
-##    - symbol:  0|*|Contig6267 100000|*|comp2663136_c0_seq1 100001|*|comp3439067_c0_seq1 100002|*|comp2050457_c0_seq1 100003|*|comp2029723_c0_seq1  ...
-```
-
-```
-## Error: invalid 'digits' argument
+## Error: object 'Ap.hig.BP.GOdata' not found
 ```
 
 ```r
@@ -2694,38 +1848,7 @@ Ap.hig.BP.resultParentChild <- runTest(Ap.hig.BP.GOdata, statistic = "fisher",
 ```
 
 ```
-## 
-## 			 -- Parent-Child Algorithm -- 
-## 
-## 		 the algorithm is scoring 1008 nontrivial nodes
-## 		 parameters: 
-## 			 test statistic:  fisher : joinFun = union 
-## 
-## 	 Level 14:	5 nodes to be scored.
-## 
-## 	 Level 13:	14 nodes to be scored.
-## 
-## 	 Level 12:	30 nodes to be scored.
-## 
-## 	 Level 11:	69 nodes to be scored.
-## 
-## 	 Level 10:	97 nodes to be scored.
-## 
-## 	 Level 9:	114 nodes to be scored.
-## 
-## 	 Level 8:	118 nodes to be scored.
-## 
-## 	 Level 7:	127 nodes to be scored.
-## 
-## 	 Level 6:	149 nodes to be scored.
-## 
-## 	 Level 5:	136 nodes to be scored.
-## 
-## 	 Level 4:	93 nodes to be scored.
-## 
-## 	 Level 3:	39 nodes to be scored.
-## 
-## 	 Level 2:	16 nodes to be scored.
+## Error: error in evaluating the argument 'object' in selecting a method for function 'runTest': Error: object 'Ap.hig.BP.GOdata' not found
 ```
 
 ```r
@@ -2733,83 +1856,24 @@ Ap.hig.BP.resultParentChild
 ```
 
 ```
-## 
-## Description: BP gene set analysis 
-## Ontology: BP 
-## 'parentchild' algorithm with the 'fisher : joinFun = union' test
-## 3585 GO terms scored: 12 terms with p < 0.01
-## Annotation data:
-##     Annotated genes: 33173 
-##     Significant genes: 188 
-##     Min. no. of genes annotated to a GO: 10 
-##     Nontrivial nodes: 1008
+## Error: object 'Ap.hig.BP.resultParentChild' not found
 ```
 
 
 Enriched gene sets for genes expressed at both high temperatures only.
 
 
-------------------------------------------------------------------
-  GO.ID                Term               Annotated   Significant 
----------- ----------------------------- ----------- -------------
-GO:0046493   lipid A metabolic process       15            2      
+```
+## Error: error in evaluating the argument 'object' in selecting a method for function 'GenTable': Error: object 'Ap.hig.BP.GOdata' not found
+```
 
-GO:0030435   sporulation resulting in        19            2      
-                formation of a ...                                
+```
+## Error: object 'Ap.hig.BP.ResTable' not found
+```
 
-GO:1901269 lipooligosaccharide metabolic     15            2      
-                   process                                        
-
-GO:0006310       DNA recombination           797          13      
-
-GO:0009245 lipid A biosynthetic process      15            2      
-
-GO:1901271      lipooligosaccharide          15            2      
-              biosynthetic process                                
-
-GO:0032196         transposition             334           6      
-
-GO:0043934          sporulation              24            2      
-
-GO:0006950      response to stress          2415          19      
-
-GO:0001503         ossification              39            2      
-
-GO:0006536  glutamate metabolic process      259           4      
-
-GO:0015849    organic acid transport         388           6      
-------------------------------------------------------------------
-
-Table: Table continues below
-
- 
-------------------------
- Expected   parentchild 
----------- -------------
-   0.09       0.00049   
-
-   0.11       0.00231   
-
-   0.09       0.00241   
-
-   4.52       0.00286   
-
-   0.09       0.00309   
-
-   0.09       0.00356   
-
-   1.89       0.00372   
-
-   0.14       0.00651   
-
-  13.69       0.00692   
-
-   0.22       0.00723   
-
-   1.47       0.00936   
-
-   2.2        0.00947   
-------------------------
+```
+## Error: object 'Ap.hig.BP.ResTable' not found
+```
 
 
 
@@ -2849,11 +1913,11 @@ Ap.low.BP.GOdata <- new("topGOdata", description = "BP gene set analysis", ontol
 
 ```
 ## 
-## Building most specific GOs .....	( 5600 GO terms found. )
-## 
-## Build GO DAG topology ..........	( 9054 GO terms and 19829 relations. )
-## 
-## Annotating nodes ...............	( 33173 genes annotated to the GO terms. )
+## Building most specific GOs .....
+```
+
+```
+## Error: object 'geneID2GO' not found
 ```
 
 ```r
@@ -2862,21 +1926,7 @@ Ap.low.BP.GOdata
 ```
 
 ```
-## 
-## ------------------------- topGOdata object -------------------------
-## 
-##  Description:
-##    -  BP gene set analysis 
-## 
-##  Ontology:
-##    -  BP 
-## 
-##  105536 available genes (all genes from the array):
-##    - symbol:  0|*|Contig6267 100000|*|comp2663136_c0_seq1 100001|*|comp3439067_c0_seq1 100002|*|comp2050457_c0_seq1 100003|*|comp2029723_c0_seq1  ...
-```
-
-```
-## Error: invalid 'digits' argument
+## Error: object 'Ap.low.BP.GOdata' not found
 ```
 
 ```r
@@ -2887,44 +1937,7 @@ Ap.low.BP.resultParentChild <- runTest(Ap.low.BP.GOdata, statistic = "fisher",
 ```
 
 ```
-## 
-## 			 -- Parent-Child Algorithm -- 
-## 
-## 		 the algorithm is scoring 1883 nontrivial nodes
-## 		 parameters: 
-## 			 test statistic:  fisher : joinFun = union 
-## 
-## 	 Level 17:	1 nodes to be scored.
-## 
-## 	 Level 16:	4 nodes to be scored.
-## 
-## 	 Level 15:	5 nodes to be scored.
-## 
-## 	 Level 14:	8 nodes to be scored.
-## 
-## 	 Level 13:	24 nodes to be scored.
-## 
-## 	 Level 12:	55 nodes to be scored.
-## 
-## 	 Level 11:	106 nodes to be scored.
-## 
-## 	 Level 10:	167 nodes to be scored.
-## 
-## 	 Level 9:	242 nodes to be scored.
-## 
-## 	 Level 8:	259 nodes to be scored.
-## 
-## 	 Level 7:	283 nodes to be scored.
-## 
-## 	 Level 6:	279 nodes to be scored.
-## 
-## 	 Level 5:	247 nodes to be scored.
-## 
-## 	 Level 4:	138 nodes to be scored.
-## 
-## 	 Level 3:	47 nodes to be scored.
-## 
-## 	 Level 2:	17 nodes to be scored.
+## Error: error in evaluating the argument 'object' in selecting a method for function 'runTest': Error: object 'Ap.low.BP.GOdata' not found
 ```
 
 ```r
@@ -2932,220 +1945,33 @@ Ap.low.BP.resultParentChild
 ```
 
 ```
-## 
-## Description: BP gene set analysis 
-## Ontology: BP 
-## 'parentchild' algorithm with the 'fisher : joinFun = union' test
-## 3585 GO terms scored: 26 terms with p < 0.01
-## Annotation data:
-##     Annotated genes: 33173 
-##     Significant genes: 542 
-##     Min. no. of genes annotated to a GO: 10 
-##     Nontrivial nodes: 1883
+## Error: object 'Ap.low.BP.resultParentChild' not found
 ```
 
 
 Enriched gene sets for genes expressed at low temperatures only.
 
-        GO.ID                                        Term Annotated
-1  GO:0044700                   single organism signaling      4965
-2  GO:0051606                       detection of stimulus       534
-3  GO:0003008                              system process      1197
-4  GO:0009593              detection of chemical stimulus       464
-5  GO:0007186 G-protein coupled receptor signaling pat...       881
-6  GO:0015074                             DNA integration       910
-7  GO:0006278               RNA-dependent DNA replication       763
-8  GO:0007154                          cell communication      5148
-9  GO:0006260                             DNA replication      1440
-10 GO:0040001 establishment of mitotic spindle localiz...        23
-11 GO:0019400                   alditol metabolic process        59
-12 GO:0007166     cell surface receptor signaling pathway      1665
-13 GO:1901068 guanosine-containing compound metabolic ...       997
-14 GO:0048639 positive regulation of developmental gro...        33
-15 GO:0010431                             seed maturation        10
-16 GO:0023052                                   signaling      4966
-17 GO:0006184                       GTP catabolic process       897
-18 GO:0022611                            dormancy process        10
-19 GO:0046039                       GTP metabolic process       953
-20 GO:0006914                                   autophagy       100
-21 GO:0070085                               glycosylation       155
-22 GO:0007405                    neuroblast proliferation        41
-23 GO:0009640                          photomorphogenesis        15
-24 GO:1901069 guanosine-containing compound catabolic ...       898
-25 GO:0046664 dorsal closure, amnioserosa morphology c...        13
-26 GO:0007165                         signal transduction      4701
-   Significant Expected parentchild
-1          103    81.12     0.00026
-2           21     8.72     0.00070
-3           36    19.56     0.00075
-4           21     7.58     0.00076
-5           37    14.39     0.00084
-6           30    14.87     0.00100
-7           31    12.47     0.00108
-8          105    84.11     0.00148
-9           40    23.53     0.00172
-10           3     0.38     0.00193
-11           4     0.96     0.00280
-12          49    27.20     0.00330
-13          20    16.29     0.00395
-14           2     0.54     0.00473
-15           2     0.16     0.00578
-16         103    81.14     0.00581
-17          19    14.66     0.00640
-18           2     0.16     0.00665
-19          19    15.57     0.00699
-20           5     1.63     0.00706
-21           6     2.53     0.00756
-22           3     0.67     0.00819
-23           2     0.25     0.00824
-24          19    14.67     0.00955
-25           2     0.21     0.00981
-26         100    76.81     0.00997
 
--------------------------------------------------------------------
-  GO.ID                 Term               Annotated   Significant 
----------- ------------------------------ ----------- -------------
-GO:0044700   single organism signaling       4965          103     
+```
+## Error: error in evaluating the argument 'object' in selecting a method for function 'GenTable': Error: object 'Ap.low.BP.GOdata' not found
+```
 
-GO:0051606     detection of stimulus          534          21      
+```
+## Error: object 'Ap.low.BP.ResTable' not found
+```
 
-GO:0003008         system process            1197          36      
+```
+## Error: object 'Ap.low.BP.ResTable' not found
+```
 
-GO:0009593 detection of chemical stimulus     464          21      
-                                                                   
-
-GO:0007186   G-protein coupled receptor       881          37      
-                  signaling pat...                                 
-
-GO:0015074        DNA integration             910          30      
-
-GO:0006278 RNA-dependent DNA replication      763          31      
-
-GO:0007154       cell communication          5148          105     
-
-GO:0006260        DNA replication            1440          40      
-
-GO:0040001    establishment of mitotic        23            3      
-                 spindle localiz...                                
-
-GO:0019400   alditol metabolic process        59            4      
-
-GO:0007166     cell surface receptor         1665          49      
-                signaling pathway                                  
-
-GO:1901068 guanosine-containing compound      997          20      
-                   metabolic ...                                   
-
-GO:0048639     positive regulation of         33            2      
-                developmental gro...                               
-
-GO:0010431        seed maturation             10            2      
-
-GO:0023052           signaling               4966          103     
-
-GO:0006184     GTP catabolic process          897          19      
-
-GO:0022611        dormancy process            10            2      
-
-GO:0046039     GTP metabolic process          953          19      
-
-GO:0006914           autophagy                100           5      
-
-GO:0070085         glycosylation              155           6      
-
-GO:0007405    neuroblast proliferation        41            3      
-
-GO:0009640       photomorphogenesis           15            2      
-
-GO:1901069 guanosine-containing compound      898          19      
-                   catabolic ...                                   
-
-GO:0046664  dorsal closure, amnioserosa       13            2      
-                  morphology c...                                  
-
-GO:0007165      signal transduction          4701          100     
--------------------------------------------------------------------
-
-Table: Table continues below
-
- 
-------------------------
- Expected   parentchild 
----------- -------------
-  81.12       0.00026   
-
-   8.72       0.00070   
-
-  19.56       0.00075   
-
-   7.58       0.00076   
-
-  14.39       0.00084   
-
-  14.87       0.00100   
-
-  12.47       0.00108   
-
-  84.11       0.00148   
-
-  23.53       0.00172   
-
-   0.38       0.00193   
-
-   0.96       0.00280   
-
-   27.2       0.00330   
-
-  16.29       0.00395   
-
-   0.54       0.00473   
-
-   0.16       0.00578   
-
-  81.14       0.00581   
-
-  14.66       0.00640   
-
-   0.16       0.00665   
-
-  15.57       0.00699   
-
-   1.63       0.00706   
-
-   2.53       0.00756   
-
-   0.67       0.00819   
-
-   0.25       0.00824   
-
-  14.67       0.00955   
-
-   0.21       0.00981   
-
-  76.81       0.00997   
-------------------------
-
+```
+## Error: object 'Ap.low.BP.ResTable' not found
+```
 
 
 
 ```
-## Warning: zero-length arrow is of indeterminate angle and so skipped
-## Warning: zero-length arrow is of indeterminate angle and so skipped
-## Warning: zero-length arrow is of indeterminate angle and so skipped
-## Warning: zero-length arrow is of indeterminate angle and so skipped
-## Warning: zero-length arrow is of indeterminate angle and so skipped
-## Warning: zero-length arrow is of indeterminate angle and so skipped
-## Warning: zero-length arrow is of indeterminate angle and so skipped
-```
-
-```
-## $dag
-## A graphNEL graph with directed edges
-## Number of Nodes = 217 
-## Number of Edges = 443 
-## 
-## $complete.dag
-## [1] "A graph with 217 nodes."
+## Error: error in evaluating the argument 'x' in selecting a method for function 'score': Error: object 'Ap.bim.BP.resultParentChild' not found
 ```
 
 ```
@@ -3154,13 +1980,7 @@ Table: Table continues below
 ```
 
 ```
-## $dag
-## A graphNEL graph with directed edges
-## Number of Nodes = 116 
-## Number of Edges = 216 
-## 
-## $complete.dag
-## [1] "A graph with 116 nodes."
+## Error: error in evaluating the argument 'x' in selecting a method for function 'score': Error: object 'Ap.int.BP.resultParentChild' not found
 ```
 
 ```
@@ -3169,13 +1989,7 @@ Table: Table continues below
 ```
 
 ```
-## $dag
-## A graphNEL graph with directed edges
-## Number of Nodes = 78 
-## Number of Edges = 133 
-## 
-## $complete.dag
-## [1] "A graph with 78 nodes."
+## Error: error in evaluating the argument 'x' in selecting a method for function 'score': Error: object 'Ap.hig.BP.resultParentChild' not found
 ```
 
 ```
@@ -3184,18 +1998,35 @@ Table: Table continues below
 ```
 
 ```
-## $dag
-## A graphNEL graph with directed edges
-## Number of Nodes = 180 
-## Number of Edges = 337 
-## 
-## $complete.dag
-## [1] "A graph with 180 nodes."
+## Error: error in evaluating the argument 'x' in selecting a method for function 'score': Error: object 'Ap.low.BP.resultParentChild' not found
 ```
 
 ```
 ## pdf 
 ##   2
+```
+
+
+Visualize differens in GO terms among expression types using a wordcloud.
+
+```{gsea_wordcloud, cache=TRUE}
+# create Corpus for text mining
+GO.dfs <- c(paste(Ap.low.BP.ResTable$Term, collapse=" "), paste(Ap.hig.BP.ResTable$Term, collapse=" "),
+            paste(Ap.int.BP.ResTable$Term, collapse=" "), paste(Ap.bim.BP.ResTable$Term, collapse=" "))
+
+vs <- VectorSource(GO.dfs)
+GO.corp <- Corpus(vs)
+GO.corp
+
+GO.corp <- tm_map(GO.corp, removePunctuation)
+
+# create matrix of terms
+term.matrix <- TermDocumentMatrix(GO.corp)
+term.matrix <- as.matrix(term.matrix)
+colnames(term.matrix) <- c('low', 'high', 'intermediate', 'bimodal')
+
+# comparison cloud
+comparison.cloud(term.matrix, max.words=200, random.order=FALSE, scale=c(0.25, 0.5))
 ```
 
 
@@ -3214,128 +2045,21 @@ A set of 3760 transcripts have expression patterns that depend on colony. In thi
 
 Make plots for all significant transcripts
 
-![plot of chunk plot_responsive](figure/plot_responsive1.png) 
 
-```
-## geom_smooth: method="auto" and size of largest group is <1000, so using loess. Use 'method = x' to change the smoothing method.
-## geom_smooth: method="auto" and size of largest group is <1000, so using loess. Use 'method = x' to change the smoothing method.
-```
-
-![plot of chunk plot_responsive](figure/plot_responsive2.png) ![plot of chunk plot_responsive](figure/plot_responsive3.png) 
-
-```
-## geom_smooth: method="auto" and size of largest group is <1000, so using loess. Use 'method = x' to change the smoothing method.
-## geom_smooth: method="auto" and size of largest group is <1000, so using loess. Use 'method = x' to change the smoothing method.
-## geom_smooth: method="auto" and size of largest group is <1000, so using loess. Use 'method = x' to change the smoothing method.
-## geom_smooth: method="auto" and size of largest group is <1000, so using loess. Use 'method = x' to change the smoothing method.
-## geom_smooth: method="auto" and size of largest group is <1000, so using loess. Use 'method = x' to change the smoothing method.
-## geom_smooth: method="auto" and size of largest group is <1000, so using loess. Use 'method = x' to change the smoothing method.
-## geom_smooth: method="auto" and size of largest group is <1000, so using loess. Use 'method = x' to change the smoothing method.
-## geom_smooth: method="auto" and size of largest group is <1000, so using loess. Use 'method = x' to change the smoothing method.
-```
-
-![plot of chunk plot_responsive](figure/plot_responsive4.png) 
 
 
 Make plots for transcripts with significant temperature by colony interaction
 
-![plot of chunk plot_interaction_responsive](figure/plot_interaction_responsive1.png) 
-
-```
-## geom_smooth: method="auto" and size of largest group is <1000, so using loess. Use 'method = x' to change the smoothing method.
-## geom_smooth: method="auto" and size of largest group is <1000, so using loess. Use 'method = x' to change the smoothing method.
-```
-
-![plot of chunk plot_interaction_responsive](figure/plot_interaction_responsive2.png) ![plot of chunk plot_interaction_responsive](figure/plot_interaction_responsive3.png) 
-
-```
-## geom_smooth: method="auto" and size of largest group is <1000, so using loess. Use 'method = x' to change the smoothing method.
-## geom_smooth: method="auto" and size of largest group is <1000, so using loess. Use 'method = x' to change the smoothing method.
-## geom_smooth: method="auto" and size of largest group is <1000, so using loess. Use 'method = x' to change the smoothing method.
-## geom_smooth: method="auto" and size of largest group is <1000, so using loess. Use 'method = x' to change the smoothing method.
-## geom_smooth: method="auto" and size of largest group is <1000, so using loess. Use 'method = x' to change the smoothing method.
-## geom_smooth: method="auto" and size of largest group is <1000, so using loess. Use 'method = x' to change the smoothing method.
-## geom_smooth: method="auto" and size of largest group is <1000, so using loess. Use 'method = x' to change the smoothing method.
-## geom_smooth: method="auto" and size of largest group is <1000, so using loess. Use 'method = x' to change the smoothing method.
-```
-
-![plot of chunk plot_interaction_responsive](figure/plot_interaction_responsive4.png) 
 
 
 
 
 
-```
-## pdf 
-##   2
-```
-
-```
-## geom_smooth: method="auto" and size of largest group is <1000, so using loess. Use 'method = x' to change the smoothing method.
-## geom_smooth: method="auto" and size of largest group is <1000, so using loess. Use 'method = x' to change the smoothing method.
-```
-
-```
-## pdf 
-##   2
-```
-
-```
-## Error: At least one layer must contain all variables used for facetting
-```
-
-```
-## pdf 
-##   2
-```
-
-```
-## Error: At least one layer must contain all variables used for facetting
-```
-
-```
-## pdf 
-##   2
-```
 
 
 
 
-```
-## pdf 
-##   2
-```
 
-```
-## geom_smooth: method="auto" and size of largest group is <1000, so using loess. Use 'method = x' to change the smoothing method.
-## geom_smooth: method="auto" and size of largest group is <1000, so using loess. Use 'method = x' to change the smoothing method.
-```
-
-```
-## pdf 
-##   2
-```
-
-```
-## pdf 
-##   2
-```
-
-```
-## geom_smooth: method="auto" and size of largest group is <1000, so using loess. Use 'method = x' to change the smoothing method.
-## geom_smooth: method="auto" and size of largest group is <1000, so using loess. Use 'method = x' to change the smoothing method.
-## geom_smooth: method="auto" and size of largest group is <1000, so using loess. Use 'method = x' to change the smoothing method.
-## geom_smooth: method="auto" and size of largest group is <1000, so using loess. Use 'method = x' to change the smoothing method.
-## geom_smooth: method="auto" and size of largest group is <1000, so using loess. Use 'method = x' to change the smoothing method.
-## geom_smooth: method="auto" and size of largest group is <1000, so using loess. Use 'method = x' to change the smoothing method.
-## geom_smooth: method="auto" and size of largest group is <1000, so using loess. Use 'method = x' to change the smoothing method.
-## geom_smooth: method="auto" and size of largest group is <1000, so using loess. Use 'method = x' to change the smoothing method.
-```
-
-```
-## pdf 
-##   2
-```
 
 
 
@@ -3356,38 +2080,38 @@ sessionInfo()
 
 ```
 ## R version 3.0.2 (2013-09-25)
-## Platform: x86_64-pc-linux-gnu (64-bit)
+## Platform: i686-pc-linux-gnu (32-bit)
 ## 
 ## locale:
-##  [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              
-##  [3] LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8    
-##  [5] LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8   
-##  [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                 
+##  [1] LC_CTYPE=en_CA.UTF-8       LC_NUMERIC=C              
+##  [3] LC_TIME=en_CA.UTF-8        LC_COLLATE=en_CA.UTF-8    
+##  [5] LC_MONETARY=en_CA.UTF-8    LC_MESSAGES=en_CA.UTF-8   
+##  [7] LC_PAPER=en_CA.UTF-8       LC_NAME=C                 
 ##  [9] LC_ADDRESS=C               LC_TELEPHONE=C            
-## [11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
+## [11] LC_MEASUREMENT=en_CA.UTF-8 LC_IDENTIFICATION=C       
 ## 
 ## attached base packages:
-## [1] grid      parallel  methods   stats     graphics  grDevices utils    
-## [8] datasets  base     
+## [1] grid      parallel  stats     graphics  grDevices utils     datasets 
+## [8] methods   base     
 ## 
 ## other attached packages:
-##  [1] Rgraphviz_2.6.0      topGO_2.14.0         SparseM_1.03        
-##  [4] GO.db_2.10.1         RSQLite_0.11.4       DBI_0.2-7           
-##  [7] AnnotationDbi_1.24.0 Biobase_2.22.0       BiocGenerics_0.8.0  
-## [10] graph_1.40.1         plyr_1.8             RCurl_1.95-4.1      
-## [13] bitops_1.0-6         data.table_1.8.10    stringr_0.6.2       
-## [16] pander_0.3.8         knitcitations_0.5-0  bibtex_0.3-6        
-## [19] ggplot2_0.9.3.1      R.utils_1.28.4       R.oo_1.17.0         
-## [22] R.methodsS3_1.6.1    knitr_1.5           
+##  [1] wordcloud_2.4        tm_0.5-10            Rcpp_0.10.6         
+##  [4] RColorBrewer_1.0-5   Rgraphviz_2.6.0      topGO_2.14.0        
+##  [7] SparseM_1.03         GO.db_2.10.1         RSQLite_0.11.4      
+## [10] DBI_0.2-7            AnnotationDbi_1.24.0 Biobase_2.22.0      
+## [13] BiocGenerics_0.8.0   graph_1.40.1         plyr_1.8            
+## [16] RCurl_1.95-4.1       bitops_1.0-6         data.table_1.8.10   
+## [19] stringr_0.6.2        pander_0.3.8         knitcitations_0.5-0 
+## [22] bibtex_0.3-6         ggplot2_0.9.3.1      R.utils_1.28.4      
+## [25] R.oo_1.17.0          R.methodsS3_1.6.1    knitr_1.5           
 ## 
 ## loaded via a namespace (and not attached):
-##  [1] codetools_0.2-8    colorspace_1.2-4   dichromat_2.0-0   
-##  [4] digest_0.6.4       evaluate_0.5.1     formatR_0.10      
-##  [7] gtable_0.1.2       httr_0.2           IRanges_1.20.6    
-## [10] labeling_0.2       lattice_0.20-24    MASS_7.3-29       
-## [13] munsell_0.4.2      proto_0.3-10       RColorBrewer_1.0-5
-## [16] reshape2_1.2.2     scales_0.2.3       stats4_3.0.2      
-## [19] tools_3.0.2        XML_3.98-1.1       xtable_1.7-1
+##  [1] codetools_0.2-8  colorspace_1.2-4 dichromat_2.0-0  digest_0.6.4    
+##  [5] evaluate_0.5.1   formatR_0.10     gtable_0.1.2     httr_0.2        
+##  [9] IRanges_1.20.6   labeling_0.2     lattice_0.20-24  MASS_7.3-29     
+## [13] munsell_0.4.2    proto_0.3-10     reshape2_1.2.2   scales_0.2.3    
+## [17] slam_0.1-31      stats4_3.0.2     tools_3.0.2      XML_3.98-1.1    
+## [21] xtable_1.7-1
 ```
 
 
@@ -3395,17 +2119,15 @@ sessionInfo()
 
 
 ```r
-bibliography("html")
+bibliography()
 ```
 
-```
-## 
-## - Manfred G Grabherr, Brian J Haas, Moran Yassour, Joshua Z Levin, Dawn A Thompson, Ido Amit, Xian Adiconis, Lin Fan, Raktima Raychowdhury, Qiandong Zeng, Zehua Chen, Evan Mauceli, Nir Hacohen, Andreas Gnirke, Nicholas Rhind, Federica di Palma, Bruce W Birren, Chad Nusbaum, Kerstin Lindblad-Toh, Nir Friedman, Aviv Regev,   (2011) Full-Length Transcriptome Assembly From Rna-Seq Data Without A Reference Genome.  <em>Nature Biotechnology</em>  <strong>29</strong>  644-652  <a href="http://dx.doi.org/10.1038/nbt.1883">10.1038/nbt.1883</a>
-## - X. Huang,   (1999) Cap3: A Dna Sequence Assembly Program.  <em>Genome Research</em>  <strong>9</strong>  868-877  <a href="http://dx.doi.org/10.1101/gr.9.9.868">10.1101/gr.9.9.868</a>
-## - B. Li, V. Ruotti, R. M. Stewart, J. A. Thomson, C. N. Dewey,   (2009) Rna-Seq Gene Expression Estimation With Read Mapping Uncertainty.  <em>Bioinformatics</em>  <strong>26</strong>  493-500  <a href="http://dx.doi.org/10.1093/bioinformatics/btp692">10.1093/bioinformatics/btp692</a>
-## - M. Lohse, A. M. Bolger, A. Nagel, A. R. Fernie, J. E. Lunn, M. Stitt, B. Usadel,   (2012) Robina: A User-Friendly, Integrated Software Solution For Rna-Seq-Based Transcriptomics.  <em>Nucleic Acids Research</em>  <strong>40</strong>  W622-W627  <a href="http://dx.doi.org/10.1093/nar/gks540">10.1093/nar/gks540</a>
-## - David Lubertazzi,   (2012) The Biology And Natural History of Aphaenogaster Rudis.  <em>Psyche: A Journal of Entomology</em>  <strong>2012</strong>  1-11  <a href="http://dx.doi.org/10.1155/2012/752815">10.1155/2012/752815</a>
-## - unknown unknown,   (unknown) Unknown.  <em>Unknown</em>
-## - Ya Yang, Stephen A Smith,   (2013) Optimizing de Novo Assembly of Short-Read Rna-Seq Data For Phylogenomics.  <em>Bmc Genomics</em>  <strong>14</strong>  328-NA  <a href="http://dx.doi.org/10.1186/1471-2164-14-328">10.1186/1471-2164-14-328</a>
-```
+
+- Manfred G Grabherr, Brian J Haas, Moran Yassour, Joshua Z Levin, Dawn A Thompson, Ido Amit, Xian Adiconis, Lin Fan, Raktima Raychowdhury, Qiandong Zeng, Zehua Chen, Evan Mauceli, Nir Hacohen, Andreas Gnirke, Nicholas Rhind, Federica di Palma, Bruce W Birren, Chad Nusbaum, Kerstin Lindblad-Toh, Nir Friedman, Aviv Regev,   (2011) Full-Length Transcriptome Assembly From Rna-Seq Data Without A Reference Genome.  *Nature Biotechnology*  **29**  644-652  [10.1038/nbt.1883](http://dx.doi.org/10.1038/nbt.1883)
+- X. Huang,   (1999) Cap3: A Dna Sequence Assembly Program.  *Genome Research*  **9**  868-877  [10.1101/gr.9.9.868](http://dx.doi.org/10.1101/gr.9.9.868)
+- B. Li, V. Ruotti, R. M. Stewart, J. A. Thomson, C. N. Dewey,   (2009) Rna-Seq Gene Expression Estimation With Read Mapping Uncertainty.  *Bioinformatics*  **26**  493-500  [10.1093/bioinformatics/btp692](http://dx.doi.org/10.1093/bioinformatics/btp692)
+- M. Lohse, A. M. Bolger, A. Nagel, A. R. Fernie, J. E. Lunn, M. Stitt, B. Usadel,   (2012) Robina: A User-Friendly, Integrated Software Solution For Rna-Seq-Based Transcriptomics.  *Nucleic Acids Research*  **40**  W622-W627  [10.1093/nar/gks540](http://dx.doi.org/10.1093/nar/gks540)
+- David Lubertazzi,   (2012) The Biology And Natural History of Aphaenogaster Rudis.  *Psyche: A Journal of Entomology*  **2012**  1-11  [10.1155/2012/752815](http://dx.doi.org/10.1155/2012/752815)
+- unknown unknown,   (unknown) Unknown.  *Unknown*
+- Ya Yang, Stephen A Smith,   (2013) Optimizing de Novo Assembly of Short-Read Rna-Seq Data For Phylogenomics.  *Bmc Genomics*  **14**  328-NA  [10.1186/1471-2164-14-328](http://dx.doi.org/10.1186/1471-2164-14-328)
 

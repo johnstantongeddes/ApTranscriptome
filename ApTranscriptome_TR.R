@@ -3,7 +3,7 @@ Thermal reactionome of the common ant species *Aphaenogaster*
   
 **Author:** [John Stanton-Geddes](john.stantongeddes.research@gmail.com)
 
-**February 18, 2014**
+**February 28, 2014**
 
 **Technical Report No. 3**
 
@@ -35,6 +35,9 @@ suppressMessages(library(Rgraphviz))
 
 # load custom functions
 source("scripts/RxNseq.R")
+
+# knitr options
+opts_chunk$set(cache=TRUE)
 
 # directory to save results
 resultsdir <- "results/"
@@ -155,7 +158,7 @@ mv Trinity_cap3_uclust.fasta /results/trinity-full/.
 
 Annotation was performed by uploading the reduced assembly "Trinity_cap3_uclust.fasta" to the web-based annotation program [FastAnnotator](http://fastannotator.cgu.edu.tw/index.php) `r citep("10.1186/1471-2164-13-S7-S9")`.
 
-Results are available as job ID [13894410176993](http://fastannotator.cgu.edu.tw/job.php?jobid=13894410176993#page=basicinfo).
+#Results are available as job ID [13894410176993](http://fastannotator.cgu.edu.tw/job.php?jobid=13894410176993#page=basicinfo).
 
 This annotation file can be read directly to R:
 
@@ -374,7 +377,7 @@ where TPM is transcripts per million.
 
 For this list of P-values, correct for multiple testing using False Discovery Rate (FDR).
 
-Preliminary [examination](https://minilims1.uvm.edu/BCProject-26-Cahan/methods.html#clustering-of-samples) of the data indicated that the A22_7 and Ar_7 samples may have been switched, so I remove these values from the analysis to be conservative). 
+#Preliminary [examination](https://minilims1.uvm.edu/BCProject-26-Cahan/methods.html#clustering-of-samples) of the data indicated that the A22_7 and Ar_7 samples may have been switched, so I remove these values from the analysis to be conservative). 
 
 ```{r RxN, echo=TRUE, eval=TRUE, cache=TRUE}
 A22.TPM[,colony:="A22"]
@@ -448,7 +451,6 @@ str(colony.transcripts)
 colony.transcripts <- colony.transcripts[order(colony.transcripts$padj), ]
 write.table(colony.transcripts, file = paste(resultsdir, "Ap_colony_transcripts_GO.txt", sep=""), quote = FALSE, sep = "\t", row.names = FALSE)
 
-
 # transcripts that have colony by temperature interactions
 interaction.transcripts <- signif.transcripts[!is.na(signif.transcripts$'coef.colony:val') | !is.na(signif.transcripts$'coef.colony:I(val^2)')]
 interaction.transcripts <- annotationtable[interaction.transcripts]
@@ -469,38 +471,39 @@ Ap.dt <- TPM.dt.sub[responsive.transcripts]
 setkey(Ap.dt, Transcript)
 
 Ap.exp_type <- ddply(Ap.dt, .(Transcript), function(df1) {
-    lmout <- lm(TPM ~ val + I(val^2), data = df1)
-    vals <- c(0, 3.5, 10, 14, 17.5, 21, 24.5, 28, 31.5, 35, 38.5)
-    newdf <- data.frame(val = vals)
-    pout <- predict(lmout, newdata=newdf)
-    pout <- data.frame(val = vals, exp = pout)
+  
+  lmout <- lm(TPM ~ val + I(val^2), data = df1)
+  vals <- c(0, 3.5, 10, 14, 17.5, 21, 24.5, 28, 31.5, 35, 38.5)
+  newdf <- data.frame(val = vals)
+  pout <- predict(lmout, newdata=newdf)
+  pout <- data.frame(val = vals, exp = pout)
 
-    # get vals of max and min expression
-    max.val = vals[which(pout$exp == max(pout$exp))]
-    min.val = vals[which(pout$exp == min(pout$exp))]
-
-    # report coefficients
-    #coef(lmout)
-    exp_type = if(coef(lmout)['val'] > 0 & coef(lmout)['I(val^2)'] > 0) "High" else {
-        if(coef(lmout)['val'] < 0 & coef(lmout)['I(val^2)'] < 0) "Low" else {
-            if(coef(lmout)['val'] > 0 & coef(lmout)['I(val^2)'] < 0) "Intermediate" else {
-                "convex"}}}
-
-    # for transcripts with convex exp_type, check if expression is truly bimodal
-    if(exp_type == "convex") {
-        if(max(pout[pout$val <= 10, "exp"]) > 2*sd(pout$exp) &
-           max(pout[pout$val >= 31.5, "exp"]) > 2*sd(pout$exp)) exp_type = "Bimodal" else {
+  # get vals of max and min expression
+  max.val = vals[which(pout$exp == max(pout$exp))]
+  min.val = vals[which(pout$exp == min(pout$exp))]
+  
+  # report coefficients
+  #coef(lmout)
+  exp_type = if(coef(lmout)['val'] > 0 & coef(lmout)['I(val^2)'] > 0) "High" else {
+    if(coef(lmout)['val'] < 0 & coef(lmout)['I(val^2)'] < 0) "Low" else {
+      if(coef(lmout)['val'] > 0 & coef(lmout)['I(val^2)'] < 0) "Intermediate" else {
+        "convex"}}}
+  
+  # for transcripts with convex exp_type, check if expression is truly bimodal
+  if(exp_type == "convex") {
+    if(max(pout[pout$val <= 10, "exp"]) > 2*sd(pout$exp) &
+         max(pout[pout$val >= 31.5, "exp"]) > 2*sd(pout$exp)) exp_type = "Bimodal" else {
            # linear increase?
-               if(max.val > min.val) exp_type = "High" else exp_type = "Low"
-           }
-    }
-           
-    # return values
-    return(c(max.val = vals[which(pout$exp == max(pout$exp))],
-             min.val = vals[which(pout$exp == min(pout$exp))],
-             exp_type = exp_type))
-    }
- )
+           if(max.val > min.val) exp_type = "High" else exp_type = "Low"
+         }
+  }
+  
+  # return values
+  return(c(max.val = vals[which(pout$exp == max(pout$exp))],
+           min.val = vals[which(pout$exp == min(pout$exp))],
+           exp_type = exp_type))
+}
+)
 
 # merge 'exp_type' information with Ap.dt
 Ap.exp_type <- data.table(Ap.exp_type)
@@ -536,9 +539,11 @@ Note that among responsive transcripts, there are 25 transcripts with GO term "r
 
 ```{r}
 unique(Ap.dt[grep("GO:0006950", Ap.dt$GO.Biological.Process), list(Transcript, best.hit.to.nr)])
-unique(Ap.dt[grep("heat shock", Ap.dt$best.hit.to.nr), ])
-unique(Ap.dt[grep("Heat shock", Ap.dt$best.hit.to.nr), list(Transcript, best.hit.to.nr)])
-```
+unique(Ap.dt[grep("shock", Ap.dt$best.hit.to.nr), list(Transcript, best.hit.to.nr)])
+
+unique(Ap.dt.interaction[grep("shock", Ap.dt.interaction$best.hit.to.nr), list(Transcript, best.hit.to.nr)])
+```                                                    
+
 
 Export data for interactive shiny app. 
 
@@ -553,6 +558,175 @@ Ap.dt.interaction <- Ap.dt[!is.na(Ap.dt$'coef.colony:val') | !is.na(Ap.dt$'coef.
 str(Ap.dt.interaction)
 write.csv(Ap.dt.interaction, file = paste(resultsdir, "Ap.dt.interaction.csv", sep=""), quote = TRUE, row.names = FALSE)
 ```
+
+
+## Colony-level comparison ##
+
+Compare the expression levels at optimum (21C) between the two colonies for genes in each expression group. Specifically, are genes that are upregulated at high temperatures in A22 more highly expressed at 21C in Ar? Conversely, are genes that are upregulated at low temps more highly expressed at 21C in A22? 
+
+```{r, cache=TRUE, eval=FALSE}
+# for each transcript in interaction group
+#     predict 
+#     predict expression at 21C for each colony
+
+exp_by_colony <- ddply(Ap.dt.interaction, .(Transcript, colony), RxNply)
+
+# check that correct number of rows are output - 2 times the number of transcripts
+stopifnot(all.equal(2*length(unique(Ap.dt.interaction$Transcript)), nrow(exp_by_colony)))                
+# change 'opt.exp' to numeric
+exp_by_colony$opt.exp <- as.numeric(exp_by_colony$opt.exp)
+# scale expression values by Transcript so that large expression transcripts don't drive overall pattern
+exp_by_colony <- ddply(exp_by_colony, .(Transcript), transform, 
+  opt.exp.scaled = scale(opt.exp))
+
+# list of transcripts that are 'high' expressed in A22
+A22_high_transcripts <- exp_by_colony[which(exp_by_colony$colony == "A22" & exp_by_colony$exp_type == "High"), "Transcript"]
+# dataframe of transcripts from both colonies that are 'high' expressed in A22
+A22_high_df <- exp_by_colony[which(exp_by_colony$Transcript %in% A22_high_transcripts), ]
+
+# Compare expression at optimum temp (19.25C) between colonies using t-test
+A22_high_df$colony <- as.factor(A22_high_df$colony)
+boxplot(data = A22_high_df, opt.exp ~ colony)
+boxplot(data = A22_high_df, log(opt.exp+1) ~ colony)
+t.test(A22_high_df[which(A22_high_df$colony == "Ar"), "opt.exp"],  A22_high_df[which(A22_high_df$colony == "A22"), "opt.exp"])
+
+# remove outlier
+A22_high_df_out <- A22_high_df[-which(A22_high_df$opt.exp > 1000), ]
+t.test(A22_high_df_out[which(A22_high_df_out$colony == "Ar"), "opt.exp"],  A22_high_df_out[which(A22_high_df_out$colony == "A22"), "opt.exp"])
+
+
+# repeate using scaled expression values so outliers don't drive results
+boxplot(data = A22_high_df, opt.exp.scaled ~ colony)
+t.test(opt.exp.scaled ~ colony, data = A22_high_df)
+
+# this seems wrong...uses absolute values when I actually just want to compare signs. use Wilcoxon signed rank-test
+
+w1 <- wilcox.test(opt.exp ~ colony, data = A22_high_df, alternative = "two.sided", paired = TRUE, conf.int = TRUE)
+w1
+
+w2 <- wilcox.test(A22_high_df[which(A22_high_df$colony == "A22"), "opt.exp"],  A22_high_df[which(A22_high_df$colony == "Ar"), "opt.exp"], alternative = "two.sided", paired = TRUE, conf.int = TRUE)
+w2
+```
+
+Note that A22 had the larger library size so if this was due to TPM not correctly accounting for differences in reads between samples, we would expect to see a positive instead of negative value here.
+
+To confirm that there are not sample-level issues, perform same comparison using transcripts where I do *not* expect to see a difference in expression.
+
+```{r}
+# list of transcripts that are 'Intermediate' expressed in A22
+A22_int_transcripts <- exp_by_colony[which(exp_by_colony$colony == "A22" & exp_by_colony$exp_type == "Intermediate"), "Transcript"]
+# dataframe of transcripts from both colonies that are 'high' expressed in A22
+A22_int_df <- exp_by_colony[which(exp_by_colony$Transcript %in% A22_int_transcripts), ]
+
+# Compare expression at optimum temp (19.25C) between colonies using t-test
+A22_int_df$colony <- as.factor(A22_int_df$colony)
+boxplot(data = A22_int_df, opt.exp ~ colony)
+boxplot(data = A22_int_df, log(opt.exp+1) ~ colony)
+t.test(A22_int_df[which(A22_int_df$colony == "Ar"), "opt.exp"],  A22_int_df[which(A22_int_df$colony == "A22"), "opt.exp"])
+
+# repeate using scaled expression values so outliers don't drive results
+boxplot(data = A22_int_df, opt.exp.scaled ~ colony)
+t.test(opt.exp.scaled ~ colony, data = A22_int_df)
+
+# this seems wrong...uses absolute values when I actually just want to compare signs. use Wilcoxon signed rank-test
+
+wilcox.test(opt.exp ~ colony, data = A22_int_df, alternative = "two.sided", paired = TRUE, conf.int = TRUE)
+wilcox.test(A22_int_df[which(A22_int_df$colony == "A22"), "opt.exp"],  A22_int_df[which(A22_int_df$colony == "Ar"), "opt.exp"], alternative = "two.sided", paired = TRUE, conf.int = TRUE)
+```
+
+```{r}
+# list of transcripts that are 'Intermediate' expressed in A22
+Ar_int_transcripts <- exp_by_colony[which(exp_by_colony$colony == "Ar" & exp_by_colony$exp_type == "Intermediate"), "Transcript"]
+# dataframe of transcripts from both colonies that are 'high' expressed in Ar
+Ar_int_df <- exp_by_colony[which(exp_by_colony$Transcript %in% Ar_int_transcripts), ]
+
+# Compare expression at optimum temp (19.25C) between colonies using t-test
+Ar_int_df$colony <- as.factor(Ar_int_df$colony)
+boxplot(data = Ar_int_df, opt.exp ~ colony)
+boxplot(data = Ar_int_df, log(opt.exp+1) ~ colony)
+t.test(Ar_int_df[which(Ar_int_df$colony == "A22"), "opt.exp"],  Ar_int_df[which(Ar_int_df$colony == "Ar"), "opt.exp"])
+
+# repeate using scaled expression values so outliers don't drive results
+boxplot(data = Ar_int_df, opt.exp.scaled ~ colony)
+t.test(opt.exp.scaled ~ colony, data = Ar_int_df)
+
+# this seems wrong...uses absolute values when I actually just want to compare signs. use Wilcoxon signed rank-test
+
+wilcox.test(opt.exp ~ colony, data = Ar_int_df, alternative = "two.sided", paired = TRUE, conf.int = TRUE)
+wilcox.test(Ar_int_df[which(Ar_int_df$colony == "A22"), "opt.exp"],  Ar_int_df[which(Ar_int_df$colony == "Ar"), "opt.exp"], alternative = "two.sided", paired = TRUE, conf.int = TRUE)
+```
+
+That done, now I compare the expression levels at the optimum temperature between the two colonies for transcripts that are up-regulated at low temperatures in Ar. 
+
+```{r Ar_low}
+# list of transcripts that are 'Intermediate' expressed in A22
+Ar_low_transcripts <- exp_by_colony[which(exp_by_colony$colony == "Ar" & exp_by_colony$exp_type == "Low"), "Transcript"]
+# dataframe of transcripts from both colonies that are 'high' expressed in A22
+Ar_low_df <- exp_by_colony[which(exp_by_colony$Transcript %in% Ar_low_transcripts), ]
+dim(Ar_low_df)
+
+# Compare expression at optimum temp (19.25C) between colonies using t-test
+Ar_low_df$colony <- as.factor(Ar_low_df$colony)
+boxplot(data = Ar_low_df, opt.exp ~ colony)
+boxplot(data = Ar_low_df, log(opt.exp+1) ~ colony)
+t.test(Ar_low_df[which(Ar_low_df$colony == "Ar"), "opt.exp"],  Ar_low_df[which(Ar_low_df$colony == "A22"), "opt.exp"])
+
+# repeate using scaled expression values so outliers don't drive results
+boxplot(data = Ar_low_df, opt.exp.scaled ~ colony)
+t.test(opt.exp.scaled ~ colony, data = Ar_low_df)
+
+# this seems wrong...uses absolute values when I actually just want to compare signs. use Wilcoxon signed rank-test
+wilcox.test(Ar_low_df[which(Ar_low_df$colony == "A22"), "opt.exp"],  Ar_low_df[which(Ar_low_df$colony == "Ar"), "opt.exp"], alternative = "two.sided", paired = TRUE, conf.int = TRUE)
+```
+
+
+Compare the width of the 'stable' region for intermediate-expressed transcripts between the colonies. 
+
+```{r eval_stable_A22}
+# set up datatable to calcuate region over which expression does not change
+keycols <- c("colony", "exp_type")
+setkeyv(Ap.dt, keycols)
+A22.dt.int <- Ap.dt[colony == "A22" & exp_type == "Intermediate"]
+str(A22.dt.int)
+
+# fit lm to each transcript
+A22_stable <- ddply(A22.dt.int, .(Transcript), function(df2) {
+  lmout <- lm(TPM ~ val + I(val^2), data = df2)
+  vals <- seq(from = 0, to = 38.5, length.out = 100)
+  newdf <- data.frame(val = vals)
+  pout <- predict(lmout, newdata=newdf)
+  pout <- data.frame(val = vals, exp = pout)
+  
+  # if all coefs are zero, break
+  if(coef(lmout)['(Intercept)'] == 0 & coef(lmout)['val'] == 0 & coef(lmout)['I(val^2)'] == 0) {
+    print("No expression for this transcript")
+  } else { # else set values based on predicted expression levels
+  
+  # find inflection points
+  infl <- c(FALSE, diff(diff(pout$exp)>0)!=0)
+  
+  # plot to check
+  plot(pout$val, pout$exp)
+  points(vals[infl], pout[infl, "exp"], col="blue", cex=2)
+  
+  
+  # calculate range between inflection points
+  }
+}
+)
+
+
+````
+
+
+<- exp_by_colony[which(exp_by_colony$colony == "Ar" & exp_by_colony$exp_type == "Low"), "Transcript"]
+# dataframe of transcripts from both colonies that are 'high' expressed in A22
+Ar_low_df <- exp_by_colony[which(exp_by_colony$Transcript %in% Ar_low_transcripts), ]
+dim(Ar_low_df)
+
+```
+
+Compare the width of the inverse of the bimodally-expressed transcripts between the colonies.
 
 
 ## Gene set enrichment analysis ##
@@ -840,7 +1014,7 @@ A set of `r nrow(interaction.transcripts)` transcripts have expression patterns 
 
 Make plots for all significant transcripts
 
-```{r plot_responsive, echo=FALSE, eval=TRUE, cache=TRUE}
+```{r plot_responsive, echo=FALSE, eval=FALSE, cache=TRUE}
 # Line plot, expression against temp, faceted by colony
 p1 <- ggplot(Ap.dt, aes(x=val, y=exp.scaled, group=Transcript)) +
   geom_line() +
@@ -877,7 +1051,7 @@ p4
 
 Make plots for transcripts with significant temperature by colony interaction
 
-```{r plot_interaction_responsive, echo=FALSE, eval=TRUE, cache=TRUE}
+```{r plot_interaction_responsive, echo=FALSE, eval=FALSE, cache=TRUE}
 # Line plot, expression against temp, faceted by colony
 p1 <- ggplot(Ap.dt.interaction, aes(x=val, y=exp.scaled, group=Transcript)) +
   geom_line() +
@@ -914,7 +1088,7 @@ p4
 
 
 
-```{r plot, echo=FALSE, eval=TRUE, cache=TRUE}
+```{r plot, echo=FALSE, eval=FALSE, cache=TRUE}
 # Line plot, expression against temp, faceted by colony
 png(paste(resultsdir, "Ap_expression_by_colony_line.png", sep=""))
   p1 <- ggplot(Ap.dt, aes(x=val, y=exp.scaled, group=Transcript)) +
@@ -958,7 +1132,7 @@ dev.off()
 ```
 
 
-```{r plot_interaction_responsive_to_file, echo=FALSE, eval=TRUE, cache=TRUE}
+```{r plot_interaction_responsive_to_file, echo=FALSE, eval=FALSE, cache=TRUE}
 # Line plot, expression against temp, faceted by colony
 png(paste(resultsdir, "Ap_expression_interaction_by_colony_line.png", sep=""))
   p1 <- ggplot(Ap.dt.interaction, aes(x=val, y=exp.scaled, group=Transcript)) +
@@ -1010,6 +1184,6 @@ sessionInfo()
 
 ## References
 
-```{r references}
-bibliography("html")
+```{r references, results='asis'}
+bibliography()
 ```

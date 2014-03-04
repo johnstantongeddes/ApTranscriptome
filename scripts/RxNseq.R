@@ -3,6 +3,11 @@
 ## John Stanton-Geddes
 ############################################################################################
 
+
+############################################################################################
+## read.sailfish.quant
+############################################################################################
+
 read.sailfish.quant <- function(filein, outname, samp, trtval) {
     # Read sailfish quantification file
     #
@@ -20,6 +25,9 @@ read.sailfish.quant <- function(filein, outname, samp, trtval) {
 }
 
 
+############################################################################################
+## RxNseq
+############################################################################################
 
 RxNseq <- function(f, model = "NA") {
     # Identify transcripts with significant reaction norms against a continuous variable
@@ -79,6 +87,9 @@ RxNseq <- function(f, model = "NA") {
 
 
 
+############################################################################################
+## geneid2GOmap
+############################################################################################
 
 geneid2GOmap <- function(annotmat) {
     # Create geneid2go.map file from AnnotationTable.txt produced by FastAnnotator 
@@ -109,4 +120,68 @@ geneid2GOmap <- function(annotmat) {
 } # end function
 
     
+
+
+############################################################################################
+## RxNply
+############################################################################################
+
+RxNply <- function(df1) {
+  # Function supplied to `ddply` to report the values at which minimum and maximum expression
+  # occur, the expression level at the optimum 'temperature' and the overall shape of the 
+  # expression function
+  #
+  # Args:
+  #  df1: dataframe in long format containing expression information
+  #
+  # Returns:
+  #  dataframe with maximum value of expression (max.val), minimum value of expression (min.val),
+  #  expression at optimum (opt.exp) and the shape of the expression function (exp_type)
+  
+  lmout <- lm(TPM ~ val + I(val^2), data = df1)
+  # NOTE - added a point to predict at 19.25C as this is the mean of the end points (0, 38.5)
+  vals <- c(0, 3.5, 10, 14, 17.5, 19.25, 21, 24.5, 28, 31.5, 35, 38.5)
+  newdf <- data.frame(val = vals)
+  pout <- predict(lmout, newdata=newdf)
+  pout <- data.frame(val = vals, exp = pout)
+  
+  # if all data is zero, set values to NA 
+  if(coef(lmout)['(Intercept)'] == 0 & coef(lmout)['val'] == 0 & coef(lmout)['I(val^2)'] == 0) {
+    max.val = NA
+    min.val = NA
+    opt.exp = NA
+    exp_type = NA
+  } else { # else set values based on predicted expression levels
+    
+    # get vals of max and min expression, and expression at 
+    max.val <- vals[which(pout$exp == max(pout$exp))]
+    min.val <- vals[which(pout$exp == min(pout$exp))]
+    
+    # report coefficients
+    #coef(lmout)
+    exp_type = if(coef(lmout)['val'] > 0 & coef(lmout)['I(val^2)'] > 0) "High" else {
+      if(coef(lmout)['val'] < 0 & coef(lmout)['I(val^2)'] < 0) "Low" else {
+        if(coef(lmout)['val'] > 0 & coef(lmout)['I(val^2)'] < 0) "Intermediate" else {
+          "convex"} # end if
+        } # end if
+      } # end if
+    
+    # for transcripts with convex exp_type, assign to 'bimodal' if expression at both ends greater
+    # than 2 SD, otherwise assign to 'low' or 'high' depending on where expression is higher
+    if(exp_type == "convex") { 
+      if(max(pout[pout$val <= 10, "exp"]) > 2*sd(pout$exp) &
+           max(pout[pout$val >= 31.5, "exp"]) > 2*sd(pout$exp)) exp_type = "Bimodal" else {
+             # linear increase?
+             if(max.val > min.val) exp_type = "High" else exp_type = "Low"
+           } # end if
+    } # end if
+  } # end else
+  
+  # return values
+  return(c(max.val = max.val,
+           min.val = min.val,
+           # report expression level at optimum, 19.25C
+           opt.exp = round(pout$exp[6], 4), 
+           exp_type = exp_type))
+} # end RxNply
 
