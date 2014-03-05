@@ -4,7 +4,7 @@ library(stringr)
 library(plyr)
 
 # load data
-gxdata <- read.csv("Ap.dt.csv")
+gxdata <- read.csv("responsive.transcripts.TPM.csv")
 
 # Define server logic required to plot variables 
 shinyServer(function(input, output) {
@@ -20,9 +20,13 @@ shinyServer(function(input, output) {
   })
   
   # Subset data to transcripts that have a match to 'searchtext' in best.hit.to.nr or GO.Biological.Process
+  
+  ## gsub out any punctuation to avoid misspellings
+  
   datasub <- reactive({
-    sd <- gxdata[union(grep(input$searchtext, gxdata$best.hit.to.nr), grep(input$searchtext, gxdata$GO.Biological.Process)), ]
+    gxdata[union(grep(input$searchtext, gxdata$best.hit.to.nr), grep(input$searchtext, gxdata$GO.Biological.Process)), ]
   })
+  
   
   # Extract GO annotation to display
   output$GOannotation <- renderPrint({
@@ -32,10 +36,9 @@ shinyServer(function(input, output) {
   
   # Generate a plot of the requested variable against temperature
   output$RxNplot <- renderPlot({
-    gdata <- datasub()
     #cat("gdata", dim(gdata), "\n")
-    g <- ggplot(gdata, aes(x=val, y=exp.scaled, group=Transcript)) + 
-      geom_smooth(aes(colour = exp_type)) + 
+    g <- ggplot(datasub(), aes(x=val, y=exp.scaled, group=Transcript)) + 
+      geom_smooth(method = "lm", formula = y ~ poly(x, 2), aes(colour = exp_type)) + 
       facet_grid(. ~ colony)
     print(g)
   })

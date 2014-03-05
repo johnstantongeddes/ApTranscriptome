@@ -87,40 +87,6 @@ RxNseq <- function(f, model = "NA") {
 
 
 
-############################################################################################
-## geneid2GOmap
-############################################################################################
-
-geneid2GOmap <- function(annotmat) {
-    # Create geneid2go.map file from AnnotationTable.txt produced by FastAnnotator 
-    #
-    # Args:
-    #  annotmat: AnnotationTable.txt from FastAnnotator
-    #
-    # Returns:
-    #  geneid2go.map saved in root directory
-      
-
-    # requires
-    require(stringr)
-
-    # Extract all GO terms and combine, write to file
-    for(r in 1:nrow(annotmat)) {
-        GO.BP.list <- str_split(annotmat[r,"GO.Biological.Process"], " ")
-        GO.BP.terms <- grep('GO', unlist(GO.BP.list), value = TRUE)
-        GO.CC.list <- str_split(annotmat[r,"GO.Cellular.Component"], " ")
-        GO.CC.terms <- grep('GO', unlist(GO.CC.list), value = TRUE)
-        GO.MF.list <- str_split(annotmat[r,"GO.Molecular.Function"], " ")
-        GO.MF.terms <- grep('GO', unlist(GO.MF.list), value = TRUE)
-
-
-        (all.GO.terms <- paste(c(GO.BP.terms, GO.CC.terms, GO.MF.terms), collapse = ", "))
-        cat(annotmat[r, "Sequence.Name"], '\t', all.GO.terms, '\n', file = "geneid2go.map", append = TRUE)    
-    } # end for loop
-} # end function
-
-    
-
 
 ############################################################################################
 ## RxNply
@@ -184,4 +150,39 @@ RxNply <- function(df1) {
            opt.exp = round(pout$exp[6], 4), 
            exp_type = exp_type))
 } # end RxNply
+
+
+
+
+############################################################################################
+## geneid2GOmap
+############################################################################################
+
+geneid2GOmap <- function(annotmat) {
+  # Create geneid2go.map file from AnnotationTable.txt produced by FastAnnotator 
+  #
+  # Args:
+  #  annotmat: AnnotationTable.txt from FastAnnotator
+  #
+  # Returns:
+  #  geneid2go.map saved in root directory
+  
+  
+  # requires
+  require(stringr)
+  
+  # Extract all GO terms and combine, write to file
+  for(r in 1:nrow(annotmat)) {
+    GO.BP.list <- str_split(annotmat[r,"GO.Biological.Process"], " ")
+    GO.BP.terms <- grep('GO', unlist(GO.BP.list), value = TRUE)
+    GO.CC.list <- str_split(annotmat[r,"GO.Cellular.Component"], " ")
+    GO.CC.terms <- grep('GO', unlist(GO.CC.list), value = TRUE)
+    GO.MF.list <- str_split(annotmat[r,"GO.Molecular.Function"], " ")
+    GO.MF.terms <- grep('GO', unlist(GO.MF.list), value = TRUE)
+    
+    
+    (all.GO.terms <- paste(c(GO.BP.terms, GO.CC.terms, GO.MF.terms), collapse = ", "))
+    cat(annotmat[r, "Sequence.Name"], '\t', all.GO.terms, '\n', file = "geneid2go.map", append = TRUE)    
+  } # end for loop
+} # end function
 
