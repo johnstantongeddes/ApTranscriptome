@@ -178,7 +178,7 @@ head(annotationtable)
 
 Transcriptome annotations are nearly impossible to visualize in a meaningful way. For lack of better ideas, I created a word cloud.
 
-```{r wordcloud, cache=TRUE}
+```{r wordcloud, cache=TRUE, eval=FALSE}
 library(tm)
 library(wordcloud)
 library(RColorBrewer)
