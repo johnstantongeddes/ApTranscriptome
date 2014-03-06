@@ -132,6 +132,13 @@ RxNply <- function(df1) {
         } # end if
       } # end if
     
+    # for transcripts with "Intermediate" exp_type, assign to "High" if max expression is above 30 or "Low" if max expression is below 10
+    if(exp_type == "Intermediate") {
+      if(pout[which(pout$exp == max(pout$exp)), "val"] > 30) exp_type = "High" else {
+        if(pout[which(pout$exp == max(pout$exp)), "val"] < 10) exp_type = "Low"
+      } # end else
+    } # end if
+    
     # for transcripts with convex exp_type, assign to 'bimodal' if expression at both ends greater
     # than 2 SD, otherwise assign to 'low' or 'high' depending on where expression is higher
     if(exp_type == "convex") { 
