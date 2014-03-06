@@ -3,7 +3,7 @@ Thermal reactionome of the common ant species *Aphaenogaster*
   
 **Author:** [John Stanton-Geddes](john.stantongeddes.research@gmail.com)
 
-**February 28, 2014**
+**March 5, 2014**
 
 **Technical Report No. 3**
 
@@ -201,7 +201,7 @@ d <- data.frame(word = names(v),freq=v)
 pal <- brewer.pal(4, "Dark2")
 pal <- pal[-(1:2)]
 
-#png("wordcloud.png", width=1280,height=800)
+#png(paste(resultsdir, "wordcloud.png", sep=""), width=1280,height=800)
 wordcloud(d$word,d$freq, scale=c(8,.3),min.freq=2,max.words=100, random.order=T, rot.per=.15, colors=pal, vfont=c("sans serif","plain"))
 #dev.off()
 ```
@@ -218,7 +218,7 @@ v <- sort(rowSums(m),decreasing=TRUE)
 d <- data.frame(word = names(v),freq=v)
 pal <- brewer.pal(8, "Dark2")
 pal <- pal[-(1:2)]
-#png("wordcloud2.png", width=1280,height=800)
+#png(paste(resultsdir, "wordcloud2.png", sep=""), width=1280,height=800)
 wordcloud(d$word,d$freq, scale=c(8,.3),min.freq=2,max.words=100, random.order=T, rot.per=.15, colors=pal, vfont=c("sans serif","plain"))
 #dev.off()
 ```
@@ -475,7 +475,7 @@ siglist <- c(nrow(signif.transcripts),
 
 sigtable <- data.frame(Coefficient = clist, "Number significant" = siglist)
 
-pandoc.table(sigtable, style="rmarkdown", caption = "Number of transcripts (of 105,536 total) with expression that depends on colony, temperature or their interaction at 5% FDR.")
+pandoc.table(sigtable, style="rmarkdown", caption = "Number of transcripts (of 105,536 total) at 5% FDR with expression that depends on colony, temperature or their interaction.")
 ```
 
 Table 3 shows that `r round((nrow(temperature.transcripts) + nrow(interaction.transcripts))/nrow(signif.transcripts), 2)*100`% of the significant transcripts are thermally-responsive, with `r round(nrow(interaction.transcripts)/(nrow(temperature.transcripts) + nrow(interaction.transcripts)), 2)*100`% of these transcripts having a thermal-response that differs by colony.
@@ -561,15 +561,26 @@ cor.test(A22.interaction.transcripts.type$min.val, Ar.interaction.transcripts.ty
 
 plot(A22.interaction.transcripts.type$opt.exp, Ar.interaction.transcripts.type$opt.exp)
 cor.test(A22.interaction.transcripts.type$opt.exp, Ar.interaction.transcripts.type$opt.exp)
+
+# combine into single data.table
+A22.interaction.transcripts.type$colony <- "A22"
+Ar.interaction.transcripts.type$colony <- "Ar"
+# first copy of temperature.transcripts.type as colony A22
+temperature.transcripts.type$colony <- "A22"
+# combine
+responsive.transcripts.type <- rbind(A22.interaction.transcripts.type, Ar.interaction.transcripts.type, temperature.transcripts.type)
+# add second copy of temperature.transcripts.type as colony Ar
+temperature.transcripts.type$colony <- "Ar"
+responsive.transcripts.type <- rbind(responsive.transcripts.type, temperature.transcripts.type)
+responsive.transcripts.type$colony <- as.factor(responsive.transcripts.type$colony)
+str(responsive.transcripts.type)
 ```
 
 
 ```{r expression_exp_type_table, eval=TRUE, echo=FALSE, results='asis'}
 # table type of response
-
-temp.type.table <- table(temperature.transcripts.type$exp_type)
-A22.type.table <- table(A22.interaction.transcripts.type$exp_type) + temp.type.table
-Ar.type.table <- table(Ar.interaction.transcripts.type$exp_type) + temp.type.table
+A22.type.table <- table(responsive.transcripts.type[responsive.transcripts.type$colony == "A22", 'exp_type'])
+Ar.type.table <- table(responsive.transcripts.type[responsive.transcripts.type$colony == "Ar", 'exp_type'])
 
 exp_type.table <- rbind(A22.type.table, Ar.type.table)
 rownames(exp_type.table) <- c("A22", "Ar")
@@ -599,55 +610,61 @@ write.csv(responsive.transcripts.TPM, file = "ApRxN-shinyapp/responsive.transcri
 
 ## Colony-level comparison ##
 
-Compare the expression levels at optimum (21C) between the two colonies for genes in each expression group. Specifically, are genes that are upregulated at high temperatures in A22 more highly expressed at 21C in Ar? Conversely, are genes that are upregulated at low temps more highly expressed at 21C in A22? 
+### Plasticity versus constitutive expression
 
-```{r, cache=TRUE, eval=FALSE}
-# for each transcript in interaction group
-#     predict 
-#     predict expression at 21C for each colony
+Compare the expression levels at optimum (19.25C) between the two colonies for genes in each expression group. Specifically, are genes that are upregulated at high temperatures in A22 more highly expressed at 21C in Ar? Conversely, are genes that are upregulated at low temps more highly expressed at 21C in A22? 
 
-exp_by_colony <- ddply(temperature.transcripts.TPM.interaction, .(Transcript, colony), RxNply)
-
-# check that correct number of rows are output - 2 times the number of transcripts
-stopifnot(all.equal(2*length(unique(temperature.transcripts.TPM.interaction$Transcript)), nrow(exp_by_colony)))                
-# change 'opt.exp' to numeric
-exp_by_colony$opt.exp <- as.numeric(exp_by_colony$opt.exp)
-# scale expression values by Transcript so that large expression transcripts don't drive overall pattern
-exp_by_colony <- ddply(exp_by_colony, .(Transcript), transform, 
-  opt.exp.scaled = scale(opt.exp))
-
+```{r optimum_expression_comparison, cache=TRUE, eval=FALSE}
 # list of transcripts that are 'high' expressed in A22
-A22_high_transcripts <- exp_by_colony[which(exp_by_colony$colony == "A22" & exp_by_colony$exp_type == "High"), "Transcript"]
+A22_high_transcripts <- responsive.transcripts.type[which(responsive.transcripts.type$colony == "A22" & responsive.transcripts.type$exp_type == "High"), "Transcript"]
 # dataframe of transcripts from both colonies that are 'high' expressed in A22
-A22_high_df <- exp_by_colony[which(exp_by_colony$Transcript %in% A22_high_transcripts), ]
+A22_high_df <- responsive.transcripts.type[which(responsive.transcripts.type$Transcript %in% A22_high_transcripts), ]
 
 # Compare expression at optimum temp (19.25C) between colonies using t-test
 A22_high_df$colony <- as.factor(A22_high_df$colony)
 boxplot(data = A22_high_df, opt.exp ~ colony)
-boxplot(data = A22_high_df, log(opt.exp+1) ~ colony)
+boxplot(data = A22_high_df, log(opt.exp+10) ~ colony)
 t.test(A22_high_df[which(A22_high_df$colony == "Ar"), "opt.exp"],  A22_high_df[which(A22_high_df$colony == "A22"), "opt.exp"])
 
 # remove outlier transcripts
 A22_high_df_out <- A22_high_df[-which(A22_high_df$opt.exp > 1000), ]
 t.test(A22_high_df_out[which(A22_high_df_out$colony == "Ar"), "opt.exp"],  A22_high_df_out[which(A22_high_df_out$colony == "A22"), "opt.exp"])
+```
 
-# repeate using scaled expression values so outliers don't drive results
-boxplot(data = A22_high_df, opt.exp.scaled ~ colony)
-t.test(opt.exp.scaled ~ colony, data = A22_high_df)
+The `t.test` fails to account for the many orders of magnitude difference in expression among transcripts, e.g. non-equal variances. This problem is the key issue in the analysis of differential expression `r citep(c("10.1186/1471-2105-11-94", "10.1038/nprot.2013.099")`. As my goal is simply to determine if expression is typically greater at 19.25C in *Ar* than *A22* for genes that are up-regulated at high temperatures in *A22*, I use a non-parametric Wilcoxon signed rank-test
 
-# this seems wrong...uses absolute values when I actually just want to compare signs. use Wilcoxon signed rank-test
+```{r A22_high_wilcoxon}
 wilcox.test(A22_high_df[which(A22_high_df$colony == "A22"), "opt.exp"],  A22_high_df[which(A22_high_df$colony == "Ar"), "opt.exp"], alternative = "two.sided", paired = TRUE, conf.int = TRUE)
 ```
 
-Note that A22 had the larger library size so if this was due to TPM not correctly accounting for differences in reads between samples, we would expect to see a positive instead of negative value here.
+Yes - transcripts that are up-regulated at high temperatures in *A22* are more highly-expressed at 19.25C in *Ar*. Note that A22 had the larger library size so if this was due to TPM not correctly accounting for differences in reads between samples, we would expect to see a positive instead of negative value here.
 
-To confirm that there are not sample-level issues, perform same comparison using transcripts where I do *not* expect to see a difference in expression.
+Next I test the converse, that transcripts that are up-regulated at low temperatures in *Ar* are more highly-expressed at 19.25C temperatures in *A22*. 
 
-```{r}
+```{r Ar_low_wilcoxon}
+# list of transcripts that are 'Low' expressed in Ar
+Ar_low_transcripts <- responsive.transcripts.type[which(responsive.transcripts.type$colony == "Ar" & responsive.transcripts.type$exp_type == "Low"), "Transcript"]
+# dataframe of transcripts from both colonies that are 'Low' expressed in Ar
+Ar_low_df <- responsive.transcripts.type[which(responsive.transcripts.type$Transcript %in% Ar_low_transcripts), ]
+dim(Ar_low_df)
+
+# boxplots
+boxplot(data = Ar_low_df, opt.exp ~ colony)
+boxplot(data = Ar_low_df, log(opt.exp+1) ~ colony)
+
+# Wilcoxon signed rank-test
+wilcox.test(Ar_low_df[which(Ar_low_df$colony == "A22"), "opt.exp"],  Ar_low_df[which(Ar_low_df$colony == "Ar"), "opt.exp"], alternative = "two.sided", paired = TRUE, conf.int = TRUE)
+```
+
+No difference in transcript expression at 19.25C between colonies for transcripts that are up-regulated at low temperatures in *Ar*. 
+
+To confirm that there are not sample-level issues, I performed the same comparison using transcripts where I do *not* expect to see a difference in expression.
+
+```{r intermediate_transcripts}
 # list of transcripts that are 'Intermediate' expressed in A22
-A22_int_transcripts <- exp_by_colony[which(exp_by_colony$colony == "A22" & exp_by_colony$exp_type == "Intermediate"), "Transcript"]
+A22_int_transcripts <- responsive.transcripts.type[which(responsive.transcripts.type$colony == "A22" & responsive.transcripts.type$exp_type == "Intermediate"), "Transcript"]
 # dataframe of transcripts from both colonies that are 'high' expressed in A22
-A22_int_df <- exp_by_colony[which(exp_by_colony$Transcript %in% A22_int_transcripts), ]
+A22_int_df <- responsive.transcripts.type[which(responsive.transcripts.type$Transcript %in% A22_int_transcripts), ]
 
 # Compare expression at optimum temp (19.25C) between colonies using t-test
 A22_int_df$colony <- as.factor(A22_int_df$colony)
@@ -655,19 +672,13 @@ boxplot(data = A22_int_df, opt.exp ~ colony)
 boxplot(data = A22_int_df, log(opt.exp+1) ~ colony)
 t.test(A22_int_df[which(A22_int_df$colony == "Ar"), "opt.exp"],  A22_int_df[which(A22_int_df$colony == "A22"), "opt.exp"])
 
-# repeate using scaled expression values so outliers don't drive results
-boxplot(data = A22_int_df, opt.exp.scaled ~ colony)
-t.test(opt.exp.scaled ~ colony, data = A22_int_df)
-
 # Wilcoxon signed rank-test
 wilcox.test(A22_int_df[which(A22_int_df$colony == "A22"), "opt.exp"],  A22_int_df[which(A22_int_df$colony == "Ar"), "opt.exp"], alternative = "two.sided", paired = TRUE, conf.int = TRUE)
-```
 
-```{r}
-# list of transcripts that are 'Intermediate' expressed in A22
-Ar_int_transcripts <- exp_by_colony[which(exp_by_colony$colony == "Ar" & exp_by_colony$exp_type == "Intermediate"), "Transcript"]
+# list of transcripts that are 'Intermediate' expressed in Ar
+Ar_int_transcripts <- responsive.transcripts.type[which(responsive.transcripts.type$colony == "Ar" & responsive.transcripts.type$exp_type == "Intermediate"), "Transcript"]
 # dataframe of transcripts from both colonies that are 'high' expressed in Ar
-Ar_int_df <- exp_by_colony[which(exp_by_colony$Transcript %in% Ar_int_transcripts), ]
+Ar_int_df <- responsive.transcripts.type[which(responsive.transcripts.type$Transcript %in% Ar_int_transcripts), ]
 
 # Compare expression at optimum temp (19.25C) between colonies using t-test
 Ar_int_df$colony <- as.factor(Ar_int_df$colony)
@@ -675,49 +686,28 @@ boxplot(data = Ar_int_df, opt.exp ~ colony)
 boxplot(data = Ar_int_df, log(opt.exp+1) ~ colony)
 t.test(Ar_int_df[which(Ar_int_df$colony == "A22"), "opt.exp"],  Ar_int_df[which(Ar_int_df$colony == "Ar"), "opt.exp"])
 
-# repeate using scaled expression values so outliers don't drive results
-boxplot(data = Ar_int_df, opt.exp.scaled ~ colony)
-t.test(opt.exp.scaled ~ colony, data = Ar_int_df)
-
 # Wilcoxon signed rank-test
 wilcox.test(Ar_int_df[which(Ar_int_df$colony == "A22"), "opt.exp"],  Ar_int_df[which(Ar_int_df$colony == "Ar"), "opt.exp"], alternative = "two.sided", paired = TRUE, conf.int = TRUE)
 ```
 
-That done, now I compare the expression levels at the optimum temperature between the two colonies for transcripts that are up-regulated at low temperatures in Ar. 
+As expected, for "Intermediate" expressed transcripts there is no difference in expression at 19.25C between colonies.  
 
-```{r Ar_low}
-# list of transcripts that are 'Intermediate' expressed in A22
-Ar_low_transcripts <- exp_by_colony[which(exp_by_colony$colony == "Ar" & exp_by_colony$exp_type == "Low"), "Transcript"]
-# dataframe of transcripts from both colonies that are 'high' expressed in A22
-Ar_low_df <- exp_by_colony[which(exp_by_colony$Transcript %in% Ar_low_transcripts), ]
-dim(Ar_low_df)
 
-# Compare expression at optimum temp (19.25C) between colonies using t-test
-Ar_low_df$colony <- as.factor(Ar_low_df$colony)
-boxplot(data = Ar_low_df, opt.exp ~ colony)
-boxplot(data = Ar_low_df, log(opt.exp+1) ~ colony)
-t.test(Ar_low_df[which(Ar_low_df$colony == "Ar"), "opt.exp"],  Ar_low_df[which(Ar_low_df$colony == "A22"), "opt.exp"])
-
-# repeate using scaled expression values so outliers don't drive results
-boxplot(data = Ar_low_df, opt.exp.scaled ~ colony)
-t.test(opt.exp.scaled ~ colony, data = Ar_low_df)
-
-# Wilcoxon signed rank-test
-wilcox.test(Ar_low_df[which(Ar_low_df$colony == "A22"), "opt.exp"],  Ar_low_df[which(Ar_low_df$colony == "Ar"), "opt.exp"], alternative = "two.sided", paired = TRUE, conf.int = TRUE)
-```
-
+### Thermal tolerance indicated by region of constant gene expression
 
 Compare the width of the 'stable' region for intermediate-expressed transcripts between the colonies. 
 
 ```{r eval_stable_A22}
-# set up datatable to calcuate region over which expression does not change
-keycols <- c("colony", "exp_type")
-setkeyv(temperature.transcripts.TPM, keycols)
-A22.dt.int <- temperature.transcripts.TPM[colony == "A22" & exp_type == "Intermediate"]
-str(A22.dt.int)
+# extract 'Intermediate' expressed transcripts for A22 colony
+setkey(TPM.dt.sub, Transcript)
+trlist <- A22.interaction.transcripts.type[which(A22.interaction.transcripts.type$exp_type == "Intermediate"), "Transcript"]
+A22.TPM.dt <- TPM.dt.sub[trlist]
+setkey(A22.TPM.dt, colony)
+A22.TPM.dt <- A22.TPM.dt["A22"]
+str(A22.TPM.dt)
 
 # fit lm to each transcript
-A22_stable <- ddply(A22.dt.int[1:66,], .(Transcript), function(df2) {
+A22_stable_ply <- ddply(A22.TPM.dt[67:220,], .(Transcript), function(df2) {
   lmout <- lm(TPM ~ val + I(val^2), data = df2)
   vals <- seq(from = 0, to = 38.5, length.out = 100)
   newdf <- data.frame(val = vals)
@@ -731,6 +721,9 @@ A22_stable <- ddply(A22.dt.int[1:66,], .(Transcript), function(df2) {
   
   # find inflection points
   infl <- c(FALSE, diff(diff(pout$exp)>0)!=0)
+  # find min and max slopes
+  infl2min <- vals[which(diff(pout$exp) == min(diff(pout$exp)))]
+  infl2max <- vals[which(diff(pout$exp) == max(diff(pout$exp)))]
   
   # plot to check
   plot(pout$val, pout$exp)
@@ -746,9 +739,9 @@ A22_stable <- ddply(A22.dt.int[1:66,], .(Transcript), function(df2) {
 ````
 
 
-<- exp_by_colony[which(exp_by_colony$colony == "Ar" & exp_by_colony$exp_type == "Low"), "Transcript"]
+<- responsive.transcripts.type[which(responsive.transcripts.type$colony == "Ar" & responsive.transcripts.type$exp_type == "Low"), "Transcript"]
 # dataframe of transcripts from both colonies that are 'high' expressed in A22
-Ar_low_df <- exp_by_colony[which(exp_by_colony$Transcript %in% Ar_low_transcripts), ]
+Ar_low_df <- responsive.transcripts.type[which(responsive.transcripts.type$Transcript %in% Ar_low_transcripts), ]
 dim(Ar_low_df)
 
 ```
