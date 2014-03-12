@@ -695,58 +695,71 @@ As expected, for "Intermediate" expressed transcripts there is no difference in 
 
 ### Thermal tolerance indicated by region of constant gene expression
 
-Compare the width of the 'stable' region for intermediate-expressed transcripts between the colonies. 
+The 'Intermediate' expressed transcripts are core molecular processes that are expressed at non-stressful temperatures, and shut-off when the organism experiences thermall stress. We hypothesized that if the more southern *Ar* colony was more thermally-tolerant than *A22*, transcripts with 'Intermediate' expression (10-30C) would be active across a wider range of temperatures. To test this with our data, we calculated the standard deviation of the expression function for each temperature transcript that was 'Intermediate' expressed in each colony.
 
-```{r eval_stable_A22}
+```{r calc_Intermediate_variance}
 # extract 'Intermediate' expressed transcripts for A22 colony
 setkey(TPM.dt.sub, Transcript)
-trlist <- A22.interaction.transcripts.type[which(A22.interaction.transcripts.type$exp_type == "Intermediate"), "Transcript"]
-A22.TPM.dt <- TPM.dt.sub[trlist]
-setkey(A22.TPM.dt, colony)
-A22.TPM.dt <- A22.TPM.dt["A22"]
-str(A22.TPM.dt)
+A22trlist <- A22.interaction.transcripts.type[which(A22.interaction.transcripts.type$exp_type == "Intermediate"), "Transcript"]
+A22.TPM.int.dt <- TPM.dt.sub[A22trlist]
+setkey(A22.TPM.int.dt, colony)
+A22.TPM.int.dt <- A22.TPM.int.dt["A22"]
+str(A22.TPM.int.dt)
 
-# fit lm to each transcript
-A22_stable_ply <- ddply(A22.TPM.dt[67:220,], .(Transcript), function(df2) {
-  lmout <- lm(TPM ~ val + I(val^2), data = df2)
-  vals <- seq(from = 0, to = 38.5, length.out = 100)
-  newdf <- data.frame(val = vals)
-  pout <- predict(lmout, newdata=newdf)
-  pout <- data.frame(val = vals, exp = pout)
-  
-  # if all coefs are zero, break
-  if(coef(lmout)['(Intercept)'] == 0 & coef(lmout)['val'] == 0 & coef(lmout)['I(val^2)'] == 0) {
-    print("No expression for this transcript")
-  } else { # else set values based on predicted expression levels
-  
-  # find inflection points
-  infl <- c(FALSE, diff(diff(pout$exp)>0)!=0)
-  # find min and max slopes
-  infl2min <- vals[which(diff(pout$exp) == min(diff(pout$exp)))]
-  infl2max <- vals[which(diff(pout$exp) == max(diff(pout$exp)))]
-  
-  # plot to check
-  plot(pout$val, pout$exp)
-  points(vals[infl], pout[infl, "exp"], col="blue", cex=2)
-  
-  
-  # calculate range between inflection points
-  }
-}
-)
+# calculate variance of expression for each transcript
+A22_int_var <- ddply(A22.TPM.int.dt, .(Transcript), RxNvar)
 
 
-````
+# repeat for Ar
+Artrlist <- Ar.interaction.transcripts.type[which(Ar.interaction.transcripts.type$exp_type == "Intermediate"), "Transcript"]
+Ar.TPM.int.dt <- TPM.dt.sub[Artrlist]
+setkey(Ar.TPM.int.dt, colony)
+Ar.TPM.int.dt <- Ar.TPM.int.dt["Ar"]
+str(Ar.TPM.int.dt)
 
-
-<- responsive.transcripts.type[which(responsive.transcripts.type$colony == "Ar" & responsive.transcripts.type$exp_type == "Low"), "Transcript"]
-# dataframe of transcripts from both colonies that are 'high' expressed in A22
-Ar_low_df <- responsive.transcripts.type[which(responsive.transcripts.type$Transcript %in% Ar_low_transcripts), ]
-dim(Ar_low_df)
-
+# calculate variance of expression for each transcript
+Ar_int_var <- ddply(Ar.TPM.int.dt, .(Transcript), RxNvar)
 ```
 
-Compare the width of the inverse of the bimodally-expressed transcripts between the colonies.
+Next, I compare the estimated variance for each transcipt in each colony.
+
+```{r compare_Intermediate_variance}
+# T-test
+t.test(A22_int_var$exp_sd, Ar_int_var$exp_sd)
+
+# Plot
+# prep data
+A22_int_var$colony <- "A22"
+Ar_int_var$colony <- "Ar"
+comb_int_var <- rbind(A22_int_var, Ar_int_var)
+# ggplot
+g1 <- ggplot(comb_int_var, aes(x=exp_sd, fill=colony)) + geom_density(alpha=0.2, position="identity")
+g1 + scale_y_continuous(name="Density") +
+  scale_x_continuous(name=expression("Standard deviation of expression function"))
+````
+
+Consistent with our hypothesis, 'Intermediate' transcripts in *Ar* are expressed over a significantly wider range of temperatures than in *A22*. 
+
+However, this result masks that *A22* has a unimodal distribution, while *Ar* is bimodal with one peak directly under the *A22* peak. Are these the same transcripts?
+
+```{r, echo=FALSE}
+Ar_int_var_peak1 <- Ar_int_var[which(Ar_int_var$exp_sd < 10), ]
+A22_int_var_peak1 <- A22_int_var[which(A22_int_var$exp_sd < 10), ]
+```
+
+Of `r length(Ar_int_var_peak1$Transcript)` 'Intermediate' transcripts from *Ar* with standard deviation of expression under 10, `rlength(which(Ar_int_var_peak1$Transcript %in% A22_int_var$Transcript))` of these are the same as those in the *A22* peak. Not especially remarkable given that there are `r length(which(Ar_int_var$Transcript %in% A22_int_var$Transcript))` from both peaks shared with *A22*. 
+
+
+### Thermal tolerance indicated by thermal-sensitivy ##
+
+As the converse of the above hypothesis, a colony that is especially thermally-sensitive is likely to activate expression of molecular processes more quickly. We tested this using the same approach as for the 'Intermediate' transcripts, but using the inverse of the "Bimodal" expressed transcripts. 
+
+
+
+
+
+
+
 
 
 ## Gene set enrichment analysis ##

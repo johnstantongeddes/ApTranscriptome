@@ -160,6 +160,43 @@ RxNply <- function(df1) {
 
 
 
+############################################################################################
+## RxNvar
+############################################################################################
+
+RxNvar <- function(df2) {
+  # Function supplied to `ddply` to report the variance of the expression function for each transcript
+  #
+  # Args:
+  #  df2: dataframe in long format containing expression information for only transcripts with 'Intermediate' (concave) expression
+  #
+  # Returns:
+  #  dataframe with variance of expression for each transcript
+  # 
+
+  lmout <- lm(TPM ~ val + I(val^2), data = df2)
+  # check that transcript has correct curvature
+  if(!coef(lmout)['val'] > 0 & coef(lmout)['I(val^2)'] < 0) "Not convex curvature" else {
+    temp.int <- seq(from = 0, to = 38.5, by = 0.5)
+    temp.df <- data.frame(val = temp.int)
+    pout <- predict(lmout, newdata=temp.df)
+    # all predicted values need to be positive so can use them as probabilities to weight sampling
+    if(any(pout < 0)) {
+      mval <- min(pout)
+      pout <- pout + -mval
+    }
+    
+    # draw 1000 "temps" weighted by expression
+    random.draw <- sample(size = 1000, temp.int, prob = pout, replace = TRUE)
+    
+    # return variance
+    c(exp_sd = sd(random.draw))
+  }
+}
+
+
+
+
 
 ############################################################################################
 ## geneid2GOmap
