@@ -116,7 +116,7 @@ RxNply <- function(df1) {
     max.val = NA
     min.val = NA
     opt.exp = NA
-    exp_type = NA
+    exp_type = "NotExp"
   } else { # else set values based on predicted expression levels
     
     # get vals of max and min expression, and expression at 
@@ -161,10 +161,10 @@ RxNply <- function(df1) {
 
 
 ############################################################################################
-## RxNvar
+## RxNsd.concave
 ############################################################################################
 
-RxNvar <- function(df2) {
+RxNsd.concave <- function(df2) {
   # Function supplied to `ddply` to report the variance of the expression function for each transcript
   #
   # Args:
@@ -176,24 +176,61 @@ RxNvar <- function(df2) {
 
   lmout <- lm(TPM ~ val + I(val^2), data = df2)
   # check that transcript has correct curvature
-  if(!coef(lmout)['val'] > 0 & coef(lmout)['I(val^2)'] < 0) "Not convex curvature" else {
-    temp.int <- seq(from = 0, to = 38.5, by = 0.5)
-    temp.df <- data.frame(val = temp.int)
-    pout <- predict(lmout, newdata=temp.df)
-    # all predicted values need to be positive so can use them as probabilities to weight sampling
-    if(any(pout < 0)) {
-      mval <- min(pout)
-      pout <- pout + -mval
-    }
-    
-    # draw 1000 "temps" weighted by expression
-    random.draw <- sample(size = 1000, temp.int, prob = pout, replace = TRUE)
-    
-    # return variance
-    c(exp_sd = sd(random.draw))
+  if(coef(lmout)['val'] < 0 & coef(lmout)['I(val^2)'] > 0) stop("Not all transcripts have Intermediate (concave) expression")
+
+  # predict across temp range
+  temp.int <- seq(from = 0, to = 38.5, by = 0.5)
+  temp.df <- data.frame(val = temp.int)
+  pout <- predict(lmout, newdata=temp.df)
+  # all predicted values need to be positive so can use them as probabilities to weight sampling
+  if(any(pout < 0)) {
+    mval <- min(pout)
+    pout <- pout + -mval
   }
+    
+  # draw 1000 "temps" weighted by expression
+  random.draw <- sample(size = 1000, temp.int, prob = pout, replace = TRUE)
+  
+  # return variance
+  c(exp_sd = sd(random.draw))
 }
 
+
+
+############################################################################################
+## RxNsd.convex
+############################################################################################
+
+RxNsd.convex <- function(df2) {
+  # Similar to `RxNsd` but works for convex (bimodal) functions by taking the inverse of predicted values
+  #
+  # Args:
+  #  df2: dataframe in long format containing expression information for only transcripts with 'Bimodal' (concave) expression
+  #
+  # Returns:
+  #  dataframe with variance of expression for each transcript
+
+
+  lmout <- lm(TPM ~ val + I(val^2), data = df2)
+  # check that transcript has correct curvature
+  if(coef(lmout)['val'] < 0 | coef(lmout)['I(val^2)'] > 0) stop("Not all transcripts have Bimodal (convex) expression")
+
+  temp.int <- seq(from = 0, to = 38.5, by = 0.5)
+  temp.df <- data.frame(val = temp.int)
+  pout <- predict(lmout, newdata=temp.df)
+  
+  # all predicted values need to be positive so can use them as probabilities to weight sampling
+  if(any(pout < 0)) {
+    mval <- min(pout)
+    pout <- pout + -mval + 0.01
+  }
+    
+  # draw 1000 "temps" weighted by expression
+  random.draw <- sample(size = 1000, temp.int, prob = pout, replace = TRUE)
+  sd(random.draw)
+  # return variance
+  c(exp_sd = sd(random.draw))
+}
 
 
 

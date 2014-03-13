@@ -552,16 +552,6 @@ Ar.interaction.transcripts.type$opt.exp <- as.numeric(Ar.interaction.transcripts
 Ar.interaction.transcripts.type$exp_type <- as.factor(Ar.interaction.transcripts.type$exp_type)
 str(Ar.interaction.transcripts.type)
 
-# examine correlations between expression type between colonies
-plot(A22.interaction.transcripts.type$max.val, Ar.interaction.transcripts.type$max.val)
-cor.test(A22.interaction.transcripts.type$max.val, Ar.interaction.transcripts.type$max.val)
-
-plot(A22.interaction.transcripts.type$min.val, Ar.interaction.transcripts.type$min.val)
-cor.test(A22.interaction.transcripts.type$min.val, Ar.interaction.transcripts.type$min.val)
-
-plot(A22.interaction.transcripts.type$opt.exp, Ar.interaction.transcripts.type$opt.exp)
-cor.test(A22.interaction.transcripts.type$opt.exp, Ar.interaction.transcripts.type$opt.exp)
-
 # combine into single data.table
 A22.interaction.transcripts.type$colony <- "A22"
 Ar.interaction.transcripts.type$colony <- "Ar"
@@ -663,28 +653,15 @@ To confirm that there are not sample-level issues, I performed the same comparis
 ```{r intermediate_transcripts}
 # list of transcripts that are 'Intermediate' expressed in A22
 A22_int_transcripts <- responsive.transcripts.type[which(responsive.transcripts.type$colony == "A22" & responsive.transcripts.type$exp_type == "Intermediate"), "Transcript"]
-# dataframe of transcripts from both colonies that are 'high' expressed in A22
 A22_int_df <- responsive.transcripts.type[which(responsive.transcripts.type$Transcript %in% A22_int_transcripts), ]
-
-# Compare expression at optimum temp (19.25C) between colonies using t-test
 A22_int_df$colony <- as.factor(A22_int_df$colony)
-boxplot(data = A22_int_df, opt.exp ~ colony)
-boxplot(data = A22_int_df, log(opt.exp+1) ~ colony)
-t.test(A22_int_df[which(A22_int_df$colony == "Ar"), "opt.exp"],  A22_int_df[which(A22_int_df$colony == "A22"), "opt.exp"])
 
 # Wilcoxon signed rank-test
 wilcox.test(A22_int_df[which(A22_int_df$colony == "A22"), "opt.exp"],  A22_int_df[which(A22_int_df$colony == "Ar"), "opt.exp"], alternative = "two.sided", paired = TRUE, conf.int = TRUE)
 
 # list of transcripts that are 'Intermediate' expressed in Ar
 Ar_int_transcripts <- responsive.transcripts.type[which(responsive.transcripts.type$colony == "Ar" & responsive.transcripts.type$exp_type == "Intermediate"), "Transcript"]
-# dataframe of transcripts from both colonies that are 'high' expressed in Ar
 Ar_int_df <- responsive.transcripts.type[which(responsive.transcripts.type$Transcript %in% Ar_int_transcripts), ]
-
-# Compare expression at optimum temp (19.25C) between colonies using t-test
-Ar_int_df$colony <- as.factor(Ar_int_df$colony)
-boxplot(data = Ar_int_df, opt.exp ~ colony)
-boxplot(data = Ar_int_df, log(opt.exp+1) ~ colony)
-t.test(Ar_int_df[which(Ar_int_df$colony == "A22"), "opt.exp"],  Ar_int_df[which(Ar_int_df$colony == "Ar"), "opt.exp"])
 
 # Wilcoxon signed rank-test
 wilcox.test(Ar_int_df[which(Ar_int_df$colony == "A22"), "opt.exp"],  Ar_int_df[which(Ar_int_df$colony == "Ar"), "opt.exp"], alternative = "two.sided", paired = TRUE, conf.int = TRUE)
@@ -700,25 +677,89 @@ The 'Intermediate' expressed transcripts are core molecular processes that are e
 ```{r calc_Intermediate_variance}
 # extract 'Intermediate' expressed transcripts for A22 colony
 setkey(TPM.dt.sub, Transcript)
-A22trlist <- A22.interaction.transcripts.type[which(A22.interaction.transcripts.type$exp_type == "Intermediate"), "Transcript"]
+A22trlist <- responsive.transcripts.type[which(responsive.transcripts.type$exp_type == "Intermediate"), "Transcript"]
 A22.TPM.int.dt <- TPM.dt.sub[A22trlist]
 setkey(A22.TPM.int.dt, colony)
 A22.TPM.int.dt <- A22.TPM.int.dt["A22"]
 str(A22.TPM.int.dt)
 
-# calculate variance of expression for each transcript
-A22_int_var <- ddply(A22.TPM.int.dt, .(Transcript), RxNvar)
 
+
+           ######PROBLEM#######
+                                                                                                                 ## because responsive transcripts without interaction have expression type determined
+           ## from BOTH datasets, fitting model to one only breaks response...                                                                                                                                                                                                            
+# calculate variance of expression for each transcript
+A22_int_var <- ddply(A22.TPM.int.dt, .(Transcript), RxNsd.concave)
 
 # repeat for Ar
-Artrlist <- Ar.interaction.transcripts.type[which(Ar.interaction.transcripts.type$exp_type == "Intermediate"), "Transcript"]
+Artrlist <- responsive.transcripts.type[which(responsive.transcripts.type$exp_type == "Intermediate"), "Transcript"]
 Ar.TPM.int.dt <- TPM.dt.sub[Artrlist]
 setkey(Ar.TPM.int.dt, colony)
 Ar.TPM.int.dt <- Ar.TPM.int.dt["Ar"]
 str(Ar.TPM.int.dt)
 
 # calculate variance of expression for each transcript
-Ar_int_var <- ddply(Ar.TPM.int.dt, .(Transcript), RxNvar)
+Ar_int_var <- ddply(Ar.TPM.int.dt, .(Transcript), RxNsd.concave)
+```
+
+Next, I compare the estimated variance for each transcipt in each colony.
+
+```{r compare_Intermediate_variance}
+# T-test
+t.test(A22_int_var$exp_sd, Ar_int_var$exp_sd)
+
+# Plot
+# prep data
+A22_int_var$colony <- "A22"
+Ar_int_var$colony <- "Ar"
+comb_int_var <- rbind(A22_int_var, Ar_int_var)
+# ggplot
+g1 <- ggplot(comb_int_var, aes(x=exp_sd, fill=colony)) + geom_density(alpha=0.2, position="identity")
+g1 + scale_y_continuous(name="Density") +
+  scale_x_continuous(name=expression("Standard deviation of expression"))
+```
+
+Consistent with our hypothesis, 'Intermediate' transcripts in *Ar* are expressed over a significantly wider range of temperatures than in *A22*. 
+
+However, this result masks that *A22* has a unimodal distribution, while *Ar* is bimodal with one peak directly under the *A22* peak. Are these the same transcripts?
+
+```{r echo=FALSE}
+Ar_int_var_peak1 <- Ar_int_var[which(Ar_int_var$exp_sd < 10), ]
+A22_int_var_peak1 <- A22_int_var[which(A22_int_var$exp_sd < 10), ]
+```
+
+Of `r length(Ar_int_var_peak1$Transcript)` 'Intermediate' transcripts from *Ar* with standard deviation of expression under 10, `r length(which(Ar_int_var_peak1$Transcript %in% A22_int_var$Transcript))` of these are the same as those in the *A22* peak. Not especially remarkable given that there are `r length(which(Ar_int_var$Transcript %in% A22_int_var$Transcript))` from both peaks shared with *A22*. 
+
+
+### Thermal tolerance indicated by thermal-sensitivy ##
+
+As the converse of the above hypothesis, a colony that is especially thermally-sensitive is likely to activate expression of molecular processes more quickly. We tested this using the same approach as for the 'Intermediate' transcripts, but using the inverse of the "Bimodal" expressed transcripts. 
+
+
+```{r calc_Bimodal_variance}
+# extract 'Bimodal' expressed transcripts for A22 colony
+A22trlist.bim <- A22.interaction.transcripts.type[which(A22.interaction.transcripts.type$exp_type == "Bimodal"), "Transcript"]
+A22.TPM.bim.dt <- TPM.dt.sub[A22trlist.bim]
+setkey(A22.TPM.bim.dt, colony)
+A22.TPM.bim.dt <- A22.TPM.bim.dt["A22"]
+str(A22.TPM.bim.dt)
+
+# take inverse of TPM so that function has has concave shape and RxNsd function can be used as above
+A22.TPM.bim.dt[ , TPM.inv:= 1/A22.TPM.bim.dt$TPM]
+
+# calculate variance of expression for each transcript
+A22_bim_var <- ddply(A22.TPM.bim.dt, .(Transcript), RxNsd.concave)
+
+                                                                                                                                                                                                           
+# repeat for Ar
+Artrlist <- Ar.interaction.transcripts.type[which(Ar.interaction.transcripts.type$exp_type == "Bimodal"), "Transcript"]
+Ar.TPM.bim.dt <- TPM.dt.sub[Artrlist]
+setkey(Ar.TPM.bim.dt, colony)
+Ar.TPM.bim.dt <- Ar.TPM.bim.dt["Ar"]
+str(Ar.TPM.bim.dt)
+
+# calculate variance of expression for each transcript
+Ar_int_var <- ddply(Ar.TPM.bim.dt, .(Transcript), RxNsd)
 ```
 
 Next, I compare the estimated variance for each transcipt in each colony.
@@ -736,24 +777,7 @@ comb_int_var <- rbind(A22_int_var, Ar_int_var)
 g1 <- ggplot(comb_int_var, aes(x=exp_sd, fill=colony)) + geom_density(alpha=0.2, position="identity")
 g1 + scale_y_continuous(name="Density") +
   scale_x_continuous(name=expression("Standard deviation of expression function"))
-````
-
-Consistent with our hypothesis, 'Intermediate' transcripts in *Ar* are expressed over a significantly wider range of temperatures than in *A22*. 
-
-However, this result masks that *A22* has a unimodal distribution, while *Ar* is bimodal with one peak directly under the *A22* peak. Are these the same transcripts?
-
-```{r, echo=FALSE}
-Ar_int_var_peak1 <- Ar_int_var[which(Ar_int_var$exp_sd < 10), ]
-A22_int_var_peak1 <- A22_int_var[which(A22_int_var$exp_sd < 10), ]
 ```
-
-Of `r length(Ar_int_var_peak1$Transcript)` 'Intermediate' transcripts from *Ar* with standard deviation of expression under 10, `rlength(which(Ar_int_var_peak1$Transcript %in% A22_int_var$Transcript))` of these are the same as those in the *A22* peak. Not especially remarkable given that there are `r length(which(Ar_int_var$Transcript %in% A22_int_var$Transcript))` from both peaks shared with *A22*. 
-
-
-### Thermal tolerance indicated by thermal-sensitivy ##
-
-As the converse of the above hypothesis, a colony that is especially thermally-sensitive is likely to activate expression of molecular processes more quickly. We tested this using the same approach as for the 'Intermediate' transcripts, but using the inverse of the "Bimodal" expressed transcripts. 
-
 
 
 
