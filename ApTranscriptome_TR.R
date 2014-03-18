@@ -394,7 +394,7 @@ unique(TPM.dt.sub$val)
 model <- "TPM ~ colony + val + I(val^2) + colony:val + colony:I(val^2)"
 
 # identify responsive transcripts
-RxNout <- RxNseq(f = TPM.dt.sub, model = model)
+RxNout <- RxNseq(f = TPM.dt.sub, model = model, threshold = 0.05)
 
 save.image("RxN_combined_results.RData")
 ```
@@ -430,7 +430,7 @@ setnames(signif.transcripts, Sequence.Name, Transcript)
 
 ## Thermally-responsive transcripts
 
-The set of transcripts with significant expression patterns include those with expression that differs by colony, temperature and the interaction of colony and temperature. In this analysis, I am specifically interested in the thermally-responsive transcripts (temperature and colony x temperature) so I subset the significant transcripts to examine these. 
+The set of transcripts with significant expression patterns include those with expression that differs by colony, temperature and the interaction of colony and temperature. In this section, I am specifically interested in the thermally-responsive transcripts (temperature and colony x temperature) so I subset the significant transcripts to examine these. 
 
 ```{r responsive_transcripts}
 # transcripts that differ in expression by colony only
@@ -449,13 +449,13 @@ dim(responsive.transcripts)
 stopifnot(all.equal(nrow(signif.transcripts), nrow(colony.transcripts) + nrow(responsive.transcripts)))
 
 # split responsive_transcripts into those that have same temperature response in both colonies and 
-# those that have a colony x temperature interactions
+# main effect of temperature only
 temperature.transcripts <- responsive.transcripts[is.na(responsive.transcripts$'coef.colony:val') & is.na(responsive.transcripts$'coef.colony:I(val^2)')]
 # order by adjusted P-value
 temperature.transcripts <- temperature.transcripts[order(temperature.transcripts$padj), ]
 str(temperature.transcripts)
 
-# transcripts that have colony x temperature interactions
+# transcripts that have colony x temperature interaction
 interaction.transcripts <- signif.transcripts[!is.na(signif.transcripts$'coef.colony:val') | !is.na(signif.transcripts$'coef.colony:I(val^2)')]
 # order by adjusted P-value
 interaction.transcripts <- interaction.transcripts[order(interaction.transcripts$padj), ]
@@ -520,6 +520,28 @@ The previous section simply identified the transcripts with thermally-responsive
 
 I do this first for the thermally-responsive transcripts where there is no interaction with colony. For the transcripts where thermal-responsive expression depends on colony, I determine the functional type of the expression response separately for each colony. 
 
+
+```{r RxN_by_colony}
+interaction.transcripts.TPM <- TPM.dt.sub[interaction.transcripts]
+setkey(interaction.transcripts.TPM, colony)
+
+# RxNseq for A22 only - set 'threshold' to 0.99 so all coefficients reported
+model2 <- "TPM ~ val + I(val^2)"
+A22.RxNout <- RxNseq(interaction.transcripts.TPM["A22"], model = model2, threshold = 1)
+head(A22.RxNout)
+
+# RxNseq for Ar only - set 'threshold' to 0.99 so all coefficients reported
+Ar.RxNout <- RxNseq(interaction.transcripts.TPM["Ar"], model = model2, threshold = 1)
+head(Ar.RxNout)
+```
+
+Coefficients of linear model for transcripts that were not responsive by colony.
+
+
+
+
+For these transcripts, I determined 
+
 ```{r expression_shape, eval=TRUE, echo=TRUE}
 # merge RxN results with expression values
 setkey(TPM.dt.sub, Transcript)
@@ -533,11 +555,7 @@ temperature.transcripts.type$opt.exp <- as.numeric(temperature.transcripts.type$
 temperature.transcripts.type$exp_type <- as.factor(temperature.transcripts.type$exp_type)
 
 
-# repeat for interaction.transcripts, separately for each colony
-interaction.transcripts.TPM <- TPM.dt.sub[interaction.transcripts]
-setkey(interaction.transcripts.TPM, colony)
 
-A22.interaction.transcripts.type <- ddply(interaction.transcripts.TPM["A22"], .(Transcript), RxNply)
 Ar.interaction.transcripts.type <- ddply(interaction.transcripts.TPM["Ar"], .(Transcript), RxNply)
 
 A22.interaction.transcripts.type$max.val <- as.numeric(A22.interaction.transcripts.type$max.val)

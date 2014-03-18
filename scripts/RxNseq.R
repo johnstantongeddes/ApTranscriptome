@@ -29,7 +29,7 @@ read.sailfish.quant <- function(filein, outname, samp, trtval) {
 ## RxNseq
 ############################################################################################
 
-RxNseq <- function(f, model = "NA") {
+RxNseq <- function(f, model = "NA", threshold = 0.05) {
     # Identify transcripts with significant reaction norms against a continuous variable
     #
     # Args:
@@ -40,7 +40,8 @@ RxNseq <- function(f, model = "NA") {
     #     by a single space. for example:
     #            TPM ~ colony + val + colony:val
     #     it is important that interactions are grouped together, no spaces
-    #
+    #  threshold: P-value threshold to determine if a coefficient is significant
+    #  
     # Returns:
     #  Returns dataframe with p-value and regression coefficients
     #  for each transcript
@@ -73,7 +74,7 @@ RxNseq <- function(f, model = "NA") {
         coefnames <- paste("coef", coefnames[c(TRUE,FALSE)][-1], sep = ".")
         
         for(i in 1:(length(Fvals)-1)) { # skip last value which is residuals
-            coefval <- ifelse(Fvals[i] < 0.05, Fvals[i], NA)
+            coefval <- ifelse(Fvals[i] < threshold, Fvals[i], NA)
             coefvec <- append(coefvec, coefval)
             names(coefvec)[i] <- coefnames[i]
         }
