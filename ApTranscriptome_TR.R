@@ -3,7 +3,7 @@ Thermal reactionome of the common ant species *Aphaenogaster*
   
 **Author:** [John Stanton-Geddes](john.stantongeddes.research@gmail.com)
 
-**March 5, 2014**
+**March 20, 2014**
 
 **Technical Report No. 3**
 
@@ -176,7 +176,7 @@ annotationtable <- data.table(annotationfile)
 head(annotationtable)
 ```
 
-Transcriptome annotations are nearly impossible to visualize in a meaningful way. For lack of better ideas, I created a word cloud.
+Transcriptome annotations are nearly impossible to visualize in a meaningful way. For lack of better ideas, I made a word cloud:
 
 ```{r wordcloud, cache=TRUE, eval=FALSE}
 library(tm)
@@ -228,7 +228,7 @@ wordcloud(d$word,d$freq, scale=c(8,.3),min.freq=2,max.words=100, random.order=T,
 
 ### Quantify gene expression ###
 
-Quantify gene expression using [sailfish](http://www.cs.cmu.edu/~ckingsf/software/sailfish/index.html). Make sure that PATHs to the software libraries are set up correctly: 
+I quantified gene expression using [sailfish](http://www.cs.cmu.edu/~ckingsf/software/sailfish/index.html). To run this program, first make sure that PATHs to the software libraries are set up correctly: 
                                                  
     export LD_LIBRARY_PATH=/opt/software/Sailfish-0.6.2-Linux_x86-64/lib:$LD_LIBRARY_PATH
     export PATH=/opt/software/Sailfish-0.6.2-Linux_x86-64/bin:$PATH
@@ -252,7 +252,7 @@ Then, for each sample, run the following command:
                                                  
     sailfish -i sailfish-index -o sailfish-expression/A22-0 --reads A22-0_ATCACG.paired.left.fastq A22-0_ATCACG.paired.right.fastq A22-0_ATCACG.unpaired.left.fastq A22-0_ATCACG.unpaired.right.fastq -p 4
 
-Or, with a loop:                                                 
+Or, using a loop in R:                                                 
                                                  
 ```{r sailfish, eval=TRUE, echo=TRUE, cache=TRUE}
 # directory containing trimmed reads
@@ -375,9 +375,9 @@ $$ TPM = \beta_0 + \beta_1(colony) + \beta_2(temp) + \beta_3(temp^2) + \beta_4(c
 
 where TPM is transcripts per million. 
 
-For this list of P-values, correct for multiple testing using False Discovery Rate (FDR).
 
-#Preliminary [examination](https://minilims1.uvm.edu/BCProject-26-Cahan/methods.html#clustering-of-samples) of the data indicated that the A22_7 and Ar_7 samples may have been switched, so I remove these values from the analysis to be conservative). 
+
+**Preliminary [examination](https://minilims1.uvm.edu/BCProject-26-Cahan/methods.html#clustering-of-samples) of the data indicated that the A22_7 and Ar_7 samples may have been switched, so I remove these values from the analysis.** 
 
 ```{r RxN, echo=TRUE, eval=TRUE, cache=TRUE}
 A22.TPM[,colony:="A22"]
@@ -424,7 +424,7 @@ setkey(annotationtable, Sequence.Name)
 signif.transcripts <- data.table(signif.transcripts)
 setkey(signif.transcripts, Transcript)
 signif.transcripts <- annotationtable[signif.transcripts]
-setnames(signif.transcripts, Sequence.Name, Transcript)
+setnames(signif.transcripts, "Sequence.Name", "Transcript")
 ```
 
 
@@ -508,7 +508,6 @@ nrow(hsp_all)
 ```
 
 
-
 ### Thermal-response functional types ###
 
 The previous section simply identified the transcripts with thermally-responsive expression. In this section, I determine the shape of the expression response to temperature for each transcript. Categories of expression response are:
@@ -521,30 +520,9 @@ The previous section simply identified the transcripts with thermally-responsive
 I do this first for the thermally-responsive transcripts where there is no interaction with colony. For the transcripts where thermal-responsive expression depends on colony, I determine the functional type of the expression response separately for each colony. 
 
 
-```{r RxN_by_colony}
-interaction.transcripts.TPM <- TPM.dt.sub[interaction.transcripts]
-setkey(interaction.transcripts.TPM, colony)
-
-# RxNseq for A22 only - set 'threshold' to 0.99 so all coefficients reported
-model2 <- "TPM ~ val + I(val^2)"
-A22.RxNout <- RxNseq(interaction.transcripts.TPM["A22"], model = model2, threshold = 1)
-head(A22.RxNout)
-
-# RxNseq for Ar only - set 'threshold' to 0.99 so all coefficients reported
-Ar.RxNout <- RxNseq(interaction.transcripts.TPM["Ar"], model = model2, threshold = 1)
-head(Ar.RxNout)
-```
-
-Coefficients of linear model for transcripts that were not responsive by colony.
-
-
-
-
-For these transcripts, I determined 
 
 ```{r expression_shape, eval=TRUE, echo=TRUE}
 # merge RxN results with expression values
-setkey(TPM.dt.sub, Transcript)
 temperature.transcripts.TPM <- TPM.dt.sub[temperature.transcripts]
 
 # apply the 'RxNply' function to determine maximum and minimum temperatures of expression, as well as the expression level at the optimum temperature of 19.25C
@@ -554,16 +532,17 @@ temperature.transcripts.type$min.val <- as.numeric(temperature.transcripts.type$
 temperature.transcripts.type$opt.exp <- as.numeric(temperature.transcripts.type$opt.exp)
 temperature.transcripts.type$exp_type <- as.factor(temperature.transcripts.type$exp_type)
 
-
-
-Ar.interaction.transcripts.type <- ddply(interaction.transcripts.TPM["Ar"], .(Transcript), RxNply)
-
+# repeat for transcripts that have an interaction with colongy
+# A22
+A22.interaction.transcripts.type <- ddply(interaction.transcripts.TPM["A22"], .(Transcript), RxNply)
 A22.interaction.transcripts.type$max.val <- as.numeric(A22.interaction.transcripts.type$max.val)
 A22.interaction.transcripts.type$min.val <- as.numeric(A22.interaction.transcripts.type$min.val)
 A22.interaction.transcripts.type$opt.exp <- as.numeric(A22.interaction.transcripts.type$opt.exp)
 A22.interaction.transcripts.type$exp_type <- as.factor(A22.interaction.transcripts.type$exp_type)
 str(A22.interaction.transcripts.type)
 
+# Ar
+Ar.interaction.transcripts.type <- ddply(interaction.transcripts.TPM["Ar"], .(Transcript), RxNply)
 Ar.interaction.transcripts.type$max.val <- as.numeric(Ar.interaction.transcripts.type$max.val)
 Ar.interaction.transcripts.type$min.val <- as.numeric(Ar.interaction.transcripts.type$min.val)
 Ar.interaction.transcripts.type$opt.exp <- as.numeric(Ar.interaction.transcripts.type$opt.exp)
@@ -596,9 +575,23 @@ rownames(exp_type.table) <- c("A22", "Ar")
 pandoc.table(exp_type.table, style="rmarkdown", caption = "Number of transcripts with maximum expression at high, low, intermediate or both high and low (bimodal) temperatures.")
 ```
 
-Table 4 shows the number of transcripts that fall into each expression type for each each colony. The totals for each colony include the `r sum(temp.type.table)` transcripts that have consistent temperature responses between the two colonies, 
+Table 4 shows the number of transcripts that fall into each expression type for each each colony. The totals for each colony include the `r nrow(temperature.transcripts)` transcripts that have consistent temperature responses between the two colonies. 
 
-Note that of the transcripts that differ in expression between the two colonies, `r length(which(is.na(A22.interaction.transcripts.type$exp_type)))` are not expressed in *A22* and `r length(which(is.na(Ar.interaction.transcripts.type$exp_type)))` are not expressed in *Ar*.
+
+```{r RxN_by_colony, echo=FALSE, eval=FALSE}
+setkey(TPM.dt.sub, Transcript)
+interaction.transcripts.TPM <- TPM.dt.sub[interaction.transcripts]
+setkey(interaction.transcripts.TPM, colony)
+
+# RxNseq for A22 only - set 'threshold' to 0.99 so all coefficients reported
+model2 <- "TPM ~ val + I(val^2)"
+A22.RxNout <- RxNseq(interaction.transcripts.TPM["A22"], model = model2, threshold = 1)
+str(A22.RxNout)
+
+# RxNseq for Ar only - set 'threshold' to 0.99 so all coefficients reported
+Ar.RxNout <- RxNseq(interaction.transcripts.TPM["Ar"], model = model2, threshold = 1)
+str(Ar.RxNout)
+```
 
 
 ## Shiny interactive web-app
@@ -688,43 +681,37 @@ wilcox.test(Ar_int_df[which(Ar_int_df$colony == "A22"), "opt.exp"],  Ar_int_df[w
 As expected, for "Intermediate" expressed transcripts there is no difference in expression at 19.25C between colonies.  
 
 
-### Thermal tolerance indicated by region of constant gene expression
+### Thermal tolerance indicated by region of constant gene expression ###
 
 The 'Intermediate' expressed transcripts are core molecular processes that are expressed at non-stressful temperatures, and shut-off when the organism experiences thermall stress. We hypothesized that if the more southern *Ar* colony was more thermally-tolerant than *A22*, transcripts with 'Intermediate' expression (10-30C) would be active across a wider range of temperatures. To test this with our data, we calculated the standard deviation of the expression function for each temperature transcript that was 'Intermediate' expressed in each colony.
 
 ```{r calc_Intermediate_variance}
 # extract 'Intermediate' expressed transcripts for A22 colony
 setkey(TPM.dt.sub, Transcript)
-A22trlist <- responsive.transcripts.type[which(responsive.transcripts.type$exp_type == "Intermediate"), "Transcript"]
+A22trlist <- A22.interaction.transcripts.type[which(A22.interaction.transcripts.type$exp_type == "Intermediate"), "Transcript"]
 A22.TPM.int.dt <- TPM.dt.sub[A22trlist]
 setkey(A22.TPM.int.dt, colony)
 A22.TPM.int.dt <- A22.TPM.int.dt["A22"]
 str(A22.TPM.int.dt)
 
-
-
-           ######PROBLEM#######
-                                                                                                                 ## because responsive transcripts without interaction have expression type determined
-           ## from BOTH datasets, fitting model to one only breaks response...                                                                                                                                                                                                            
-# calculate variance of expression for each transcript
-A22_int_var <- ddply(A22.TPM.int.dt, .(Transcript), RxNsd.concave)
+# calculate standard deviation of expression for each transcript
+A22_int_sd <- ddply(A22.TPM.int.dt, .(Transcript), RxNsd.concave)
 
 # repeat for Ar
-Artrlist <- responsive.transcripts.type[which(responsive.transcripts.type$exp_type == "Intermediate"), "Transcript"]
+Artrlist <- Ar.interaction.transcripts.type[which(Ar.interaction.transcripts.type$exp_type == "Intermediate"), "Transcript"]
 Ar.TPM.int.dt <- TPM.dt.sub[Artrlist]
 setkey(Ar.TPM.int.dt, colony)
 Ar.TPM.int.dt <- Ar.TPM.int.dt["Ar"]
 str(Ar.TPM.int.dt)
 
-# calculate variance of expression for each transcript
-Ar_int_var <- ddply(Ar.TPM.int.dt, .(Transcript), RxNsd.concave)
+Ar_int_sd <- ddply(Ar.TPM.int.dt, .(Transcript), RxNsd.concave)
 ```
 
-Next, I compare the estimated variance for each transcipt in each colony.
+With these values calculated, I compare the standard deviation of expression bewteen colonies.
 
 ```{r compare_Intermediate_variance}
 # T-test
-t.test(A22_int_var$exp_sd, Ar_int_var$exp_sd)
+t.test(A22_int_sd$exp_sd, Ar_int_sd$exp_sd)
 
 # Plot
 # prep data
@@ -749,9 +736,9 @@ A22_int_var_peak1 <- A22_int_var[which(A22_int_var$exp_sd < 10), ]
 Of `r length(Ar_int_var_peak1$Transcript)` 'Intermediate' transcripts from *Ar* with standard deviation of expression under 10, `r length(which(Ar_int_var_peak1$Transcript %in% A22_int_var$Transcript))` of these are the same as those in the *A22* peak. Not especially remarkable given that there are `r length(which(Ar_int_var$Transcript %in% A22_int_var$Transcript))` from both peaks shared with *A22*. 
 
 
-### Thermal tolerance indicated by thermal-sensitivy ##
+### Thermal sensitivity indicated by response of bimodally-expressed transcripts ###
 
-As the converse of the above hypothesis, a colony that is especially thermally-sensitive is likely to activate expression of molecular processes more quickly. We tested this using the same approach as for the 'Intermediate' transcripts, but using the inverse of the "Bimodal" expressed transcripts. 
+As the converse of the above hypothesis, a colony that is especially thermally-sensitive is likely to activate expression of molecular processes more quickly. We tested this using the same approach as for the 'Intermediate' transcripts, but using the inverse of the 'Bimodal' expressed transcripts. 
 
 
 ```{r calc_Bimodal_variance}
@@ -762,43 +749,45 @@ setkey(A22.TPM.bim.dt, colony)
 A22.TPM.bim.dt <- A22.TPM.bim.dt["A22"]
 str(A22.TPM.bim.dt)
 
-# take inverse of TPM so that function has has concave shape and RxNsd function can be used as above
-A22.TPM.bim.dt[ , TPM.inv:= 1/A22.TPM.bim.dt$TPM]
+# calculate standard deviation of expression for each transcript
+A22_bim_sd <- ddply(A22.TPM.bim.dt, .(Transcript), RxNsd.convex)
 
-# calculate variance of expression for each transcript
-A22_bim_var <- ddply(A22.TPM.bim.dt, .(Transcript), RxNsd.concave)
-
-                                                                                                                                                                                                           
 # repeat for Ar
-Artrlist <- Ar.interaction.transcripts.type[which(Ar.interaction.transcripts.type$exp_type == "Bimodal"), "Transcript"]
+Artrlist.bim <- Ar.interaction.transcripts.type[which(Ar.interaction.transcripts.type$exp_type == "Bimodal"), "Transcript"]
 Ar.TPM.bim.dt <- TPM.dt.sub[Artrlist]
 setkey(Ar.TPM.bim.dt, colony)
 Ar.TPM.bim.dt <- Ar.TPM.bim.dt["Ar"]
 str(Ar.TPM.bim.dt)
 
-# calculate variance of expression for each transcript
-Ar_int_var <- ddply(Ar.TPM.bim.dt, .(Transcript), RxNsd)
+Ar_bim_sd <- ddply(Ar.TPM.bim.dt, .(Transcript), RxNsd.convex)
 ```
 
 Next, I compare the estimated variance for each transcipt in each colony.
 
 ```{r compare_Intermediate_variance}
-# T-test
-t.test(A22_int_var$exp_sd, Ar_int_var$exp_sd)
+# t-test
+t.test(A22_bim_sd$exp_sd, Ar_bim_sd$exp_sd)
 
 # Plot
 # prep data
-A22_int_var$colony <- "A22"
-Ar_int_var$colony <- "Ar"
-comb_int_var <- rbind(A22_int_var, Ar_int_var)
+A22_bim_var$colony <- "A22"
+Ar_bim_var$colony <- "Ar"
+comb_bim_var <- rbind(A22_bim_var, Ar_bim_var)
 # ggplot
-g1 <- ggplot(comb_int_var, aes(x=exp_sd, fill=colony)) + geom_density(alpha=0.2, position="identity")
-g1 + scale_y_continuous(name="Density") +
+g2 <- ggplot(comb_bim_var, aes(x=exp_sd, fill=colony)) + geom_density(alpha=0.2, position="identity")
+g2 + scale_y_continuous(name="Density") +
   scale_x_continuous(name=expression("Standard deviation of expression function"))
 ```
 
 
+### Compare peak expression among colonies ###
 
+Cumulative distribution function of peak expression for transcripts that differ in expression between *A22* and *Ar*
+
+```{r max_exp_CDF}
+A22maxexp <- 
+                                                                                                                                                                                                                       maxexp
+```
 
 
 

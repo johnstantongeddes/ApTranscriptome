@@ -214,7 +214,7 @@ RxNsd.convex <- function(df2) {
 
   lmout <- lm(TPM ~ val + I(val^2), data = df2)
   # check that transcript has correct curvature
-  if(coef(lmout)['val'] < 0 | coef(lmout)['I(val^2)'] > 0) stop("Not all transcripts have Bimodal (convex) expression")
+  if(!coef(lmout)['val'] < 0 & !coef(lmout)['I(val^2)'] > 0) stop("Not all transcripts have Bimodal (convex) expression")
 
   temp.int <- seq(from = 0, to = 38.5, by = 0.5)
   temp.df <- data.frame(val = temp.int)
