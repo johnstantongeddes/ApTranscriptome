@@ -726,16 +726,6 @@ g1 + scale_y_continuous(name="Density") +
 
 Consistent with our hypothesis, 'Intermediate' transcripts in *Ar* are expressed over a significantly wider range of temperatures than in *A22*. 
 
-However, this result masks that *A22* has a unimodal distribution, while *Ar* is bimodal with one peak directly under the *A22* peak. Are these the same transcripts?
-
-```{r echo=FALSE}
-Ar_int_var_peak1 <- Ar_int_var[which(Ar_int_var$exp_sd < 10), ]
-A22_int_var_peak1 <- A22_int_var[which(A22_int_var$exp_sd < 10), ]
-```
-
-Of `r length(Ar_int_var_peak1$Transcript)` 'Intermediate' transcripts from *Ar* with standard deviation of expression under 10, `r length(which(Ar_int_var_peak1$Transcript %in% A22_int_var$Transcript))` of these are the same as those in the *A22* peak. Not especially remarkable given that there are `r length(which(Ar_int_var$Transcript %in% A22_int_var$Transcript))` from both peaks shared with *A22*. 
-
-
 ### Thermal sensitivity indicated by response of bimodally-expressed transcripts ###
 
 As the converse of the above hypothesis, a colony that is especially thermally-sensitive is likely to activate expression of molecular processes more quickly. We tested this using the same approach as for the 'Intermediate' transcripts, but using the inverse of the 'Bimodal' expressed transcripts. 
@@ -754,7 +744,7 @@ A22_bim_sd <- ddply(A22.TPM.bim.dt, .(Transcript), RxNsd.convex)
 
 # repeat for Ar
 Artrlist.bim <- Ar.interaction.transcripts.type[which(Ar.interaction.transcripts.type$exp_type == "Bimodal"), "Transcript"]
-Ar.TPM.bim.dt <- TPM.dt.sub[Artrlist]
+Ar.TPM.bim.dt <- TPM.dt.sub[Artrlist.bim]
 setkey(Ar.TPM.bim.dt, colony)
 Ar.TPM.bim.dt <- Ar.TPM.bim.dt["Ar"]
 str(Ar.TPM.bim.dt)
@@ -762,7 +752,7 @@ str(Ar.TPM.bim.dt)
 Ar_bim_sd <- ddply(Ar.TPM.bim.dt, .(Transcript), RxNsd.convex)
 ```
 
-Next, I compare the estimated variance for each transcipt in each colony.
+Next, I compare the standard deviations of expression for each transcipt between colonies.
 
 ```{r compare_Intermediate_variance}
 # t-test
@@ -779,6 +769,7 @@ g2 + scale_y_continuous(name="Density") +
   scale_x_continuous(name=expression("Standard deviation of expression function"))
 ```
 
+Both the T-test and plot show that there is no difference in the standard deviation of expression for bimodally-expressed transcripts between colonies.
 
 ### Compare peak expression among colonies ###
 

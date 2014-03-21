@@ -129,9 +129,9 @@ RxNply <- function(df1) {
     exp_type = if(coef(lmout)['val'] > 0 & coef(lmout)['I(val^2)'] > 0) "High" else {
       if(coef(lmout)['val'] < 0 & coef(lmout)['I(val^2)'] < 0) "Low" else {
         if(coef(lmout)['val'] > 0 & coef(lmout)['I(val^2)'] < 0) "Intermediate" else {
-          "convex"} # end if
-        } # end if
-      } # end if
+          "convex"} # close else
+        } # close else
+      } # close else
     
     # for transcripts with "Intermediate" exp_type, assign to "High" if max expression is above 30 or "Low" if max expression is below 10
     if(exp_type == "Intermediate") {
@@ -143,8 +143,8 @@ RxNply <- function(df1) {
     # for transcripts with convex exp_type, assign to 'bimodal' if expression at both ends greater
     # than 2 SD, otherwise assign to 'low' or 'high' depending on where expression is higher
     if(exp_type == "convex") { 
-      if(max(pout[pout$val <= 10, "exp"]) > 2*sd(pout$exp) &
-           max(pout[pout$val >= 31.5, "exp"]) > 2*sd(pout$exp)) exp_type = "Bimodal" else {
+      if(max(pout[pout$val <= 10, "exp"]) > (pout[pout$val == 19.25, "exp"] + 2*sd(pout$exp)) &
+           max(pout[pout$val >= 31.5, "exp"]) > (pout[pout$val == 19.25, "exp"] + 2*sd(pout$exp))) exp_type = "Bimodal" else {
              # linear increase?
              if(max.val > min.val) exp_type = "High" else exp_type = "Low"
            } # end if
