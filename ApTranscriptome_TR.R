@@ -707,7 +707,7 @@ str(Ar.TPM.int.dt)
 Ar_int_sd <- ddply(Ar.TPM.int.dt, .(Transcript), RxNsd.concave)
 ```
 
-With these values calculated, I compare the standard deviation of expression bewteen colonies.
+With these values calculated, I compare the standard deviation of expression between colonies.
 
 ```{r compare_Intermediate_variance}
 # T-test
@@ -776,11 +776,28 @@ Both the T-test and plot show that there is no difference in the standard deviat
 Cumulative distribution function of peak expression for transcripts that differ in expression between *A22* and *Ar*
 
 ```{r max_exp_CDF}
-A22maxexp <- 
-                                                                                                                                                                                                                       maxexp
+png(paste(resultsdir, "CDF_expression_all.png", sep=""))
+g3 <- ggplot(responsive.transcripts.type, aes(x=max.val, fill=colony)) + geom_density(alpha=0.2, position="identity")
+g3 + scale_y_continuous(name="Density") +
+  scale_x_continuous(name="Temperature of maximum expression")
+dev.off()
+
+
+# merge data.tables of transcripts with colony x temperature interaction
+interaction.transcripts.type <- rbind(A22.interaction.transcripts.type, Ar.interaction.transcripts.type)
+png(paste(resultsdir, "CDF_expression_interaction.png", sep=""))
+g4 <- ggplot(interaction.transcripts.type, aes(x=max.val, fill=colony)) + geom_density(alpha=0.2, position="identity")
+g4 + scale_y_continuous(name="Density") +
+  scale_x_continuous(name="Temperature of maximum expression")
+dev.off()
+
+# faceted by type
+png(paste(resultsdir, "CDF_expression_intermediate_interaction.png", sep=""))
+g5 <- ggplot(interaction.transcripts.type, aes(x=max.val, group=colony)) + geom_density(alpha=0.2, position="identity")
+g5 + facet_grid(. ~ exp_type) + scale_y_continuous(name="Density") +
+  scale_x_continuous(name="Temperature of maximum expression")
+dev.off()
 ```
-
-
 
 
 
