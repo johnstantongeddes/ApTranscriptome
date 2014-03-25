@@ -1,6 +1,6 @@
 Thermal reactionome of the common ant species *Aphaenogaster*
 ================================================================
-  
+   
 **Author:** [John Stanton-Geddes](john.stantongeddes.research@gmail.com)
 
 **March 20, 2014**
