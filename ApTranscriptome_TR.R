@@ -578,22 +578,6 @@ pandoc.table(exp_type.table, style="rmarkdown", caption = "Number of transcripts
 Table 4 shows the number of transcripts that fall into each expression type for each each colony. The totals for each colony include the `r nrow(temperature.transcripts)` transcripts that have consistent temperature responses between the two colonies. 
 
 
-```{r RxN_by_colony, echo=FALSE, eval=FALSE}
-setkey(TPM.dt.sub, Transcript)
-interaction.transcripts.TPM <- TPM.dt.sub[interaction.transcripts]
-setkey(interaction.transcripts.TPM, colony)
-
-# RxNseq for A22 only - set 'threshold' to 0.99 so all coefficients reported
-model2 <- "TPM ~ val + I(val^2)"
-A22.RxNout <- RxNseq(interaction.transcripts.TPM["A22"], model = model2, threshold = 1)
-str(A22.RxNout)
-
-# RxNseq for Ar only - set 'threshold' to 0.99 so all coefficients reported
-Ar.RxNout <- RxNseq(interaction.transcripts.TPM["Ar"], model = model2, threshold = 1)
-str(Ar.RxNout)
-```
-
-
 ## Shiny interactive web-app
 
 To assist visualization of specific transcripts, I made a interactive web-app using the [shiny](http://www.rstudio.com/shiny/) package. The scripts for this app are in the sub-directory `.\ApRxN-shinyapp`.
@@ -610,6 +594,24 @@ write.csv(responsive.transcripts.TPM, file = "ApRxN-shinyapp/responsive.transcri
 
 
 ## Colony-level comparison ##
+
+In this section, I examine differences in thermal reaction norms of transcripts between *Ar* and *A22* using the categories as defined by `r citep("10.1086/675302")`:
+
+- *Offset, O*: overall difference in the mean expression value across all temperatures
+- *Slope, S*: difference in overall slope
+- *Curvature, C*: average difference in curvature of the reaction norm
+- *Wiggle, W*: variability in shape not captured by the previous three measures
+
+```{r offset, echo=TRUE, eval=TRUE}
+A22offset <- ddply(TPM.dt.sub, .(colony, Transcript), summarise, offset = mean(TPM))
+
+```
+
+
+
+
+
+
 
 ### Plasticity versus constitutive expression
 
