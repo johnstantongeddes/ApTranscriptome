@@ -603,7 +603,9 @@ In this section, I examine differences in thermal reaction norms of transcripts 
 - *Wiggle, W*: variability in shape not captured by the previous three measures
 
 ```{r offset, echo=TRUE, eval=TRUE}
-A22offset <- ddply(TPM.dt.sub, .(colony, Transcript), summarise, offset = mean(TPM))
+testset <- TPM.dt.sub[1:220, ]
+testoffset <- ddply(testset, .(colony, Transcript), summarise, offset = mean(TPM))
+A22meanTPM <- ddply(TPM.dt.sub, .(colony, Transcript), summarise, meanTPM = mean(TPM))
 
 ```
 
