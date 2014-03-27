@@ -49,38 +49,35 @@ RxNseq <- function(f, model = "NA", threshold = 0.05) {
 
     # requires
     require(stringr)
+    require(robustbase)
     require(plyr)
     
-    #########################################################################
-    # Function to report overall model P-value
-
-    lmp <- function(modelobject) {
-        if (class(modelobject) != "lm") stop("Not an object of class 'lm' ")
-        f <- summary(modelobject)$fstatistic
-        p <- unname(pf(f[1],f[2],f[3],lower.tail=F))
-        attributes(p) <- NULL
-        return(p)
-    }
-    ##########################################################################
-
-    dd <- ddply(f, .(Transcript), function(f) {
+    dd <- ddply(f, .(Transcript), .progress = "text", function(f) {
         # fit model
-        lmout <- eval(parse(text = paste("lm(", model, ", data = f)", sep = "")))
-        Fvals <- anova(lmout)$'Pr(>F)'
+        try(lmrob.out <- eval(parse(text = paste("lmrob(", model, ", setting = 'KS2011', data = f)", sep = ""))))
+        if(inherits(lmrob.out, "try-error"))
+            { # error due to inability fit model. skip this transcript
+                continue
+            }
+            # fit null model
+        try(lmrob.null <- lmrob(TPM ~ 1, data = f))
+        # test of overall model fit
+        lmrob.p <- anova(lmrob.null, lmrob.out)$"Pr(>chisq)"[2]
+
+        # get coefficients and their P(>|t|)
+        coef.vals <- coefficients(summary(lmrob.out))[,1]
+        coef.signif <- coefficients(summary(lmrob.out))[,4]
 
         # assign coefficients only for significant terms, else NA
         coefvec <- vector()
-        coefnames <- unlist(str_split(model, pattern = " "))
-        coefnames <- paste("coef", coefnames[c(TRUE,FALSE)][-1], sep = ".")
-        
-        for(i in 1:(length(Fvals)-1)) { # skip last value which is residuals
-            coefval <- ifelse(Fvals[i] < threshold, Fvals[i], NA)
+                
+        for(i in 1:(length(coef.vals))) {
+            coefval <- ifelse(coef.signif[i] < threshold, coef.vals, 0)
             coefvec <- append(coefvec, coefval)
-            names(coefvec)[i] <- coefnames[i]
         }
         
         # return values
-        return(c(pval = lmp(lmout),
+        return(c(modp = lmrob.p,
                  coefvec))
         } # end function
     ) # end ddply
