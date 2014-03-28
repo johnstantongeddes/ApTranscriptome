@@ -16,7 +16,6 @@ Thermal reactionome of the common ant species *Aphaenogaster*
 options(stringsAsFactors=FALSE)
 
 # Load libraries
-library(robustbase)
 library(R.utils)
 library(ggplot2)
 library(knitr)
@@ -394,14 +393,12 @@ unique(TPM.dt.sub$val)
 # define model for RxN function
 model <- "TPM ~ colony + val + I(val^2) + colony:val + colony:I(val^2)"
 
-# identify responsive transcripts using robust regression
+# identify responsive transcripts
 RxNout <- RxNseq(f = TPM.dt.sub, model = model, threshold = 0.05)
 
-RxNout <- RxNseq(f = test, model = model, threshold = 0.05)
-
-
-## debug
-        lmrob.out345 <- suppressWarnings(eval(parse(text = paste("lmrob(", model, ", setting = 'KS2011', data = piece345)", sep = ""))))
+# outliers may influence results. test for this by fitting with response log(TPM+1)
+modellog <-  "log(TPM+1) ~ colony + val + I(val^2) + colony:val + colony:I(val^2)"
+RxNout.log <- RxNseq(f = TPM.dt.sub, model = modellog, threshold = 0.05)
 
 
 save.image("RxN_combined_results.RData")
