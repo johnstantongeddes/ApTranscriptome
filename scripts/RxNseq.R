@@ -51,7 +51,7 @@ RxNseq <- function(f, model = "NA", threshold = 0.05) {
     require(robustbase)
     require(plyr)
     
-    dd <- ddply(f, .(Transcript), .progress = "text", function(f) {
+    dd <- ddply(f, .(Transcript), .progress = "text", .inform = TRUE, function(f) {
         # robust regression - suppressWarnings so ddply runs
         lmrob.out <- suppressWarnings(eval(parse(text = paste("lmrob(", model, ", setting = 'KS2011', data = f)", sep = ""))))
         # check if model converged. if not, modp=NA
@@ -64,7 +64,7 @@ RxNseq <- function(f, model = "NA", threshold = 0.05) {
             # test of overall model fit
             lmrob.p <- anova(lmrob.null, lmrob.out)$"Pr(>chisq)"[2]
             # report only coefficients with `P(>|t|)` < threshold
-            coefvec <- ifelse(coefficients(summary(lmrob.out))[,4] < threshold, coefficients(summarylmrob.out)[,4], NA)
+            coefvec <- ifelse(coefficients(summary(lmrob.out))[,4] < threshold, coefficients(summary(lmrob.out))[,4], NA)
         } # end else
                                       
         # return values
