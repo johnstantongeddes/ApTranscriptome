@@ -395,9 +395,7 @@ unique(TPM.dt.sub$val)
 model <- "TPM ~ colony + val + I(val^2) + colony:val + colony:I(val^2)"
 
 # identify responsive transcripts using robust regression
-testdata <- TPM.dt.sub[23:44,]
-
-RxNout <- RxNseq(f = testdata, model = model, threshold = 0.05)
+RxNout <- RxNseq(f = TPM.dt.sub, model = model, threshold = 0.05)
 
 save.image("RxN_combined_results.RData")
 ```

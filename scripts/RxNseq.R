@@ -45,7 +45,6 @@ RxNseq <- function(f, model = "NA", threshold = 0.05) {
     # Returns:
     #  Returns dataframe with p-value and regression coefficients
     #  for each transcript
-      
 
     # requires
     require(stringr)
@@ -53,29 +52,21 @@ RxNseq <- function(f, model = "NA", threshold = 0.05) {
     require(plyr)
     
     dd <- ddply(f, .(Transcript), .progress = "text", function(f) {
-        # fit model
-        try(lmrob.out <- eval(parse(text = paste("lmrob(", model, ", setting = 'KS2011', data = f)", sep = ""))))
-        if(inherits(lmrob.out, "try-error"))
-            { # error due to inability fit model. skip this transcript
-                continue
-            }
+        # robust regression - suppressWarnings so ddply runs
+        lmrob.out <- suppressWarnings(eval(parse(text = paste("lmrob(", model, ", setting = 'KS2011', data = f)", sep = ""))))
+        # check if model converged. if not, modp=NA
+        if(lmrob.out$converged == FALSE) {
+            coefvec <- coefficients(summary(lmrob.out))[,1]
+            lmrob.p <- NA
+        } else {
             # fit null model
-        try(lmrob.null <- lmrob(TPM ~ 1, data = f))
-        # test of overall model fit
-        lmrob.p <- anova(lmrob.null, lmrob.out)$"Pr(>chisq)"[2]
-
-        # get coefficients and their P(>|t|)
-        coef.vals <- coefficients(summary(lmrob.out))[,1]
-        coef.signif <- coefficients(summary(lmrob.out))[,4]
-
-        # assign coefficients only for significant terms, else NA
-        coefvec <- vector()
-                
-        for(i in 1:(length(coef.vals))) {
-            coefval <- ifelse(coef.signif[i] < threshold, coef.vals, 0)
-            coefvec <- append(coefvec, coefval)
-        }
-        
+            lmrob.null <- lmrob(TPM ~ 1, data = f)
+            # test of overall model fit
+            lmrob.p <- anova(lmrob.null, lmrob.out)$"Pr(>chisq)"[2]
+            # report only coefficients with `P(>|t|)` < threshold
+            coefvec <- ifelse(coefficients(summary(lmrob.out))[,4] < threshold, coefficients(summarylmrob.out)[,4], NA)
+        } # end else
+                                      
         # return values
         return(c(modp = lmrob.p,
                  coefvec))
