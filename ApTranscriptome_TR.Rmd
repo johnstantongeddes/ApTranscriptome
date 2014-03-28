@@ -396,6 +396,11 @@ model <- "TPM ~ colony + val + I(val^2) + colony:val + colony:I(val^2)"
 # identify responsive transcripts
 RxNout <- RxNseq(f = TPM.dt.sub, model = model, threshold = 0.05)
 
+# outliers may influence results. test for this by fitting with response log(TPM+1)
+modellog <-  "log(TPM+1) ~ colony + val + I(val^2) + colony:val + colony:I(val^2)"
+RxNout.log <- RxNseq(f = TPM.dt.sub, model = modellog, threshold = 0.05)
+
+
 save.image("RxN_combined_results.RData")
 ```
 
