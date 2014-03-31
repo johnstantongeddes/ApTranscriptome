@@ -45,30 +45,37 @@ RxNseq <- function(f, model = "NA", threshold = 0.05) {
     # Returns:
     #  Returns dataframe with p-value and regression coefficients
     #  for each transcript
+      
 
     # requires
     require(stringr)
-    require(robustbase)
     require(plyr)
     
-    dd <- ddply(f, .(Transcript), .progress = "text", .inform = TRUE, function(f) {
-        # robust regression - suppressWarnings so ddply runs
-        lmrob.out <- suppressWarnings(eval(parse(text = paste("lmrob(", model, ", setting = 'KS2011', data = f)", sep = ""))))
-        # check if model converged. if not, modp=NA
-        if(lmrob.out$converged == FALSE) {
-            coefvec <- coefficients(summary(lmrob.out))[,1]
-            lmrob.p <- NA
-        } else {
-            # fit null model
-            lmrob.null <- lmrob(TPM ~ 1, data = f)
-            # test of overall model fit
-            lmrob.p <- anova(lmrob.null, lmrob.out)$"Pr(>chisq)"[2]
-            # report only coefficients with `P(>|t|)` < threshold
-            coefvec <- ifelse(coefficients(summary(lmrob.out))[,4] < threshold, coefficients(summary(lmrob.out))[,4], NA)
-        } # end else
-                                      
+    #########################################################################
+    # Function to report overall model P-value
+
+    lmp <- function(modelobject) {
+        if (class(modelobject) != "lm") stop("Not an object of class 'lm' ")
+        f <- summary(modelobject)$fstatistic
+        p <- unname(pf(f[1],f[2],f[3],lower.tail=F))
+        attributes(p) <- NULL
+        return(p)
+    }
+    ##########################################################################
+
+    dd <- ddply(f, .(Transcript), .progress="text", function(f) {
+        # fit model
+        lmout <- eval(parse(text = paste("lm(", model, ", data = f)", sep = "")))
+        Fvals <- anova(lmout)$'Pr(>F)'
+        
+        # stepAIC to drop non-significant terms
+        f.lmout <- stepAIC(lmout)
+        
+        # report significant coefficients
+        coefvec <- coefficients(f.lmout)
+        
         # return values
-        return(c(modp = lmrob.p,
+        return(c(pval = lmp(lmout),
                  coefvec))
         } # end function
     ) # end ddply

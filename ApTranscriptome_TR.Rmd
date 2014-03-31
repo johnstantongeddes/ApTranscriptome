@@ -3,7 +3,7 @@ Thermal reactionome of the common ant species *Aphaenogaster*
    
 **Author:** [John Stanton-Geddes](john.stantongeddes.research@gmail.com)
 
-**March 20, 2014**
+**March 31, 2014**
 
 **Technical Report No. 3**
 
@@ -25,6 +25,7 @@ library(stringr)
 library(data.table)
 library(RCurl)
 library(plyr)
+library(MASS)
 
 # Load Bioconductor libraries
 #source("http://bioconductor.org/biocLite.R")
@@ -389,47 +390,70 @@ str(TPM.dt)
 setkey(TPM.dt, val)
 TPM.dt.sub <- TPM.dt[val != 7] 
 unique(TPM.dt.sub$val)
-
-# define model for RxN function
-model <- "TPM ~ colony + val + I(val^2) + colony:val + colony:I(val^2)"
-
-# identify responsive transcripts
-RxNout <- RxNseq(f = TPM.dt.sub, model = model, threshold = 0.05)
-
-# outliers may influence results. test for this by fitting with response log(TPM+1)
-modellog <-  "log(TPM+1) ~ colony + val + I(val^2) + colony:val + colony:I(val^2)"
-RxNout.log <- RxNseq(f = TPM.dt.sub, model = modellog, threshold = 0.05)
-
-
-save.image("RxN_combined_results.RData")
 ```
 
-Of the `r nrow(RxNout)` transcripts, `r length(which(RxNout$pval < 0.05))` have models with P < 0.05.
+(1) Identify transcripts with overall significant model fit. Adjust *P* values for multiple testing using FDR and retain transcripts with FDR < 0.05. Use log-transformed response to account for outliers.
 
-Many of these are likely false positives, so I adjusted P-values using false discovery rate (FDR) to identify only those transcripts with less than 5% FDR as significant. 
+
+```{r modp}
+# define model for RxN function
+model <-  "log(TPM+1) ~ colony + val + I(val^2) + colony:val + colony:I(val^2)"
+
+# define function for `ddply` to calculate overall model P value
+modpFunc <- function(foo) {
+  # fit lm
+  lmout <- eval(parse(text = paste("lm(", model, ", data = foo)", sep = "")))
+  
+  # calculate overall model significance
+  f <- summary(lmout)$fstatistic
+  pval <- unname(pf(f[1],f[2],f[3],lower.tail=F))
+  attributes(pval) <- NULL
+  
+  # return pvalue
+  c(pval = pval) 
+}
+
+RxNpval <- ddply(TPM.dt.sub, .(Transcript), .progress="text", .inform="TRUE", modpFunc)
+```
+
+Of the `r nrow(RxNpval)` transcripts, `r length(which(RxNpval$pval < 0.05))` have models with P < 0.05.
+
+Many of these are likely false positives, so I adjust P-values using false discovery rate (FDR). Only those transcripts with less than 5% FDR are retained as significant. 
 
 ```{r fdr}
-RxNout$padj <- p.adjust(RxNout$pval, method = "fdr")
+RxNpval$padj <- p.adjust(RxNpval$pval, method = "fdr")
 # Plot FDR values against initial pvalues
 par(mfrow = c(2,1))
-hist(RxNout$pval)
-hist(RxNout$padj)
+hist(RxNpval$pval)
+hist(RxNpval$padj)
 
 # subset to significant transcripts
-signif.transcripts <- RxNout[which(RxNout$padj < 0.05), ]
+signif.transcripts <- RxNpval[which(RxNpval$padj < 0.05), ]
+
+# extract significant transcripts
+sig.TPM.dt.sub <- TPM.dt.sub[signif.transcripts$Transcript]
 ```
 
-## Functional annotation ##
+At the 5% FDR significance threshold, there are `r nrow(signif.transcripts)` transcripts with an overall significant model.
 
-In the previous section, I identified transcripts that show significant responses in expression. Next, I add gene annotation and ontology information to these transcripts.  
 
-```{r annotation}
-# add annotation information
-setkey(annotationtable, Sequence.Name)
-signif.transcripts <- data.table(signif.transcripts)
-setkey(signif.transcripts, Transcript)
-signif.transcripts <- annotationtable[signif.transcripts]
-setnames(signif.transcripts, "Sequence.Name", "Transcript")
+(2) Fit linear model to overall significant transcripts; perform stepAIC to retain only significant terms, and save `lm` output to list
+
+```{r lmFunc}
+# first, define function to use
+lmFunc <- function(bar) {
+  # fit lm
+  lmout <- eval(parse(text = paste("lm(", model, ", data = bar)", sep = "")))
+  
+  # stepAIC to drop non-significant terms
+  f.lmout <- stepAIC(lmout)
+  
+  # return final model
+  return(f.lmout) 
+}
+
+# apply function to all responsive transcripts
+RxNlmAIC <- dlply(sig.TPM.dt.sub, .(Transcript), .progress="text", lmFunc)
 ```
 
 
@@ -439,43 +463,46 @@ The set of transcripts with significant expression patterns include those with e
 
 ```{r responsive_transcripts}
 # transcripts that differ in expression by colony only
-colony.transcripts <- signif.transcripts[!is.na(signif.transcripts$'coef.colony') & is.na(signif.transcripts$'coef.val') & is.na(signif.transcripts$'coef.I(val^2)') & is.na(signif.transcripts$'coef.colony:val') & is.na(signif.transcripts$'coef.colony:I(val^2)')]
-# check that subset correct - no transcripts with significant temperature terms
-length(which(!is.na(colony.transcripts$'coef.val') | !is.na(colony.transcripts$'coef.I(val^2)') | !is.na(colony.transcripts$'coef.colony:val') | !is.na(colony.transcripts$'coef.I(val^2)')))
-str(colony.transcripts)
-# order by adjusted P-value
-colony.transcripts <- colony.transcripts[order(colony.transcripts$padj), ]
+keepthis <- function(lmitem, term = NA) {
+  coefs <- coefficients(lmitem)
+  coef.names <- names(coefs)
+  keep <- ifelse(term %in% coef.names, TRUE, FALSE)
+}
 
-# remaining transcripts are thermally responsive
-responsive.transcripts <- signif.transcripts[!is.na(signif.transcripts$'coef.val') | !is.na(signif.transcripts$'coef.I(val^2)') | !is.na(signif.transcripts$'coef.colony:val') | !is.na(signif.transcripts$'coef.colony:I(val^2)')]
-dim(responsive.transcripts)
+# identify sets of transcripts that include each term in final model
+colony.transcripts <- RxNlmAIC[which(Map(keepthis, RxNlmAIC, term = "colonyAr") == TRUE)]
+temp.lin.transcripts <- RxNlmAIC[which(Map(keepthis, RxNlmAIC, term = "val") == TRUE)]
+temp.quad.transcripts <- RxNlmAIC[which(Map(keepthis, RxNlmAIC, term = "I(val^2)") == TRUE)]
+col.by.temp.transcripts <- RxNlmAIC[which(Map(keepthis, RxNlmAIC, term = "colonyAr:val") == TRUE)]
+col.by.temp.quad.transcripts <- RxNlmAIC[which(Map(keepthis, RxNlmAIC, term = "colonyAr:I(val^2)") == TRUE)]
 
-# check that these two groups sum to total significant transcripts
-stopifnot(all.equal(nrow(signif.transcripts), nrow(colony.transcripts) + nrow(responsive.transcripts)))
+# union of thermally-responsive transcripts
+responsive.transcripts <- union(temp.lin.transcripts, temp.quad.transcripts)
+responsive.transcripts <- union(responsive.transcripts, col.by.temp.transcripts)
+responsive.transcripts <- union(responsive.transcripts, col.by.temp.quad.transcripts)
+length(responsive.transcripts)
+
+# transcripts that have a colony effect only 
+colony.transcripts <- setdiff(RxNlmAIC, responsive.transcripts)
+
+# transcripts that have colony x temperature interaction
+interaction.transcripts <- union(col.by.temp.transcripts, col.by.temp.quad.transcripts)
 
 # split responsive_transcripts into those that have same temperature response in both colonies and 
 # main effect of temperature only
-temperature.transcripts <- responsive.transcripts[is.na(responsive.transcripts$'coef.colony:val') & is.na(responsive.transcripts$'coef.colony:I(val^2)')]
-# order by adjusted P-value
-temperature.transcripts <- temperature.transcripts[order(temperature.transcripts$padj), ]
-str(temperature.transcripts)
-
-# transcripts that have colony x temperature interaction
-interaction.transcripts <- signif.transcripts[!is.na(signif.transcripts$'coef.colony:val') | !is.na(signif.transcripts$'coef.colony:I(val^2)')]
-# order by adjusted P-value
-interaction.transcripts <- interaction.transcripts[order(interaction.transcripts$padj), ]
-str(interaction.transcripts)
-
-# check that these two groups sum to total responsive transcripts
-stopifnot(all.equal(nrow(responsive.transcripts), nrow(temperature.transcripts) + nrow(interaction.transcripts)))
+temperature.transcripts <- setdiff(responsive.transcripts, interaction.transcripts)
 ```
+
+
+
+
 
 ```{r table_results, echo=FALSE, results='asis'}
 clist <- c('Total', 'Colony', 'Temperature', 'Temperature:Colony')
-siglist <- c(nrow(signif.transcripts),
-             nrow(colony.transcripts),
-             nrow(temperature.transcripts),
-             nrow(interaction.transcripts)
+siglist <- c(length(RxNlmAIC),
+             length(colony.transcripts),
+             length(temperature.transcripts),
+             length(interaction.transcripts)
              )
 
 sigtable <- data.frame(Coefficient = clist, "Number significant" = siglist)
@@ -581,6 +608,22 @@ pandoc.table(exp_type.table, style="rmarkdown", caption = "Number of transcripts
 ```
 
 Table 4 shows the number of transcripts that fall into each expression type for each each colony. The totals for each colony include the `r nrow(temperature.transcripts)` transcripts that have consistent temperature responses between the two colonies. 
+
+
+
+## Functional annotation ##
+
+In the previous section, I identified transcripts that show significant responses in expression. Next, I add gene annotation and ontology information to these transcripts.  
+
+```{r annotation}
+# add annotation information
+setkey(annotationtable, Sequence.Name)
+signif.transcripts <- data.table(signif.transcripts)
+setkey(signif.transcripts, Transcript)
+signif.transcripts <- annotationtable[signif.transcripts]
+setnames(signif.transcripts, "Sequence.Name", "Transcript")
+```
+
 
 
 ## Shiny interactive web-app
