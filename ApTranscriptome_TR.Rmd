@@ -462,39 +462,18 @@ RxNlmAIC <- dlply(sig.TPM.dt.sub, .(Transcript), .progress="text", lmFunc)
 The set of transcripts with significant expression patterns include those with expression that differs by colony, temperature and the interaction of colony and temperature. In this section, I am specifically interested in the thermally-responsive transcripts (temperature and colony x temperature) so I subset the significant transcripts to examine these. 
 
 ```{r responsive_transcripts}
-# transcripts that differ in expression by colony only
-keepthis <- function(lmitem, term = NA) {
+grepFunc <- function(lmitem, term = NA) {
   coefs <- coefficients(lmitem)
   coef.names <- names(coefs)
-  keep <- ifelse(term %in% coef.names, TRUE, FALSE)
+  keep <- if(length(grep(term, coef.names)) > 0) TRUE else FALSE
 }
 
-# identify sets of transcripts that include each term in final model
-colony.transcripts <- RxNlmAIC[which(Map(keepthis, RxNlmAIC, term = "colonyAr") == TRUE)]
-temp.lin.transcripts <- RxNlmAIC[which(Map(keepthis, RxNlmAIC, term = "val") == TRUE)]
-temp.quad.transcripts <- RxNlmAIC[which(Map(keepthis, RxNlmAIC, term = "I(val^2)") == TRUE)]
-col.by.temp.transcripts <- RxNlmAIC[which(Map(keepthis, RxNlmAIC, term = "colonyAr:val") == TRUE)]
-col.by.temp.quad.transcripts <- RxNlmAIC[which(Map(keepthis, RxNlmAIC, term = "colonyAr:I(val^2)") == TRUE)]
-
-# union of thermally-responsive transcripts
-responsive.transcripts <- union(temp.lin.transcripts, temp.quad.transcripts)
-responsive.transcripts <- union(responsive.transcripts, col.by.temp.transcripts)
-responsive.transcripts <- union(responsive.transcripts, col.by.temp.quad.transcripts)
-length(responsive.transcripts)
-
-# transcripts that have a colony effect only 
-colony.transcripts <- setdiff(RxNlmAIC, responsive.transcripts)
-
-# transcripts that have colony x temperature interaction
-interaction.transcripts <- union(col.by.temp.transcripts, col.by.temp.quad.transcripts)
-
-# split responsive_transcripts into those that have same temperature response in both colonies and 
-# main effect of temperature only
-temperature.transcripts <- setdiff(responsive.transcripts, interaction.transcripts)
+interaction.transcripts <- RxNlmAIC[which(Map(grepFunc, RxNlmAIC, term = "colonyAr:") == TRUE)]
+other.transcripts <- RxNlmAIC[setdiff(names(RxNlmAIC), names(interaction.transcripts))]
+temperature.transcripts <- other.transcripts[which(Map(grepFunc, other.transcripts, term = "val") == TRUE)]
+colony.transcripts <- other.transcripts[setdiff(names(other.transcripts), names(temperature.transcripts))]
+rm(other.transcripts)
 ```
-
-
-
 
 
 ```{r table_results, echo=FALSE, results='asis'}
@@ -510,39 +489,10 @@ sigtable <- data.frame(Coefficient = clist, "Number significant" = siglist)
 pandoc.table(sigtable, style="rmarkdown", caption = "Number of transcripts (of 105,536 total) at 5% FDR with expression that depends on colony, temperature or their interaction.")
 ```
 
-Table 3 shows that `r round((nrow(temperature.transcripts) + nrow(interaction.transcripts))/nrow(signif.transcripts), 2)*100`% of the significant transcripts are thermally-responsive, with `r round(nrow(interaction.transcripts)/(nrow(temperature.transcripts) + nrow(interaction.transcripts)), 2)*100`% of these transcripts having a thermal-response that differs by colony.
-
-
-I perform gene set enrichment analysis below, but a quick `grep` shows that there are 26 transcripts with GO term "response to stress", though this is not enriched compared to the frequency of this term in the full dataset.
-  
-```{r GO_contingency_test}
-# GO 'response to stress' hits in responsive transcripts
-responsive.transcripts[grep("GO:0006950", responsive.transcripts$GO.Biological.Process), list(Transcript, best.hit.to.nr)]
-
-resp.stress.responsive.count <- nrow(responsive.transcripts[grep("GO:0006950", responsive.transcripts$GO.Biological.Process), list(Transcript, best.hit.to.nr)])
-# GO 'response to stress' hits in all transcripts
-resp.stress.all.count <- nrow(annotationtable[grep("GO:0006950", annotationtable$GO.Biological.Process), list(Sequence.Name, best.hit.to.nr)])
-
-GO.stress.table <- matrix(rbind(resp.stress.responsive.count, nrow(responsive.transcripts) - resp.stress.responsive.count, resp.stress.all.count, nrow(annotationtable) - resp.stress.all.count), nrow = 2)
-
-GO.stress.Xsq <- chisq.test(GO.stress.table)
-GO.stress.Xsq
-```
-
-There are also 4 heat shock related genes in the responsive transcripts, out of 130 total.
-
-```{r grep_shock}
-hsp_responsive <- responsive.transcripts[grep("shock", responsive.transcripts$best.hit.to.nr), list(Transcript, best.hit.to.nr)]
-nrow(hsp_responsive)
-
-hsp_all <- annotationtable[grep("shock", annotationtable$best.hit.to.nr), list(Sequence.Name, best.hit.to.nr)]
-nrow(hsp_all)
-```
-
 
 ### Thermal-response functional types ###
 
-The previous section simply identified the transcripts with thermally-responsive expression. In this section, I determine the shape of the expression response to temperature for each transcript. Categories of expression response are:
+The previous section identified the transcripts with thermally-responsive expression. In this section, I determine the shape of the expression response to temperature for each transcript. Categories of expression response are:
 
 * High - increase expression with temperature
 * Low - decrease expression with temperature
@@ -552,10 +502,52 @@ The previous section simply identified the transcripts with thermally-responsive
 I do this first for the thermally-responsive transcripts where there is no interaction with colony. For the transcripts where thermal-responsive expression depends on colony, I determine the functional type of the expression response separately for each colony. 
 
 
-
 ```{r expression_shape, eval=TRUE, echo=TRUE}
+
+test.transcripts <- temperature.transcripts[1:10]
+
+response.type <- ldply(test.transcripts, .progress = "text", RxNtype)
+
+RxNtype <- function(lmitem) {
+  # predict 
+  pred.vals <- seq(from = 0, to = 38.5, by = 0.5)
+  newdf <- data.frame(val = pred.vals, colony = as.factor(rep(unlist(lmitem$xlevels), each = length(pred.vals))))
+  pout <- predict(lmout, newdata=newdf)
+  pout <- cbind(newdf, pTPM = pout)
+
+  max.val
+  # for each colony
+  for(c in levels(pout$colony)) {
+    
+    
+    # get max val
+    max.val <- pout[which(pout$pTPM == max(pout$pTPM)), "val"]
+    # get min val
+    min.val <- pout[which(pout$pTPM == min(pout$pTPM)), "val"]
+    # determine expression shape
+    exp_type <- NA
+    # expression type defined as "Bimodal" if max expression below 10C and above 30C is greater than 2 standard deviations above expression at the optimum temperature (19.5C)
+    if(max(pout[pout$val < 10, "pTPM"]) > (pout[pout$val == 19.5, "pTPM"] + 2*sd(pout$pTPM)) & max(pout[pout$val > 10, "pTPM"]) > (pout[pout$val == 19.5, "pTPM"] + 2*sd(pout$pTPM)))   exp_type <- "Bimodal" else {
+      # expression type "High" if max expression at temperature above 30C
+      if(max.val > 30) exp_type <- "High" else {
+        # expression type "Low" if max expression at temperature below 10C
+        if(max.val < 10) exp_type <- "Low" else
+          exp_type <- "Intermediate"
+        } # end else
+      } # end else
+    }
+  }
+
+
+
+
+# plot
+#qplot(val, pTPM, facets = .~colony, data = pout, geom="smooth")
+
+
+
 # merge RxN results with expression values
-temperature.transcripts.TPM <- TPM.dt.sub[temperature.transcripts]
+temperature.transcripts.TPM <- TPM.dt.sub[names(temperature.transcripts)]
 
 # apply the 'RxNply' function to determine maximum and minimum temperatures of expression, as well as the expression level at the optimum temperature of 19.25C
 temperature.transcripts.type <- ddply(temperature.transcripts.TPM, .(Transcript), RxNply)
@@ -608,6 +600,42 @@ pandoc.table(exp_type.table, style="rmarkdown", caption = "Number of transcripts
 ```
 
 Table 4 shows the number of transcripts that fall into each expression type for each each colony. The totals for each colony include the `r nrow(temperature.transcripts)` transcripts that have consistent temperature responses between the two colonies. 
+
+
+
+
+
+
+
+
+I perform gene set enrichment analysis below, but a quick `grep` shows that there are 26 transcripts with GO term "response to stress", though this is not enriched compared to the frequency of this term in the full dataset.
+  
+```{r GO_contingency_test}
+# GO 'response to stress' hits in responsive transcripts
+responsive.transcripts[grep("GO:0006950", responsive.transcripts$GO.Biological.Process), list(Transcript, best.hit.to.nr)]
+
+resp.stress.responsive.count <- nrow(responsive.transcripts[grep("GO:0006950", responsive.transcripts$GO.Biological.Process), list(Transcript, best.hit.to.nr)])
+# GO 'response to stress' hits in all transcripts
+resp.stress.all.count <- nrow(annotationtable[grep("GO:0006950", annotationtable$GO.Biological.Process), list(Sequence.Name, best.hit.to.nr)])
+
+GO.stress.table <- matrix(rbind(resp.stress.responsive.count, nrow(responsive.transcripts) - resp.stress.responsive.count, resp.stress.all.count, nrow(annotationtable) - resp.stress.all.count), nrow = 2)
+
+GO.stress.Xsq <- chisq.test(GO.stress.table)
+GO.stress.Xsq
+```
+
+There are also 4 heat shock related genes in the responsive transcripts, out of 130 total.
+
+```{r grep_shock}
+hsp_responsive <- responsive.transcripts[grep("shock", responsive.transcripts$best.hit.to.nr), list(Transcript, best.hit.to.nr)]
+nrow(hsp_responsive)
+
+hsp_all <- annotationtable[grep("shock", annotationtable$best.hit.to.nr), list(Sequence.Name, best.hit.to.nr)]
+nrow(hsp_all)
+```
+
+
+
 
 
 

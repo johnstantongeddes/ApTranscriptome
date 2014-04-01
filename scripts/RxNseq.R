@@ -25,64 +25,6 @@ read.sailfish.quant <- function(filein, outname, samp, trtval) {
 }
 
 
-############################################################################################
-## RxNseq
-############################################################################################
-
-RxNseq <- function(f, model = "NA", threshold = 0.05) {
-    # Identify transcripts with significant reaction norms against a continuous variable
-    #
-    # Args:
-    #  f: data.frame in long format. must contain columns specified in model formula.
-    #     column with name "Transcript" must exist for proper split-apply
-    #  model: model formula
-    #     NOTE - for function to work correctly, each model term must be separated
-    #     by a single space. for example:
-    #            TPM ~ colony + val + colony:val
-    #     it is important that interactions are grouped together, no spaces
-    #  threshold: P-value threshold to determine if a coefficient is significant
-    #  
-    # Returns:
-    #  Returns dataframe with p-value and regression coefficients
-    #  for each transcript
-      
-
-    # requires
-    require(stringr)
-    require(plyr)
-    
-    #########################################################################
-    # Function to report overall model P-value
-
-    lmp <- function(modelobject) {
-        if (class(modelobject) != "lm") stop("Not an object of class 'lm' ")
-        f <- summary(modelobject)$fstatistic
-        p <- unname(pf(f[1],f[2],f[3],lower.tail=F))
-        attributes(p) <- NULL
-        return(p)
-    }
-    ##########################################################################
-
-    dd <- ddply(f, .(Transcript), .progress="text", function(f) {
-        # fit model
-        lmout <- eval(parse(text = paste("lm(", model, ", data = f)", sep = "")))
-        Fvals <- anova(lmout)$'Pr(>F)'
-        
-        # stepAIC to drop non-significant terms
-        f.lmout <- stepAIC(lmout)
-        
-        # report significant coefficients
-        coefvec <- coefficients(f.lmout)
-        
-        # return values
-        return(c(pval = lmp(lmout),
-                 coefvec))
-        } # end function
-    ) # end ddply
-} # end function
-
-
-
 
 ############################################################################################
 ## RxNply
