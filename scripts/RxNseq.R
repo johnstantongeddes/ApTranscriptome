@@ -25,150 +25,76 @@ read.sailfish.quant <- function(filein, outname, samp, trtval) {
 }
 
 
-
 ############################################################################################
-## RxNply
+## RxNtype
 ############################################################################################
 
-RxNply <- function(df1) {
-  # Function supplied to `ddply` to report the values at which minimum and maximum expression
-  # occur, the expression level at the optimum 'temperature' and the overall shape of the 
-  # expression function
-  #
-  # Args:
-  #  df1: dataframe in long format containing expression information
-  #
-  # Returns:
-  #  dataframe with maximum value of expression (max.val), minimum value of expression (min.val),
-  #  expression at optimum (opt.exp) and the shape of the expression function (exp_type)
-  
-  lmout <- lm(TPM ~ val + I(val^2), data = df1)
-  # NOTE - added a point to predict at 19.25C as this is the mean of the end points (0, 38.5)
-  vals <- c(0, 3.5, 10, 14, 17.5, 19.25, 21, 24.5, 28, 31.5, 35, 38.5)
-  newdf <- data.frame(val = vals)
-  pout <- predict(lmout, newdata=newdf)
-  pout <- data.frame(val = vals, exp = pout)
-  
-  # if all data is zero, set values to NA 
-  if(coef(lmout)['(Intercept)'] == 0 & coef(lmout)['val'] == 0 & coef(lmout)['I(val^2)'] == 0) {
-    max.val = NA
-    min.val = NA
-    opt.exp = NA
-    exp_type = "NotExp"
-  } else { # else set values based on predicted expression levels
+RxNtype <- function(lmitem) {
+    # Function passed to `ldply` that defines transcripts into response type
+    #
+    # Arguments:
+    #  lmitem: object of class `lm`
+    #
+    # Returns
+    #   dataframe with values of max expression, min expression and expression type for each colony
     
-    # get vals of max and min expression, and expression at 
-    max.val <- vals[which(pout$exp == max(pout$exp))]
-    min.val <- vals[which(pout$exp == min(pout$exp))]
-    
-    # report coefficients
-    #coef(lmout)
-    exp_type = if(coef(lmout)['val'] > 0 & coef(lmout)['I(val^2)'] > 0) "High" else {
-      if(coef(lmout)['val'] < 0 & coef(lmout)['I(val^2)'] < 0) "Low" else {
-        if(coef(lmout)['val'] > 0 & coef(lmout)['I(val^2)'] < 0) "Intermediate" else {
-          "convex"} # close else
-        } # close else
-      } # close else
-    
-    # for transcripts with "Intermediate" exp_type, assign to "High" if max expression is above 30 or "Low" if max expression is below 10
-    if(exp_type == "Intermediate") {
-      if(pout[which(pout$exp == max(pout$exp)), "val"] > 30) exp_type = "High" else {
-        if(pout[which(pout$exp == max(pout$exp)), "val"] < 10) exp_type = "Low"
+  # predict 
+  pred.vals <- seq(from = 0, to = 38.5, by = 0.5)
+  newdf <- data.frame(val = pred.vals, colony = as.factor(rep(unlist(lmitem$xlevels), each = length(pred.vals))))
+  pout <- predict(lmitem, newdata=newdf)
+  pout <- cbind(newdf, pTPM = pout)
+
+  # Calculate for A22
+  A22.pout <- pout[pout$colony == "A22", ]
+  # get max val
+  A22.max.val <- A22.pout[which(A22.pout$pTPM == max(A22.pout$pTPM)), "val"]
+  # get min val
+  A22.min.val <- A22.pout[which(A22.pout$pTPM == min(A22.pout$pTPM)), "val"]
+  # expression at optimum temp
+  A22.opt <- A22.pout[A22.pout$val == 19.5, "pTPM"]
+  # determine expression shape
+  A22.exp.type <- NA
+  # expression type defined as "Bimodal" if max expression below 10C and above 30C is greater than 2 standard deviations above expression at the optimum temperature (19.5C)
+  if(max(A22.pout[A22.pout$val < 10, "pTPM"])[1] > (A22.pout[A22.pout$val == 19.5, "pTPM"] + 2*sd(A22.pout$pTPM)) & max(A22.pout[A22.pout$val > 30, "pTPM"])[1] > (A22.pout[A22.pout$val == 19.5, "pTPM"] + 2*sd(A22.pout$pTPM))) A22.exp.type <- "Bimodal" else {
+    # expression type "High" if max expression at temperature above 30C
+    if(A22.max.val > 30) A22.exp.type <- "High" else {
+      # expression type "Low" if max expression at temperature below 10C
+      if(A22.max.val < 10) A22.exp.type <- "Low" else
+        A22.exp.type <- "Intermediate"
       } # end else
-    } # end if
-    
-    # for transcripts with convex exp_type, assign to 'bimodal' if expression at both ends greater
-    # than 2 SD, otherwise assign to 'low' or 'high' depending on where expression is higher
-    if(exp_type == "convex") { 
-      if(max(pout[pout$val <= 10, "exp"]) > (pout[pout$val == 19.25, "exp"] + 2*sd(pout$exp)) &
-           max(pout[pout$val >= 31.5, "exp"]) > (pout[pout$val == 19.25, "exp"] + 2*sd(pout$exp))) exp_type = "Bimodal" else {
-             # linear increase?
-             if(max.val > min.val) exp_type = "High" else exp_type = "Low"
-           } # end if
-    } # end if
-  } # end else
-  
-  # return values
-  return(c(max.val = max.val,
-           min.val = min.val,
-           # report expression level at optimum, 19.25C
-           opt.exp = round(pout$exp[6], 4), 
-           exp_type = exp_type))
-} # end RxNply
+    } # end else
 
 
+  # Calculate for Ar
+  Ar.pout <- pout[pout$colony == "Ar", ]
+  # get max val
+  Ar.max.val <- Ar.pout[which(Ar.pout$pTPM == max(Ar.pout$pTPM)), "val"]
+  # get min val
+  Ar.min.val <- Ar.pout[which(Ar.pout$pTPM == min(Ar.pout$pTPM)), "val"]
+  # expression at optimum temp
+  Ar.opt <- Ar.pout[Ar.pout$val == 19.5, "pTPM"]
+  # determine expression shape
+  Ar.exp.type <- NA
+  # expression type defined as "Bimodal" if max expression below 10C and above 30C is greater than 2 standard deviations above expression at the optimum temperature (19.5C)
+  if(max(Ar.pout[Ar.pout$val < 10, "pTPM"])[1] > (Ar.pout[Ar.pout$val == 19.5, "pTPM"] + 2*sd(Ar.pout$pTPM)) & max(Ar.pout[Ar.pout$val > 30, "pTPM"])[1] > (Ar.pout[Ar.pout$val == 19.5, "pTPM"] + 2*sd(Ar.pout$pTPM)))   Ar.exp.type <- "Bimodal" else {
+    # expression type "High" if max expression at temperature above 30C
+    if(Ar.max.val > 30) Ar.exp.type <- "High" else {
+      # expression type "Low" if max expression at temperature below 10C
+      if(Ar.max.val < 10) Ar.exp.type <- "Low" else
+        Ar.exp.type <- "Intermediate"
+      } # end else
+    } # end else
 
-############################################################################################
-## RxNsd.concave
-############################################################################################
-
-RxNsd.concave <- function(df2) {
-  # Function supplied to `ddply` to report the variance of the expression function for each transcript
-  #
-  # Args:
-  #  df2: dataframe in long format containing expression information for only transcripts with 'Intermediate' (concave) expression
-  #
-  # Returns:
-  #  dataframe with variance of expression for each transcript
-  # 
-
-  lmout <- lm(TPM ~ val + I(val^2), data = df2)
-  # check that transcript has correct curvature
-  if(coef(lmout)['val'] < 0 & coef(lmout)['I(val^2)'] > 0) stop("Not all transcripts have Intermediate (concave) expression")
-
-  # predict across temp range
-  temp.int <- seq(from = 0, to = 38.5, by = 0.5)
-  temp.df <- data.frame(val = temp.int)
-  pout <- predict(lmout, newdata=temp.df)
-  # all predicted values need to be positive so can use them as probabilities to weight sampling
-  if(any(pout < 0)) {
-    mval <- min(pout)
-    pout <- pout + -mval
-  }
-    
-  # draw 1000 "temps" weighted by expression
-  random.draw <- sample(size = 1000, temp.int, prob = pout, replace = TRUE)
-  
-  # return variance
-  c(exp_sd = sd(random.draw))
-}
-
-
-
-############################################################################################
-## RxNsd.convex
-############################################################################################
-
-RxNsd.convex <- function(df2) {
-  # Similar to `RxNsd` but works for convex (bimodal) functions by taking the inverse of predicted values
-  #
-  # Args:
-  #  df2: dataframe in long format containing expression information for only transcripts with 'Bimodal' (concave) expression
-  #
-  # Returns:
-  #  dataframe with variance of expression for each transcript
-
-
-  lmout <- lm(TPM ~ val + I(val^2), data = df2)
-  # check that transcript has correct curvature
-  if(!coef(lmout)['val'] < 0 & !coef(lmout)['I(val^2)'] > 0) stop("Not all transcripts have Bimodal (convex) expression")
-
-  temp.int <- seq(from = 0, to = 38.5, by = 0.5)
-  temp.df <- data.frame(val = temp.int)
-  pout <- predict(lmout, newdata=temp.df)
-  
-  # all predicted values need to be positive so can use them as probabilities to weight sampling
-  if(any(pout < 0)) {
-    mval <- min(pout)
-    pout <- pout + -mval + 0.01
-  }
-    
-  # draw 1000 "temps" weighted by expression
-  random.draw <- sample(size = 1000, temp.int, prob = pout, replace = TRUE)
-  sd(random.draw)
-  # return variance
-  c(exp_sd = sd(random.draw))
-}
+  return(c(A22.max = A22.max.val,
+           A22.min = A22.min.val,
+           A22.opt = A22.opt,
+           A22.type = A22.exp.type,
+           Ar.max = Ar.max.val,
+           Ar.min = Ar.min.val,
+           Ar.opt = Ar.opt,
+           Ar.type = Ar.exp.type))
+           
+} # end RxNtype
 
 
 

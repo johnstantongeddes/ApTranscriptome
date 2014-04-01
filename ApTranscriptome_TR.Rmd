@@ -443,11 +443,9 @@ At the 5% FDR significance threshold, there are `r nrow(signif.transcripts)` tra
 # first, define function to use
 lmFunc <- function(bar) {
   # fit lm
-  lmout <- eval(parse(text = paste("lm(", model, ", data = bar)", sep = "")))
-  
+  lmout <- eval(parse(text = paste("lm(", model, ", data = bar)", sep = "")))  
   # stepAIC to drop non-significant terms
   f.lmout <- stepAIC(lmout)
-  
   # return final model
   return(f.lmout) 
 }
@@ -504,45 +502,13 @@ I do this first for the thermally-responsive transcripts where there is no inter
 
 ```{r expression_shape, eval=TRUE, echo=TRUE}
 
-test.transcripts <- temperature.transcripts[1:10]
-
-response.type <- ldply(test.transcripts, .progress = "text", RxNtype)
-
-RxNtype <- function(lmitem) {
-  # predict 
-  pred.vals <- seq(from = 0, to = 38.5, by = 0.5)
-  newdf <- data.frame(val = pred.vals, colony = as.factor(rep(unlist(lmitem$xlevels), each = length(pred.vals))))
-  pout <- predict(lmout, newdata=newdf)
-  pout <- cbind(newdf, pTPM = pout)
-
-  max.val
-  # for each colony
-  for(c in levels(pout$colony)) {
-    
-    
-    # get max val
-    max.val <- pout[which(pout$pTPM == max(pout$pTPM)), "val"]
-    # get min val
-    min.val <- pout[which(pout$pTPM == min(pout$pTPM)), "val"]
-    # determine expression shape
-    exp_type <- NA
-    # expression type defined as "Bimodal" if max expression below 10C and above 30C is greater than 2 standard deviations above expression at the optimum temperature (19.5C)
-    if(max(pout[pout$val < 10, "pTPM"]) > (pout[pout$val == 19.5, "pTPM"] + 2*sd(pout$pTPM)) & max(pout[pout$val > 10, "pTPM"]) > (pout[pout$val == 19.5, "pTPM"] + 2*sd(pout$pTPM)))   exp_type <- "Bimodal" else {
-      # expression type "High" if max expression at temperature above 30C
-      if(max.val > 30) exp_type <- "High" else {
-        # expression type "Low" if max expression at temperature below 10C
-        if(max.val < 10) exp_type <- "Low" else
-          exp_type <- "Intermediate"
-        } # end else
-      } # end else
-    }
-  }
+response.type <- ldply(interaction.transcripts, .progress = "text", .inform = TRUE, RxNtype)
 
 
 
 
 # plot
-#qplot(val, pTPM, facets = .~colony, data = pout, geom="smooth")
+#qplot(val, pTPM, facets = .~colony, data = A22.pout, geom="smooth")
 
 
 
@@ -554,7 +520,7 @@ temperature.transcripts.type <- ddply(temperature.transcripts.TPM, .(Transcript)
 temperature.transcripts.type$max.val <- as.numeric(temperature.transcripts.type$max.val)
 temperature.transcripts.type$min.val <- as.numeric(temperature.transcripts.type$min.val)
 temperature.transcripts.type$opt.exp <- as.numeric(temperature.transcripts.type$opt.exp)
-temperature.transcripts.type$exp_type <- as.factor(temperature.transcripts.type$exp_type)
+temperature.transcripts.type$A22.exp.type <- as.factor(temperature.transcripts.type$A22.exp.type)
 
 # repeat for transcripts that have an interaction with colongy
 # A22
@@ -562,7 +528,7 @@ A22.interaction.transcripts.type <- ddply(interaction.transcripts.TPM["A22"], .(
 A22.interaction.transcripts.type$max.val <- as.numeric(A22.interaction.transcripts.type$max.val)
 A22.interaction.transcripts.type$min.val <- as.numeric(A22.interaction.transcripts.type$min.val)
 A22.interaction.transcripts.type$opt.exp <- as.numeric(A22.interaction.transcripts.type$opt.exp)
-A22.interaction.transcripts.type$exp_type <- as.factor(A22.interaction.transcripts.type$exp_type)
+A22.interaction.transcripts.type$A22.exp.type <- as.factor(A22.interaction.transcripts.type$A22.exp.type)
 str(A22.interaction.transcripts.type)
 
 # Ar
@@ -570,7 +536,7 @@ Ar.interaction.transcripts.type <- ddply(interaction.transcripts.TPM["Ar"], .(Tr
 Ar.interaction.transcripts.type$max.val <- as.numeric(Ar.interaction.transcripts.type$max.val)
 Ar.interaction.transcripts.type$min.val <- as.numeric(Ar.interaction.transcripts.type$min.val)
 Ar.interaction.transcripts.type$opt.exp <- as.numeric(Ar.interaction.transcripts.type$opt.exp)
-Ar.interaction.transcripts.type$exp_type <- as.factor(Ar.interaction.transcripts.type$exp_type)
+Ar.interaction.transcripts.type$A22.exp.type <- as.factor(Ar.interaction.transcripts.type$A22.exp.type)
 str(Ar.interaction.transcripts.type)
 
 # combine into single data.table
@@ -588,15 +554,15 @@ str(responsive.transcripts.type)
 ```
 
 
-```{r expression_exp_type_table, eval=TRUE, echo=FALSE, results='asis'}
+```{r expression_A22.exp.type_table, eval=TRUE, echo=FALSE, results='asis'}
 # table type of response
-A22.type.table <- table(responsive.transcripts.type[responsive.transcripts.type$colony == "A22", 'exp_type'])
-Ar.type.table <- table(responsive.transcripts.type[responsive.transcripts.type$colony == "Ar", 'exp_type'])
+A22.type.table <- table(responsive.transcripts.type[responsive.transcripts.type$colony == "A22", 'A22.exp.type'])
+Ar.type.table <- table(responsive.transcripts.type[responsive.transcripts.type$colony == "Ar", 'A22.exp.type'])
 
-exp_type.table <- rbind(A22.type.table, Ar.type.table)
-rownames(exp_type.table) <- c("A22", "Ar")
+A22.exp.type.table <- rbind(A22.type.table, Ar.type.table)
+rownames(A22.exp.type.table) <- c("A22", "Ar")
 
-pandoc.table(exp_type.table, style="rmarkdown", caption = "Number of transcripts with maximum expression at high, low, intermediate or both high and low (bimodal) temperatures.")
+pandoc.table(A22.exp.type.table, style="rmarkdown", caption = "Number of transcripts with maximum expression at high, low, intermediate or both high and low (bimodal) temperatures.")
 ```
 
 Table 4 shows the number of transcripts that fall into each expression type for each each colony. The totals for each colony include the `r nrow(temperature.transcripts)` transcripts that have consistent temperature responses between the two colonies. 
@@ -697,7 +663,7 @@ Compare the expression levels at optimum (19.25C) between the two colonies for g
 
 ```{r optimum_expression_comparison, cache=TRUE, eval=FALSE}
 # list of transcripts that are 'high' expressed in A22
-A22_high_transcripts <- responsive.transcripts.type[which(responsive.transcripts.type$colony == "A22" & responsive.transcripts.type$exp_type == "High"), "Transcript"]
+A22_high_transcripts <- responsive.transcripts.type[which(responsive.transcripts.type$colony == "A22" & responsive.transcripts.type$A22.exp.type == "High"), "Transcript"]
 # dataframe of transcripts from both colonies that are 'high' expressed in A22
 A22_high_df <- responsive.transcripts.type[which(responsive.transcripts.type$Transcript %in% A22_high_transcripts), ]
 
@@ -724,7 +690,7 @@ Next I test the converse, that transcripts that are up-regulated at low temperat
 
 ```{r Ar_low_wilcoxon}
 # list of transcripts that are 'Low' expressed in Ar
-Ar_low_transcripts <- responsive.transcripts.type[which(responsive.transcripts.type$colony == "Ar" & responsive.transcripts.type$exp_type == "Low"), "Transcript"]
+Ar_low_transcripts <- responsive.transcripts.type[which(responsive.transcripts.type$colony == "Ar" & responsive.transcripts.type$A22.exp.type == "Low"), "Transcript"]
 # dataframe of transcripts from both colonies that are 'Low' expressed in Ar
 Ar_low_df <- responsive.transcripts.type[which(responsive.transcripts.type$Transcript %in% Ar_low_transcripts), ]
 dim(Ar_low_df)
@@ -743,7 +709,7 @@ To confirm that there are not sample-level issues, I performed the same comparis
 
 ```{r intermediate_transcripts}
 # list of transcripts that are 'Intermediate' expressed in A22
-A22_int_transcripts <- responsive.transcripts.type[which(responsive.transcripts.type$colony == "A22" & responsive.transcripts.type$exp_type == "Intermediate"), "Transcript"]
+A22_int_transcripts <- responsive.transcripts.type[which(responsive.transcripts.type$colony == "A22" & responsive.transcripts.type$A22.exp.type == "Intermediate"), "Transcript"]
 A22_int_df <- responsive.transcripts.type[which(responsive.transcripts.type$Transcript %in% A22_int_transcripts), ]
 A22_int_df$colony <- as.factor(A22_int_df$colony)
 
@@ -751,7 +717,7 @@ A22_int_df$colony <- as.factor(A22_int_df$colony)
 wilcox.test(A22_int_df[which(A22_int_df$colony == "A22"), "opt.exp"],  A22_int_df[which(A22_int_df$colony == "Ar"), "opt.exp"], alternative = "two.sided", paired = TRUE, conf.int = TRUE)
 
 # list of transcripts that are 'Intermediate' expressed in Ar
-Ar_int_transcripts <- responsive.transcripts.type[which(responsive.transcripts.type$colony == "Ar" & responsive.transcripts.type$exp_type == "Intermediate"), "Transcript"]
+Ar_int_transcripts <- responsive.transcripts.type[which(responsive.transcripts.type$colony == "Ar" & responsive.transcripts.type$A22.exp.type == "Intermediate"), "Transcript"]
 Ar_int_df <- responsive.transcripts.type[which(responsive.transcripts.type$Transcript %in% Ar_int_transcripts), ]
 
 # Wilcoxon signed rank-test
@@ -768,7 +734,7 @@ The 'Intermediate' expressed transcripts are core molecular processes that are e
 ```{r calc_Intermediate_variance}
 # extract 'Intermediate' expressed transcripts for A22 colony
 setkey(TPM.dt.sub, Transcript)
-A22trlist <- A22.interaction.transcripts.type[which(A22.interaction.transcripts.type$exp_type == "Intermediate"), "Transcript"]
+A22trlist <- A22.interaction.transcripts.type[which(A22.interaction.transcripts.type$A22.exp.type == "Intermediate"), "Transcript"]
 A22.TPM.int.dt <- TPM.dt.sub[A22trlist]
 setkey(A22.TPM.int.dt, colony)
 A22.TPM.int.dt <- A22.TPM.int.dt["A22"]
@@ -778,7 +744,7 @@ str(A22.TPM.int.dt)
 A22_int_sd <- ddply(A22.TPM.int.dt, .(Transcript), RxNsd.concave)
 
 # repeat for Ar
-Artrlist <- Ar.interaction.transcripts.type[which(Ar.interaction.transcripts.type$exp_type == "Intermediate"), "Transcript"]
+Artrlist <- Ar.interaction.transcripts.type[which(Ar.interaction.transcripts.type$A22.exp.type == "Intermediate"), "Transcript"]
 Ar.TPM.int.dt <- TPM.dt.sub[Artrlist]
 setkey(Ar.TPM.int.dt, colony)
 Ar.TPM.int.dt <- Ar.TPM.int.dt["Ar"]
@@ -813,7 +779,7 @@ As the converse of the above hypothesis, a colony that is especially thermally-s
 
 ```{r calc_Bimodal_variance}
 # extract 'Bimodal' expressed transcripts for A22 colony
-A22trlist.bim <- A22.interaction.transcripts.type[which(A22.interaction.transcripts.type$exp_type == "Bimodal"), "Transcript"]
+A22trlist.bim <- A22.interaction.transcripts.type[which(A22.interaction.transcripts.type$A22.exp.type == "Bimodal"), "Transcript"]
 A22.TPM.bim.dt <- TPM.dt.sub[A22trlist.bim]
 setkey(A22.TPM.bim.dt, colony)
 A22.TPM.bim.dt <- A22.TPM.bim.dt["A22"]
@@ -823,7 +789,7 @@ str(A22.TPM.bim.dt)
 A22_bim_sd <- ddply(A22.TPM.bim.dt, .(Transcript), RxNsd.convex)
 
 # repeat for Ar
-Artrlist.bim <- Ar.interaction.transcripts.type[which(Ar.interaction.transcripts.type$exp_type == "Bimodal"), "Transcript"]
+Artrlist.bim <- Ar.interaction.transcripts.type[which(Ar.interaction.transcripts.type$A22.exp.type == "Bimodal"), "Transcript"]
 Ar.TPM.bim.dt <- TPM.dt.sub[Artrlist.bim]
 setkey(Ar.TPM.bim.dt, colony)
 Ar.TPM.bim.dt <- Ar.TPM.bim.dt["Ar"]
@@ -874,7 +840,7 @@ dev.off()
 # faceted by type
 png(paste(resultsdir, "CDF_expression_intermediate_interaction.png", sep=""))
 g5 <- ggplot(interaction.transcripts.type, aes(x=max.val, group=colony)) + geom_density(alpha=0.2, position="identity")
-g5 + facet_grid(. ~ exp_type) + scale_y_continuous(name="Density") +
+g5 + facet_grid(. ~ A22.exp.type) + scale_y_continuous(name="Density") +
   scale_x_continuous(name="Temperature of maximum expression")
 dev.off()
 ```
@@ -950,23 +916,23 @@ dev.off()
 
 **2) High and low expressed transcripts**
 
-Use `selectTranscript` function to select transcripts based on 'exp_type'. As only significant transcripts have an 'exp_type' assigned, this is a small subset of the above.
+Use `selectTranscript` function to select transcripts based on 'A22.exp.type'. As only significant transcripts have an 'A22.exp.type' assigned, this is a small subset of the above.
 
-```{r exp_type_function}
+```{r A22.exp.type_function}
 selectTranscript <- function(score) {
     return(score == 1)
 }
 
-# To select genes, add 'exp_type' to RxN df
-RxNout.t <- merge(RxNout, Ap.exp_type, by="Transcript", all=TRUE)
-length(which(!is.na(RxNout.t$exp_type)))
+# To select genes, add 'A22.exp.type' to RxN df
+RxNout.t <- merge(RxNout, Ap.A22.exp.type, by="Transcript", all=TRUE)
+length(which(!is.na(RxNout.t$A22.exp.type)))
 ```
 
 
 ```{r bim.gsea, echo=TRUE, eval=TRUE}
 # create geneList
 Ap.bim.geneList <- rep(0, length = nrow(RxNout.t))
-Ap.bim.geneList[which(RxNout.t$exp_type=="Bimodal")] <- 1
+Ap.bim.geneList[which(RxNout.t$A22.exp.type=="Bimodal")] <- 1
 names(Ap.bim.geneList) <- RxNout.t$Transcript
 str(Ap.bim.geneList)
 table(Ap.bim.geneList)
@@ -1003,7 +969,7 @@ pandoc.table(Ap.bim.BP.ResTable)
 ```{r int.gsea, echo=TRUE, eval=TRUE}
 # create geneList
 Ap.int.geneList <- rep(0, length = nrow(RxNout.t))
-Ap.int.geneList[which(RxNout.t$exp_type=="Intermediate")] <- 1
+Ap.int.geneList[which(RxNout.t$A22.exp.type=="Intermediate")] <- 1
 names(Ap.int.geneList) <- RxNout.t$Transcript
 str(Ap.int.geneList)
 table(Ap.int.geneList)
@@ -1041,7 +1007,7 @@ pandoc.table(Ap.int.BP.ResTable)
 ```{r hig.gsea, echo=TRUE, eval=TRUE}
 # create geneList
 Ap.hig.geneList <- rep(0, length = nrow(RxNout.t))
-Ap.hig.geneList[which(RxNout.t$exp_type=="High")] <- 1
+Ap.hig.geneList[which(RxNout.t$A22.exp.type=="High")] <- 1
 names(Ap.hig.geneList) <- RxNout.t$Transcript
 str(Ap.hig.geneList)
 table(Ap.hig.geneList)
@@ -1078,7 +1044,7 @@ pandoc.table(Ap.hig.BP.ResTable)
 ```{r low.gsea, echo=TRUE, eval=TRUE}
 # create geneList
 Ap.low.geneList <- rep(0, length = nrow(RxNout.t))
-Ap.low.geneList[which(RxNout.t$exp_type=="Low")] <- 1
+Ap.low.geneList[which(RxNout.t$A22.exp.type=="Low")] <- 1
 names(Ap.low.geneList) <- RxNout.t$Transcript
 str(Ap.low.geneList)
 table(Ap.low.geneList)
@@ -1187,7 +1153,7 @@ p2
 # Same as p1, faceted by expression type
 p3 <- ggplot(temperature.transcripts.TPM, aes(x=val, y=exp.scaled, group=Transcript)) +
   geom_line() +
-  facet_grid(exp_type ~ colony) +
+  facet_grid(A22.exp.type ~ colony) +
   scale_y_continuous(name="Expression (scaled)") +
   scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
 p3
@@ -1195,7 +1161,7 @@ p3
 # Smooth plot, expression against temp, faceted by colony
 p4 <- ggplot(temperature.transcripts.TPM, aes(x=val, y=exp.scaled, group=Transcript)) +
   geom_smooth() +
-  facet_grid(exp_type ~ colony) +
+  facet_grid(A22.exp.type ~ colony) +
   scale_y_continuous(name="Expression (scaled)") +
   scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
 p4
@@ -1224,7 +1190,7 @@ p2
 # Same as p1, faceted by expression type
 p3 <- ggplot(temperature.transcripts.TPM.interaction, aes(x=val, y=exp.scaled, group=Transcript)) +
   geom_line() +
-  facet_grid(exp_type ~ colony) +
+  facet_grid(A22.exp.type ~ colony) +
   scale_y_continuous(name="Expression (scaled)") +
   scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
 p3
@@ -1232,7 +1198,7 @@ p3
 # Smooth plot, expression against temp, faceted by colony
 p4 <- ggplot(temperature.transcripts.TPM.interaction, aes(x=val, y=exp.scaled, group=Transcript)) +
   geom_smooth() +
-  facet_grid(exp_type ~ colony) +
+  facet_grid(A22.exp.type ~ colony) +
   scale_y_continuous(name="Expression (scaled)") +
   scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
 p4
@@ -1265,7 +1231,7 @@ dev.off()
 png(paste(resultsdir, "Ap_expression_by_colony_exp_line.png", sep=""))
   p3 <- ggplot(temperature.transcripts.TPM, aes(x=val, y=exp.scaled, group=Transcript)) +
     geom_line() +
-    facet_grid(exp_type ~ colony) +
+    facet_grid(A22.exp.type ~ colony) +
     scale_y_continuous(name="Expression (scaled)") +
     scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
   p3
@@ -1275,7 +1241,7 @@ dev.off()
 png(paste(resultsdir, "Ap_expression_by_colony_exp_smooth.png", sep=""))
   p4 <- ggplot(temperature.transcripts.TPM, aes(x=val, y=exp.scaled, group=Transcript)) +
     geom_smooth() +
-    facet_grid(exp_type ~ colony) +
+    facet_grid(A22.exp.type ~ colony) +
     scale_y_continuous(name="Expression (scaled)") +
     scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
   p4
@@ -1309,7 +1275,7 @@ dev.off()
 png(paste(resultsdir, "Ap_expression_interaction_by_colony_exp_line.png", sep=""))
   p3 <- ggplot(temperature.transcripts.TPM.interaction, aes(x=val, y=exp.scaled, group=Transcript)) +
     geom_line() +
-    facet_grid(exp_type ~ colony) +
+    facet_grid(A22.exp.type ~ colony) +
     scale_y_continuous(name="Expression (scaled)") +
     scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
   p3
@@ -1319,7 +1285,7 @@ dev.off()
 png(paste(resultsdir, "Ap_expression_interaction_by_colony_exp_smooth.png", sep=""))
   p4 <- ggplot(temperature.transcripts.TPM.interaction, aes(x=val, y=exp.scaled, group=Transcript)) +
     geom_smooth() +
-    facet_grid(exp_type ~ colony) +
+    facet_grid(A22.exp.type ~ colony) +
     scale_y_continuous(name="Expression (scaled)") +
     scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
   p4
