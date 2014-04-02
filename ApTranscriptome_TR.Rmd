@@ -490,7 +490,8 @@ pandoc.table(sigtable, style="rmarkdown", caption = "Number of transcripts (of 1
 
 ### Thermal-response functional types ###
 
-The previous section identified the transcripts with thermally-responsive expression. In this section, I determine the shape of the expression response to temperature for each transcript. Categories of expression response are:
+The previous section identified the transcripts with thermally-responsive expression. In this section, I determine the shape of the expression response to temperature for each transcript. Catego
+ries of expression response are:
 
 * High - increase expression with temperature
 * Low - decrease expression with temperature
@@ -502,13 +503,20 @@ I do this first for the thermally-responsive transcripts where there is no inter
 
 ```{r expression_shape, eval=TRUE, echo=TRUE}
 
-response.type <- ldply(interaction.transcripts, .progress = "text", .inform = TRUE, RxNtype)
+interaction.response.type <- ldply(interaction.transcripts, .progress = "text", .inform = TRUE, RxNtype)
+
+test.transcripts <- interaction.transcripts[1000:1009]
+response.type <- ldply(test.transcripts, .progress = "text", .inform = TRUE, RxNtype)
 
 
 
 
 # plot
-#qplot(val, pTPM, facets = .~colony, data = A22.pout, geom="smooth")
+qplot(val, pTPM, facets = .~colony, data = Ar.pout, geom="smooth")
+qplot(val, pTPM, facets = .~colony, data = pout, geom="smooth")
+
+
+qplot(val, pTPM, facets = .~colony, data = Ar.pout, geom="smooth")
 
 
 
