@@ -40,7 +40,10 @@ RxNtype <- function(lmitem) {
     
   # predict 
   pred.vals <- seq(from = 0, to = 38.5, by = 0.5)
-  newdf <- data.frame(val = pred.vals, colony = as.factor(rep(unlist(lmitem$xlevels), each = length(pred.vals))))
+  colony.levels <- as.factor(rep(unlist(lmitem$xlevels)))
+  # for transcripts with no 'colony' effect in model, no levels, so create dummy
+  if(length(colony.levels) == 0) colony.levels <- c("A22", "Ar")
+  newdf <- data.frame(val = pred.vals, colony = rep(colony.levels, each = length(pred.vals)))
   pout <- predict(lmitem, newdata=newdf)
   pout <- cbind(newdf, pTPM = pout)
 
@@ -59,7 +62,7 @@ RxNtype <- function(lmitem) {
           # else, set values from data
           A22.max.val <- median(A22.pout[which(A22.pout$pTPM == max(A22.pout$pTPM)), "val"])
           # for min.val, take median point as it may be string of points at zero
-          qA22.min.val <- median(A22.pout[which(A22.pout$pTPM == min(A22.pout$pTPM)), "val"])
+          A22.min.val <- median(A22.pout[which(A22.pout$pTPM == min(A22.pout$pTPM)), "val"])
           A22.opt <- A22.pout[A22.pout$val == 19.5, "pTPM"]
           # determine expression shape
           A22.exp.type <- NA
