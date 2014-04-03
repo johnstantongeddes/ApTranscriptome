@@ -470,6 +470,7 @@ interaction.transcripts <- RxNlmAIC[which(Map(grepFunc, RxNlmAIC, term = "colony
 other.transcripts <- RxNlmAIC[setdiff(names(RxNlmAIC), names(interaction.transcripts))]
 temperature.transcripts <- other.transcripts[which(Map(grepFunc, other.transcripts, term = "val") == TRUE)]
 colony.transcripts <- other.transcripts[setdiff(names(other.transcripts), names(temperature.transcripts))]
+responsive.transcripts <- c(temperature.transcripts, interaction.transcripts)
 rm(other.transcripts)
 ```
 
@@ -502,7 +503,7 @@ I do this first for the thermally-responsive transcripts where there is no inter
 
 
 ```{r expression_shape, eval=TRUE, echo=TRUE}
-# calculate response type for transcripts with interactions
+# calculate response type for responsive transcripts
 interaction.response.type <- ldply(interaction.transcripts, .progress = "text", .inform = TRUE, RxNtype)
 stopifnot(nrow(interaction.response.type) == length(interaction.transcripts))
 
@@ -527,7 +528,18 @@ Ap.type.table <- rbind(A22.type.table, Ar.type.table)
 rownames(Ap.type.table) <- c("A22", "Ar")
 
 pandoc.table(Ap.type.table, style="rmarkdown", caption = "Number of transcripts with maximum expression at high, low, intermediate or both high and low (bimodal) temperatures.")
+
+# only transcripts that differ in expression by colony
+A22.interaction.type.table <- table(interaction.response.type[ , 'A22.type'])
+Ar.interaction.type.table <- table(interaction.response.type[ , 'Ar.type'])
+
+Ap.interaction.type.table <- rbind(A22.interaction.type.table, Ar.interaction.type.table)
+rownames(Ap.interaction.type.table) <- c("A22", "Ar")
+
+pandoc.table(Ap.interaction.type.table, style="rmarkdown", caption = "For transcripts that differ in expression pattern between *A22* and *Ar*, the number of transcripts with maximum expression at high, low, intermediate or both high and low (bimodal) temperatures.")
+
 ```
+
 
 Table 4 shows the number of transcripts that fall into each expression type for each each colony. The totals for each colony include the `r nrow(temperature.transcripts)` transcripts that have consistent temperature responses between the two colonies. 
 
@@ -565,11 +577,12 @@ Selection may have acted in response to thermal stress such that some genes are 
 A22.high.transcripts <- Ap.response.type[which(Ap.response.type$A22.type == "High"), ]
 
 # Compare expression at optimum temp (A22.opt) between colonies using t-test
+t.test(A22.high.transcripts$A22.opt, A22.high.transcripts$Ar.opt)
 boxplot(A22.high.transcripts$A22.opt, A22.high.transcripts$Ar.opt)
-boxplot(log(A22.high.transcripts$A22.opt+1), log(A22.high.transcripts$Ar.opt+1))
 
-# T test
+# T test on log-transformed values to control for outliers
 t.test(log(A22.high.transcripts$A22.opt+1), log(A22.high.transcripts$Ar.opt+1))
+boxplot(log(A22.high.transcripts$A22.opt+1), log(A22.high.transcripts$Ar.opt+1))
 ```
 
 The `t.test` fails to account for the many orders of magnitude difference in expression among transcripts, e.g. non-equal variances. This problem is the key issue in the analysis of differential expression `r citep(c("10.1186/1471-2105-11-94", "10.1038/nprot.2013.099")`. As my goal is simply to determine if expression is typically greater at 19.25C in *Ar* than *A22* for genes that are up-regulated at high temperatures in *A22*, I use a non-parametric Wilcoxon signed rank-test
@@ -586,12 +599,12 @@ Next I test the converse, that transcripts that are up-regulated at low temperat
 # list of transcripts that are 'high' expressed in Ar
 Ar.low.transcripts <- Ap.response.type[which(Ap.response.type$Ar.type == "Low"), ]
 
-# Compare expression at optimum temp (Ar.opt) between colonies using t-test
+# compare expression at optimum temp (Ar.opt) between colonies using t-test
+t.test(Ar.low.transcripts$A22.opt, Ar.low.transcripts$Ar.opt)
 boxplot(Ar.low.transcripts$A22.opt, Ar.low.transcripts$Ar.opt)
-boxplot(log(Ar.low.transcripts$A22.opt+1), log(Ar.low.transcripts$Ar.opt+1))
-
-# T test
+# t-test with log values
 t.test(log(Ar.low.transcripts$A22.opt+1), log(Ar.low.transcripts$Ar.opt+1))
+boxplot(log(Ar.low.transcripts$A22.opt+1), log(Ar.low.transcripts$Ar.opt+1))
 
 # Wilcoxon signed rank-test
 wilcox.test(Ar.low.transcripts$A22.opt, Ar.low.transcripts$Ar.opt, alternative = "two.sided", paired = TRUE, conf.int = TRUE)
@@ -605,6 +618,7 @@ To confirm that there are not sample-level issues, I performed the same comparis
 # list of transcripts that are 'Intermediate' expressed in Ar
 Ar.int.transcripts <- Ap.response.type[which(Ap.response.type$Ar.type == "Intermediate"), ]
 # T test
+t.test(Ar.int.transcripts$A22.opt, Ar.int.transcripts$Ar.opt)
 t.test(log(Ar.int.transcripts$A22.opt+1), log(Ar.int.transcripts$Ar.opt+1))
 # Wilcoxon signed rank-test
 wilcox.test(Ar.int.transcripts$A22.opt, Ar.int.transcripts$Ar.opt, alternative = "two.sided", paired = TRUE, conf.int = TRUE)
@@ -612,6 +626,7 @@ wilcox.test(Ar.int.transcripts$A22.opt, Ar.int.transcripts$Ar.opt, alternative =
 # list of transcripts that are 'Intermediate' expressed in A22
 A22.int.transcripts <- Ap.response.type[which(Ap.response.type$A22.type == "Intermediate"), ]
 # T test
+t.test(A22.int.transcripts$A22.opt, A22.int.transcripts$Ar.opt)
 t.test(log(A22.int.transcripts$A22.opt+1), log(A22.int.transcripts$Ar.opt+1))
 # Wilcoxon signed rank-test
 wilcox.test(A22.int.transcripts$A22.opt, A22.int.transcripts$Ar.opt, alternative = "two.sided", paired = TRUE, conf.int = TRUE)
@@ -629,34 +644,17 @@ The 'Intermediate' expressed transcripts are core molecular processes that are e
 A22.int.lm <- RxNlmAIC[A22.int.transcripts$Transcript]
 length(A22.int.lm)
 
-# calculate standard deviation of expression for each transcript
-transcriptVar <- function(lmitem, colony) {
-    # predict only for A22
-    pred.vals <- seq(from = 0, to = 38.5, by = 0.5)
-    newdf <- data.frame(val = pred.vals, colony = rep(colony, length = length(pred.vals)))
-    pout <- predict(lmitem, newdata=newdf)
-    pout <- cbind(newdf, pTPM = pout)
-
-    # prediction can give values very close to zero or negative. biologically, these are meaningless so change to zero
-    pout$pTPM <- ifelse(pout$pTPM < 0, 0, round(pout$pTPM, 5))
-
-    # draw 1000 'temps' weighted by predicted expression
-    random.draw <- sample(size = 1000, pred.vals, prob = pout$pTPM, replace = TRUE)
-
-    # calculate standard deviation of weighted random.draw
-    data.frame(exp_sd = sd(random.draw))
-    } # end function
-
-
-# apply function to all transcripts
-A22.int.sd <- unlist(Map(transcriptVar, A22.int.lm, colony = "A22"))
+# apply `transcriptSD` function to all transcripts
+A22.int.sd <- unlist(Map(transcriptSD, A22.int.lm, colony = "A22"))
 
 # repeat for Ar
 Ar.int.lm <- RxNlmAIC[Ar.int.transcripts$Transcript]
-Ar.int.sd <- unlist(Map(transcriptVar, Ar.int.lm, colony = "Ar"))
+Ar.int.sd <- unlist(Map(transcriptSD, Ar.int.lm, colony = "Ar"))
 
 # T-test comparing standard deviation of expression between colonies
 t.test(A22.int.sd, Ar.int.sd)
+```
+Consistent with our hypothesis, 'Intermediate' transcripts in *Ar* are expressed over a significantly wider range of temperatures than in *A22*. 
 
 ```{r plotthermalbreadth, echo=FALSE, eval=TRUE)
 # prep data for plotting
@@ -670,24 +668,6 @@ g1 + scale_y_continuous(name="Density") +
   scale_x_continuous(name=expression("Standard deviation of expression"))
 ```
 
-Consistent with our hypothesis, 'Intermediate' transcripts in *Ar* are expressed over a significantly wider range of temperatures than in *A22*. 
-
-
-
-
-
-
-
-
-~~Continue from here~~
-
-
-
-
-
-
-
-
 
 ### Thermal sensitivity indicated by response of bimodally-expressed transcripts ###
 
@@ -696,43 +676,25 @@ As the converse of the above hypothesis, a colony that is especially thermally-s
 
 ```{r calc_Bimodal_variance}
 # extract 'Bimodal' expressed transcripts for A22 colony
-A22trlist.bim <- A22.interaction.transcripts.type[which(A22.interaction.transcripts.type$A22.exp.type == "Bimodal"), "Transcript"]
-A22.TPM.bim.dt <- TPM.dt.sub[A22trlist.bim]
-setkey(A22.TPM.bim.dt, colony)
-A22.TPM.bim.dt <- A22.TPM.bim.dt["A22"]
-str(A22.TPM.bim.dt)
+A22.bim.lm <- RxNlmAIC[Ap.response.type[which(Ap.response.type$A22.type == "Bimodal"), "Transcript"]]
+length(A22.bim.lm)
 
-# calculate standard deviation of expression for each transcript
-A22_bim_sd <- ddply(A22.TPM.bim.dt, .(Transcript), RxNsd.convex)
+# apply `transcriptSD` function to all transcripts
+A22.bim.sd <- unlist(Map(transcriptSD, A22.bim.lm, colony = "A22"))
 
-# repeat for Ar
-Artrlist.bim <- Ar.interaction.transcripts.type[which(Ar.interaction.transcripts.type$A22.exp.type == "Bimodal"), "Transcript"]
-Ar.TPM.bim.dt <- TPM.dt.sub[Artrlist.bim]
-setkey(Ar.TPM.bim.dt, colony)
-Ar.TPM.bim.dt <- Ar.TPM.bim.dt["Ar"]
-str(Ar.TPM.bim.dt)
+# repeat for Ar 
+Ar.bim.lm <- RxNlmAIC[Ap.response.type[which(Ap.response.type$Ar.type == "Bimodal"), "Transcript"]]
+length(Ar.bim.lm)
+Ar.bim.sd <- unlist(Map(transcriptSD, Ar.bim.lm, colony = "Ar"))
 
-Ar_bim_sd <- ddply(Ar.TPM.bim.dt, .(Transcript), RxNsd.convex)
+# t-test to compare standard deviation of 'Bimodal' transcripts between colonies
+t.test(A22.bim.sd, Ar.bim.sd)
 ```
 
-Next, I compare the standard deviations of expression for each transcipt between colonies.
+No difference in the standard deviation of expression for bimodally-expressed transcripts between colonies.
 
-```{r compare_Intermediate_variance}
-# t-test
-t.test(A22_bim_sd$exp_sd, Ar_bim_sd$exp_sd)
 
-# Plot
-# prep data
-A22_bim_var$colony <- "A22"
-Ar_bim_var$colony <- "Ar"
-comb_bim_var <- rbind(A22_bim_var, Ar_bim_var)
-# ggplot
-g2 <- ggplot(comb_bim_var, aes(x=exp_sd, fill=colony)) + geom_density(alpha=0.2, position="identity")
-g2 + scale_y_continuous(name="Density") +
-  scale_x_continuous(name=expression("Standard deviation of expression function"))
-```
 
-Both the T-test and plot show that there is no difference in the standard deviation of expression for bimodally-expressed transcripts between colonies.
 
 ### Compare peak expression among colonies ###
 

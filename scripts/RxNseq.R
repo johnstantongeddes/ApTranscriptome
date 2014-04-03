@@ -45,8 +45,11 @@ RxNtype <- function(lmitem) {
   if(length(colony.levels) == 0) colony.levels <- c("A22", "Ar")
   newdf <- data.frame(val = pred.vals, colony = rep(colony.levels, each = length(pred.vals)))
   pout <- predict(lmitem, newdata=newdf)
-  pout <- cbind(newdf, pTPM = pout)
+  pout <- cbind(newdf, logTPM = pout)
 
+  # back-transform from log-scale
+  pout$pTPM <- exp(pout$logTPM)
+  
   # prediction can give values very close to zero or negative. biologically, these are meaningless so change to zero
   pout$pTPM <- ifelse(pout$pTPM < 0, 0, round(pout$pTPM, 5))
   
@@ -115,6 +118,36 @@ RxNtype <- function(lmitem) {
            
 } # end RxNtype
 
+
+############################################################################################
+## transcriptSD
+############################################################################################
+
+transcriptSD <- function(lmitem, colony) {
+    # function passed to Map() that calculates the standard deviation of expression for each 'Intermediate' transcript
+    #
+    # Arguments:
+    #  lmitem: List item of class `lm`
+    #  colony: Colony that standard deviation of expression is being calculated for
+    #
+    # Returns:
+    #   list of standard deviation of expression for each transcript
+    
+    # predict only for A22
+    pred.vals <- seq(from = 0, to = 38.5, by = 0.5)
+    newdf <- data.frame(val = pred.vals, colony = rep(colony, length = length(pred.vals)))
+    pout <- predict(lmitem, newdata=newdf)
+    pout <- cbind(newdf, pTPM = pout) # note this is on log scale
+
+    # prediction can give values very close to zero or negative. biologically, these are meaningless so change to zero
+    pout$pTPM <- ifelse(pout$pTPM < 0, 0, round(pout$pTPM, 5))
+
+    # draw 1000 'temps' weighted by predicted expression
+    random.draw <- sample(size = 1000, pred.vals, prob = pout$pTPM, replace = TRUE)
+
+    # calculate standard deviation of weighted random.draw
+    data.frame(exp_sd = sd(random.draw))
+    } # end function
 
 
 
