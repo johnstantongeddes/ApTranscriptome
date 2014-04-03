@@ -37,40 +37,43 @@ RxNtype <- function(lmitem) {
     #
     # Returns
     #   dataframe with values of max expression, min expression and expression type for each colony
-    
-  # predict 
-  pred.vals <- seq(from = 0, to = 38.5, by = 0.5)
-  colony.levels <- as.factor(rep(unlist(lmitem$xlevels)))
-  # for transcripts with no 'colony' effect in model, no levels, so create dummy
-  if(length(colony.levels) == 0) colony.levels <- c("A22", "Ar")
-  newdf <- data.frame(val = pred.vals, colony = rep(colony.levels, each = length(pred.vals)))
-  pout <- predict(lmitem, newdata=newdf)
-  pout <- cbind(newdf, logTPM = pout)
 
-  # back-transform from log-scale
-  pout$pTPM <- exp(pout$logTPM)
+    # check class lm
+    if(!"lm" %in% class(lmitem)) stop("Object not of class lm")
+    
+    # predict 
+    pred.vals <- seq(from = 0, to = 38.5, by = 0.5)
+    colony.levels <- as.factor(rep(unlist(lmitem$xlevels)))
+    # for transcripts with no 'colony' effect in model, no levels, so create dummy
+    if(length(colony.levels) == 0) colony.levels <- c("A22", "Ar")
+    newdf <- data.frame(val = pred.vals, colony = rep(colony.levels, each = length(pred.vals)))
+    pout <- predict(lmitem, newdata=newdf)
+    pout <- cbind(newdf, logTPM = pout)
+
+    # back-transform from log-scale
+    pout$pTPM <- exp(pout$logTPM)
   
-  # prediction can give values very close to zero or negative. biologically, these are meaningless so change to zero
-  pout$pTPM <- ifelse(pout$pTPM < 0, 0, round(pout$pTPM, 5))
+    # prediction can give values very close to zero or negative. biologically, these are meaningless so change to zero
+    pout$pTPM <- ifelse(pout$pTPM < 0, 0, round(pout$pTPM, 5))
   
-  # calculate for A22
-  A22.pout <- pout[pout$colony == "A22", ]
-  # if pTPM doesn't vary, set max and min values to NA
-  if(sd(A22.pout$pTPM) < 0.01) {
-      A22.max.val <- NA
-      A22.min.val <- NA
-      A22.opt <- A22.pout[A22.pout$val == 19.5, "pTPM"]
-      A22.exp.type <- "NotExp"
-  } else {
-          # else, set values from data
-          A22.max.val <- median(A22.pout[which(A22.pout$pTPM == max(A22.pout$pTPM)), "val"])
-          # for min.val, take median point as it may be string of points at zero
-          A22.min.val <- median(A22.pout[which(A22.pout$pTPM == min(A22.pout$pTPM)), "val"])
-          A22.opt <- A22.pout[A22.pout$val == 19.5, "pTPM"]
-          # determine expression shape
-          A22.exp.type <- NA
-          # expression type defined as "Bimodal" if max expression below 10C and above 30C is greater than one standard deviation above expression at the optimum temperature (19.5C)
-          if(max(A22.pout[A22.pout$val < 10, "pTPM"])[1] > (A22.pout[A22.pout$val == 19.5, "pTPM"] + sd(A22.pout$pTPM)) & max(A22.pout[A22.pout$val > 30, "pTPM"])[1] > (A22.pout[A22.pout$val == 19.5, "pTPM"] + sd(A22.pout$pTPM))) A22.exp.type <- "Bimodal" else {
+    # calculate for A22
+    A22.pout <- pout[pout$colony == "A22", ]
+    # if pTPM doesn't vary, set max and min values to NA
+    if(sd(A22.pout$pTPM) < 0.01) {
+        A22.max.val <- NA
+        A22.min.val <- NA
+        A22.opt <- A22.pout[A22.pout$val == 19.5, "pTPM"]
+        A22.exp.type <- "NotExp"
+    } else {
+        # else, set values from data
+        A22.max.val <- median(A22.pout[which(A22.pout$pTPM == max(A22.pout$pTPM)), "val"])
+        # for min.val, take median point as it may be string of points at zero
+        A22.min.val <- median(A22.pout[which(A22.pout$pTPM == min(A22.pout$pTPM)), "val"])
+        A22.opt <- A22.pout[A22.pout$val == 19.5, "pTPM"]
+        # determine expression shape
+         A22.exp.type <- NA
+        # expression type defined as "Bimodal" if max expression below 10C and above 30C is greater than one standard deviation above expression at the optimum temperature (19.5C)
+        if(max(A22.pout[A22.pout$val < 10, "pTPM"])[1] > (A22.pout[A22.pout$val == 19.5, "pTPM"] + sd(A22.pout$pTPM)) & max(A22.pout[A22.pout$val > 30, "pTPM"])[1] > (A22.pout[A22.pout$val == 19.5, "pTPM"] + sd(A22.pout$pTPM))) A22.exp.type <- "Bimodal" else {
               # expression type "High" if max expression at temperature above 30C
               if(A22.max.val > 30) A22.exp.type <- "High" else {
               # expression type "Low" if max expression at temperature below 10C
@@ -80,41 +83,41 @@ RxNtype <- function(lmitem) {
           } # end else
       } # end if/else
 
-  # calculate for Ar
-  Ar.pout <- pout[pout$colony == "Ar", ]
-  # if pTPM doesn't vary, set max and min values to NA
-  if(sd(Ar.pout$pTPM) < 0.01) {
-      Ar.max.val <- NA
-      Ar.min.val <- NA
-      Ar.opt <- Ar.pout[Ar.pout$val == 19.5, "pTPM"]
-      Ar.exp.type <- "NotExp"
-  } else {
-          # else, set values from data
-          Ar.max.val <- median(Ar.pout[which(Ar.pout$pTPM == max(Ar.pout$pTPM)), "val"])
-          # for min.val, take median point as it may be string of points at zero
-          Ar.min.val <- median(Ar.pout[which(Ar.pout$pTPM == min(Ar.pout$pTPM)), "val"])
-          Ar.opt <- Ar.pout[Ar.pout$val == 19.5, "pTPM"]
-          # determine expression shape
-          Ar.exp.type <- NA
-          # expression type defined as "Bimodal" if max expression below 10C and above 30C is greater than one standard deviation above expression at the optimum temperature (19.5C)
-          if(max(Ar.pout[Ar.pout$val < 10, "pTPM"])[1] > (Ar.pout[Ar.pout$val == 19.5, "pTPM"] + sd(Ar.pout$pTPM)) & max(Ar.pout[Ar.pout$val > 30, "pTPM"])[1] > (Ar.pout[Ar.pout$val == 19.5, "pTPM"] + sd(Ar.pout$pTPM))) Ar.exp.type <- "Bimodal" else {
-              # expression type "High" if max expression at temperature above 30C
-              if(Ar.max.val > 30) Ar.exp.type <- "High" else {
-              # expression type "Low" if max expression at temperature below 10C
-                  if(Ar.max.val < 10) Ar.exp.type <- "Low" else
-                  Ar.exp.type <- "Intermediate"
-              } # end else
-          } # end else
-      } # end if/else
+    # calculate for Ar
+    Ar.pout <- pout[pout$colony == "Ar", ]
+    # if pTPM doesn't vary, set max and min values to NA
+    if(sd(Ar.pout$pTPM) < 0.01) {
+        Ar.max.val <- NA
+        Ar.min.val <- NA
+        Ar.opt <- Ar.pout[Ar.pout$val == 19.5, "pTPM"]
+        Ar.exp.type <- "NotExp"
+    } else {
+            # else, set values from data
+            Ar.max.val <- median(Ar.pout[which(Ar.pout$pTPM == max(Ar.pout$pTPM)), "val"])
+            # for min.val, take median point as it may be string of points at zero
+            Ar.min.val <- median(Ar.pout[which(Ar.pout$pTPM == min(Ar.pout$pTPM)), "val"])
+            Ar.opt <- Ar.pout[Ar.pout$val == 19.5, "pTPM"]
+            # determine expression shape
+            Ar.exp.type <- NA
+            # expression type defined as "Bimodal" if max expression below 10C and above 30C is greater than one standard deviation above expression at the optimum temperature (19.5C)
+            if(max(Ar.pout[Ar.pout$val < 10, "pTPM"])[1] > (Ar.pout[Ar.pout$val == 19.5, "pTPM"] + sd(Ar.pout$pTPM)) & max(Ar.pout[Ar.pout$val > 30, "pTPM"])[1] > (Ar.pout[Ar.pout$val == 19.5, "pTPM"] + sd(Ar.pout$pTPM))) Ar.exp.type <- "Bimodal" else {
+                # expression type "High" if max expression at temperature above 30C
+                if(Ar.max.val > 30) Ar.exp.type <- "High" else {
+                # expression type "Low" if max expression at temperature below 10C
+                    if(Ar.max.val < 10) Ar.exp.type <- "Low" else
+                      Ar.exp.type <- "Intermediate"
+                } # end else
+            } # end else
+        } # end if/else
 
-  data.frame(A22.max = A22.max.val,
-           A22.min = A22.min.val,
-           A22.opt = A22.opt,
-           A22.type = A22.exp.type,
-           Ar.max = Ar.max.val,
-           Ar.min = Ar.min.val,
-           Ar.opt = Ar.opt,
-           Ar.type = Ar.exp.type)
+    data.frame(A22.max = A22.max.val,
+               A22.min = A22.min.val,
+               A22.opt = A22.opt,
+               A22.type = A22.exp.type,
+               Ar.max = Ar.max.val,
+               Ar.min = Ar.min.val,
+               Ar.opt = Ar.opt,
+               Ar.type = Ar.exp.type)
            
 } # end RxNtype
 
@@ -124,6 +127,7 @@ RxNtype <- function(lmitem) {
 ############################################################################################
 
 transcriptSD <- function(lmitem, colony) {
+
     # function passed to Map() that calculates the standard deviation of expression for each 'Intermediate' transcript
     #
     # Arguments:
@@ -132,6 +136,9 @@ transcriptSD <- function(lmitem, colony) {
     #
     # Returns:
     #   list of standard deviation of expression for each transcript
+
+    # check class lm
+    if(!"lm" %in% class(lmitem)) stop("Object not of class lm")
     
     # predict only for A22
     pred.vals <- seq(from = 0, to = 38.5, by = 0.5)
@@ -149,6 +156,52 @@ transcriptSD <- function(lmitem, colony) {
     data.frame(exp_sd = sd(random.draw))
     } # end function
 
+
+############################################################################################
+## RxNvarshape
+############################################################################################
+
+RxNvarshape <- function(lmitem) {
+    # check class lm
+    if(!"lm" %in% class(lmitem)) stop("Object not of class lm")
+
+    # calculate mean expression across all temps
+    # predict 
+    pred.vals <- seq(from = 0, to = 38.5, by = 0.5)
+    colony.levels <- as.factor(rep(unlist(lmitem$xlevels)))
+    # for transcripts with no 'colony' effect in model, no levels, so create dummy
+    if(length(colony.levels) == 0) colony.levels <- c("A22", "Ar")
+    newdf <- data.frame(val = pred.vals, colony = rep(colony.levels, each = length(pred.vals)))
+    pout <- predict(lmitem, newdata=newdf)
+    pout <- cbind(newdf, logTPM = pout)
+
+    # back-transform from log-scale
+    pout$pTPM <- exp(pout$logTPM)
+  
+    # prediction can give values very close to zero or negative. biologically, these are meaningless so change to zero
+    pout$pTPM <- ifelse(pout$pTPM < 0, 0, round(pout$pTPM, 5))
+  
+    # calculate for A22
+    A22.pout <- pout[pout$colony == "A22", ]
+    A22.mean <- mean(A22.pout$pTPM)
+    Si <- diff(A22.pout$pTPM)
+    A22.slope <- abs(sum(Si))/(nrow(A22.pout)-1)
+    Ci <- diff(Si)
+    A22.curve <- abs(sum(Ci))/(nrow(A22.pout)-2)
+    A22.wiggle <- (sum(abs(Ci))/(nrow(A22.pout)-2)) - A22.curve
+
+    # calculate for Ar
+    Ar.pout <- pout[pout$colony == "Ar", ]
+    Ar.mean <- mean(Ar.pout$pTPM)
+    Si <- diff(Ar.pout$pTPM)
+    Ar.slope <- abs(sum(Si))/(nrow(Ar.pout)-1)
+    Ci <- diff(Si)
+    Ar.curve <- abs(sum(Ci))/(nrow(Ar.pout)-2)
+    Ar.wiggle <- (sum(abs(Ci))/(nrow(Ar.pout)-2)) - Ar.curve
+
+    # combine into data.frame
+    c(A22.mean, A22.slope, A22.curve, A22.wiggle, Ar.mean, Ar.slope, Ar.curve, Ar.wiggle)
+}
 
 
 ############################################################################################

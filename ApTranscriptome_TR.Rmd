@@ -694,37 +694,22 @@ t.test(A22.bim.sd, Ar.bim.sd)
 No difference in the standard deviation of expression for bimodally-expressed transcripts between colonies.
 
 
-
-
 ### Compare peak expression among colonies ###
 
-Cumulative distribution function of peak expression for transcripts that differ in expression between *A22* and *Ar*
+Probability distribution function of peak expression for transcripts that differ in expression between *A22* and *Ar*
 
-```{r max_exp_CDF}
-png(paste(resultsdir, "CDF_expression_all.png", sep=""))
-g3 <- ggplot(responsive.transcripts.type, aes(x=max.val, fill=colony)) + geom_density(alpha=0.2, position="identity")
+```{r max_exp_PDF}
+# reshape data
+Ap.df <- data.frame(Transcript = rep(Ap.response.type$Transcript, times = 2), colony = rep(c("A22", "Ar"), each = length(Ap.response.type$Transcript)), max.val = c(Ap.response.type$A22.max, Ap.response.type$Ar.max))
+
+png(paste(resultsdir, "PDF_expression_all.png", sep=""))
+g3 <- ggplot(Ap.df, aes(x=max.val, fill=colony)) + geom_density(alpha=0.2, position="identity")
 g3 + scale_y_continuous(name="Density") +
-  scale_x_continuous(name="Temperature of maximum expression")
-dev.off()
-
-
-# merge data.tables of transcripts with colony x temperature interaction
-interaction.transcripts.type <- rbind(A22.interaction.transcripts.type, Ar.interaction.transcripts.type)
-png(paste(resultsdir, "CDF_expression_interaction.png", sep=""))
-g4 <- ggplot(interaction.transcripts.type, aes(x=max.val, fill=colony)) + geom_density(alpha=0.2, position="identity")
-g4 + scale_y_continuous(name="Density") +
-  scale_x_continuous(name="Temperature of maximum expression")
-dev.off()
-
-# faceted by type
-png(paste(resultsdir, "CDF_expression_intermediate_interaction.png", sep=""))
-g5 <- ggplot(interaction.transcripts.type, aes(x=max.val, group=colony)) + geom_density(alpha=0.2, position="identity")
-g5 + facet_grid(. ~ A22.exp.type) + scale_y_continuous(name="Density") +
   scale_x_continuous(name="Temperature of maximum expression")
 dev.off()
 ```
 
-In this section, I examine differences in thermal reaction norms of transcripts between *Ar* and *A22* using the categories as defined by `r citep("10.1086/675302")`:
+For the transcripts that differed in thermal responsiveness due to temperature, was the difference primarily due to differences in the mean value of expression, slope, curvature of a higher order effect? To test this, I use the framework of `r citet("10.1086/675302")`:
 
 - *Offset, O*: overall difference in the mean expression value across all temperatures
 - *Slope, S*: difference in overall slope
