@@ -654,6 +654,7 @@ Ar.int.sd <- unlist(Map(transcriptSD, Ar.int.lm, colony = "Ar"))
 # T-test comparing standard deviation of expression between colonies
 t.test(A22.int.sd, Ar.int.sd)
 ```
+
 Consistent with our hypothesis, 'Intermediate' transcripts in *Ar* are expressed over a significantly wider range of temperatures than in *A22*. 
 
 ```{r plotthermalbreadth, echo=FALSE, eval=TRUE)
@@ -717,9 +718,18 @@ For the transcripts that differed in thermal responsiveness due to temperature, 
 - *Wiggle, W*: variability in shape not captured by the previous three measures
 
 ```{r offset, echo=TRUE, eval=TRUE}
-testset <- TPM.dt.sub[1:220, ]
-testoffset <- ddply(testset, .(colony, Transcript), summarise, offset = mean(TPM))
-A22meanTPM <- ddply(TPM.dt.sub, .(colony, Transcript), summarise, meanTPM = mean(TPM))
+testset <- responsive.transcripts[1:10]
+varshape.out <- ldply(responsive.transcripts, .progress = "text", RxNvarshape)
+
+# to compare among transcripts, standardize by overall mean for each transcript
+
+
+# t test
+t.test(varshape.out$A22.mean, varshape.out$Ar.mean)
+t.test(varshape.out$A22.slope, varshape.out$Ar.slope)
+t.test(varshape.out$A22.curve, varshape.out$Ar.curve)
+t.test(varshape.out$A22.wiggle, varshape.out$Ar.wiggle)
+
 
 ```
 

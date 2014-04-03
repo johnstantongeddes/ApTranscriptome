@@ -180,27 +180,29 @@ RxNvarshape <- function(lmitem) {
   
     # prediction can give values very close to zero or negative. biologically, these are meaningless so change to zero
     pout$pTPM <- ifelse(pout$pTPM < 0, 0, round(pout$pTPM, 5))
-  
+    
     # calculate for A22
     A22.pout <- pout[pout$colony == "A22", ]
-    A22.mean <- mean(A22.pout$pTPM)
+    A22.mean <- round(mean(A22.pout$pTPM), 4)
     Si <- diff(A22.pout$pTPM)
-    A22.slope <- abs(sum(Si))/(nrow(A22.pout)-1)
+    A22.slope <- round(abs(sum(Si))/(nrow(A22.pout)-1), 4)
     Ci <- diff(Si)
-    A22.curve <- abs(sum(Ci))/(nrow(A22.pout)-2)
-    A22.wiggle <- (sum(abs(Ci))/(nrow(A22.pout)-2)) - A22.curve
-
+    A22.curve <- round(abs(sum(Ci))/(nrow(A22.pout)-2), 4)
+    A22.wiggle <- round((sum(abs(Ci))/(nrow(A22.pout)-2)) - A22.curve, 4)
+    
     # calculate for Ar
     Ar.pout <- pout[pout$colony == "Ar", ]
-    Ar.mean <- mean(Ar.pout$pTPM)
+    Ar.mean <- round(mean(Ar.pout$pTPM), 4)
     Si <- diff(Ar.pout$pTPM)
-    Ar.slope <- abs(sum(Si))/(nrow(Ar.pout)-1)
+    Ar.slope <- round(abs(sum(Si))/(nrow(Ar.pout)-1), 4)
     Ci <- diff(Si)
-    Ar.curve <- abs(sum(Ci))/(nrow(Ar.pout)-2)
-    Ar.wiggle <- (sum(abs(Ci))/(nrow(Ar.pout)-2)) - Ar.curve
-
+    Ar.curve <- round(abs(sum(Ci))/(nrow(Ar.pout)-2), 4)
+    Ar.wiggle <- round((sum(abs(Ci))/(nrow(Ar.pout)-2)) - Ar.curve, 4)
+    
+    
+    
     # combine into data.frame
-    c(A22.mean, A22.slope, A22.curve, A22.wiggle, Ar.mean, Ar.slope, Ar.curve, Ar.wiggle)
+    c(A22.mean = A22.mean, A22.slope = A22.slope, A22.curve = A22.curve, A22.wiggle = A22.wiggle, Ar.mean = Ar.mean, Ar.slope = Ar.slope, Ar.curve = Ar.curve, Ar.wiggle = Ar.wiggle)
 }
 
 
