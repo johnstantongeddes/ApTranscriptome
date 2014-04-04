@@ -718,14 +718,87 @@ For the transcripts that differed in thermal responsiveness due to temperature, 
 - *Wiggle, W*: variability in shape not captured by the previous three measures
 
 ```{r offset, echo=TRUE, eval=TRUE}
-testset <- responsive.transcripts[1:10]
-varshape.out <- ldply(responsive.transcripts, .progress = "text", RxNvarshape)
+varshape.out <- ldply(interaction.transcripts, .progress = "text", RxNvarshape)
 
-# to compare among transcripts, standardize by overall mean for each transcript
+# plot
+boxplot(varshape.out$A22.mean, varshape.out$Ar.mean)
+boxplot(log(varshape.out$A22.mean), log(varshape.out$Ar.mean))
 
+# calculate differences in mean, slope, curvature and wiggle between colonies for each transcript
+# offset = mean1 - mean2
+varshape.out$offset <- varshape.out$A22.mean - varshape.out$Ar.mean
+# to compare among transcripts that differ in scale of expression, standardize by overall mean for each transcript
+varshape.out$s.offset <- NA
+for(i in 1:nrow(varshape.out)) {
+  varshape.out[i, "s.offset"] <- (varshape.out[i, "offset"] / mean(c(varshape.out[i, "A22.mean"], varshape.out[i, "Ar.mean"])))
+}
+
+# t-test
+t.test(varshape.out$s.offset, alternative = "two.sided")
+
+# slope = slope1 - slope2
+varshape.out$slope <- varshape.out$A22.slope - varshape.out$Ar.slope
+# to compare among transcripts that differ in scale of expression, standardize by overall mean for each transcript
+varshape.out$s.slope <- NA
+for(i in 1:nrow(varshape.out)) {
+  varshape.out[i, "s.slope"] <- (varshape.out[i, "offset"] / mean(c(varshape.out[i, "A22.slope"], varshape.out[i, "Ar.slope"])))
+}
+# for transcripts where both samples had slope=0, change s.slope from Inf to 0 as there is truly no difference in slope
+varshape.out[which(varshape.out$Ar.slope == 0 & varshape.out$A22.slope == 0), "s.slope"] <- 0
+
+# t-test
+t.test(varshape.out$s.slope, alternative = "two.sided")
+
+
+# curvature = curvature1 - curvature2
+varshape.out$curvature <- varshape.out$A22.curve - varshape.out$Ar.curve
+# to compare among transcripts that differ in scale of expression, standardize by overall mean for each transcript
+varshape.out$s.curvature <- NA
+for(i in 1:nrow(varshape.out)) {
+  varshape.out[i, "s.curvature"] <- (varshape.out[i, "offset"] / mean(c(varshape.out[i, "A22.curve"], varshape.out[i, "Ar.curve"])))
+}
+# change 'Inf' values to 0
+varshape.out[which(varshape.out$Ar.curve == 0 & varshape.out$A22.curve == 0), "s.curvature"] <- 0
+# t-test
+t.test(varshape.out$s.curvature, alternative = "two.sided")
+
+
+# wiggle
+varshape.out$wiggle <- varshape.out$A22.wiggle - varshape.out$Ar.wiggle
+varshape.out$s.wiggle <- NA
+for(i in 1:nrow(varshape.out)) {
+  varshape.out[i, "s.wiggle"] <- (varshape.out[i, "wiggle"] / mean(c(varshape.out[i, "A22.wiggle"], varshape.out[i, "Ar.wiggle"])))
+}
+# change 'Inf' values to 0
+varshape.out[which(varshape.out$Ar.curve == 0 & varshape.out$A22.curve == 0), "s.wiggle"] <- 0
+# note that only 407 transcripts have any 'wiggle'
+length(which(!is.na(varshape.out$s.wiggle)))
+
+# t-test
+t.test(varshape.out$s.wiggle, alternative = "two.sided")
+```
+
+Next, I partition the differences in the reaction norms into the variation explained by differences in the trait means (offset), slope, curvature and wiggle.
+
+
+```{r partition_reaction_norm_variation}
+# take absolute value of each value and sum to get total differences between reaction norms
+varshape.out$s.total <- abs(varshape.out$s.offset) + abs(varshape.out$s.slope) + abs(varshape.out$s.curvature) + abs(varshape.out$s.wiggle)
+
+t.test(varshape.out$s.total, alternative = "two.sided")
+
+```
+
+
+# table
+pandoc.table(varshape.out[which(abs(varshape.out$offset)>1000), c(".id", "A22.mean", "Ar.mean", "offset")])
 
 # t test
-t.test(varshape.out$A22.mean, varshape.out$Ar.mean)
+t.test(varshape.out$A22.mean, varshape.out$Ar.mean, paired = TRUE)
+t.test(log(varshape.out$A22.mean), log(varshape.out$Ar.mean), paired = TRUE)
+
+wilcox.test(varshape.out$A22.mean, varshape.out$Ar.mean, alternative = "two.sided", paired = TRUE, conf.int = TRUE)
+
 t.test(varshape.out$A22.slope, varshape.out$Ar.slope)
 t.test(varshape.out$A22.curve, varshape.out$Ar.curve)
 t.test(varshape.out$A22.wiggle, varshape.out$Ar.wiggle)

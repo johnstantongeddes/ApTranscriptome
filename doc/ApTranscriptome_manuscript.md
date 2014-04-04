@@ -48,10 +48,12 @@ For each of these thermally-responsive gene sets, we performed gene set enrichme
 
 **Colony-level comparisons**
 
-To gain insight on differences in the genetic basis of thermal tolerance between the *ApNC* and *ApVT* colonies, we subset the thermally-responsive genes to those that had a significant interaction with colony ( $\beta_4(species * temp)$ or $\beta_5(species * temp^2)$ term) in the regression analysis. 
+To gain insight into differences in the genetic basis of thermal tolerance between the *ApNC* and *ApVT* colonies, we subset the thermally-responsive genes to those that had a significant interaction with colony ( $\beta_4(species * temp)$ or $\beta_5(species * temp^2)$ term) in the regression analysis. 
 
-First, we compared the overall reactionome by testing if the (a) mean expression value across temperatures, (b) slope of expression and (c) curvature of expression differed for all responsive transcripts between the two colonies [@murren2014].
+First, we explored the extent to which differences in the thermal reactionome between the colonies were due to differences in the mean or shape of the reaction norm for each individual transcript. Following the definitions of Murren et al [-@murren2014], for transcripts that had a significant colony x temperature interaction term in the log-linear model we tested for overall differences in the (a) mean expression value across temperatures, (b) slope of expression and (c) curvature of expression. For each comparison, we took the difference as $Value_A22 - Value_Ar$ and standardized by the mean of the two values to allow comparisons across transcripts that differed by five orders of magnitude in expression levels. We then performed a two-sided *t*-test to determine if the overall mean, slope or curvature was greater in *A22* than *Ar*.
 
+
+, we standardized by the mean value for each comparison [Houle-Hansen??] prior to performing a two-tailed 
 Second, for genes that responded to temperature in one colony but not the other, we compared levels of expression at the mean temperature 19.25°C. Specifically, we hypothesized that if expression of genes involved in plastic responses to thermal stress were canalized by geographically-divergent selection, their constitutive expression (measured in 
 
 
