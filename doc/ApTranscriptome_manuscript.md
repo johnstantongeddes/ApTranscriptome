@@ -16,13 +16,13 @@ To explore the molecular toolkit used by *Aphaenogaster* to cope with thermal st
 
 ## Methods
 
-**Samples**
+### Samples ###
 
 Colonies of the *Aphaenogaster picea-rudis* complex were collected from Molly Bog, Vermont (University of Vermont Natural Areas; lat, lon) and Durham, North Carolina ( 36.037° N -78.874° W), designated as *ApVT* and *ApNC* respectively. The phylogeny of *Aphaeogaster* is currently unresolved [@umphrey1996]. Though preliminary work indicates that the northern part of the distribution (including *ApVT*) to be a distinct clade and possibly species (Bernice Bacon DeMarco, pers. communication), we will refer to these as distinct colonies rather than species. These colonies were maintained in the lab for 5 months prior to experimentation. 
 
 From each species, we haphazardly collected 12 ants at the same time on 12 days. Each day, the 12 ants were placed in glass tubes into a water bath (...) at one of 12 randomly-assigned temperatures, every 3.5°C between 0° and 38.5°C, for one hour. The minimum and maximum temperatures were selected based on preliminary work showing that these temperatures are close to the critical minimum and maximum temperatures for an *Aphaenogaster* from VT (A. Nguyen, unpublished data) . At the end of the hour, the ants were flash frozen in liquid nitrogen and stored at -80°C. mRNA was extracted from three pooled ants using a DNeasy kit (Qiagen Inc; Valencia, CA). Ants were homogenized in Buffer ATL with zirconium silicate beads in a Bullet Blender (Next Advance; Averill Park, NY) and the standard Qiagen protocol was followed from this point. 
 
-**Sequencing, assembly and annotation**
+### Sequencing, assembly and annotation ### 
 
 For each species, the 12 samples were barcoded and sequenced in a single lane of 2 x 100bp paired-end reads on an Illumina HiSeq 1500 yielding 200 and 160 million reads for the ApVT and ArNC samples respectively. Reads were filtered to remove Illumina adapter sequences and low quality bases using the program Trimmomatic [@lohse2012]. 
 
@@ -31,37 +31,50 @@ We assembled the sequenced reads into the full set of mRNA transcripts (the `tra
 We performed functional annotation of the transcriptome assembly using the web-based tool `FastAnnotator` [@chen2012] which annotates and classifies transcripts by Gene Ontology (GO) term assignment, enzyme identification and domain identification. 
 
 
-**Thermally-responsive genes**
+### Thermally-responsive genes ### 
 
 We quantified expression of each gene using the program `Sailfish` [@patro2013]. `Sailfish` reports gene expression as transcripts per million (TPM) which is the preferred measure of gene expression as values are comparable among sequencing runs [@wagner2012]. In addition, `Sailfish` corrects for sequence composition bias and gene length. As preliminary examination of the data (see supplemental...) indicated that 7°C samples may have been mis-labeled, we omitted these data from the analysis. The expression values were highly correlated between colonies at each temperature treatment (r^2 > 0.98) indicating that assembling the transcriptome with data from both colonies was justified (Supplemental).
 
-To identify genes that have significant changes in expression across the thermal gradient, we the regression model
+To identify genes that have significant changes in expression across the thermal gradient, we fit the regression model
 
 $$ log(TPM + 1) = \beta_0 + \beta_1(species) + \beta_2(temp) + \beta_3(temp^2) + \beta_4(species * temp) + \beta_5(species * temp^2) + \epsilon $$
     
-independently to each gene. We used $log(TPM + 1)$ as the response to control for skew in the expression data. For a continous predictor such as temperature, this regression approach is preferred to an ANOVA approach as it can reveal non-linear responses such as hump-shaped or threshold effects even  [@cottingham2005]. Moreover, as we expect errors in the read count distribution to be independent with respect to temperature, our method is robust to issues of overdispersion in read count data [@anders2010]. To correct for multiple testing, we calculated adjusted *P* values using the False Discovery Rate (FDR) approach of Benjamini and Hochberg [-@benjamini1995], retaining genes under the 5% FDR threshold.
+to each gene. We used $log(TPM + 1)$ as the response to control for skew in the expression data. For a continous predictor such as temperature, this regression approach is preferred to an ANOVA approach as it can reveal non-linear responses such as hump-shaped or threshold effects even [@cottingham2005]. This method is robust to overdispersion as we expect errors in the read count distribution [@anders2010] to be independent with respect to temperature. To correct for multiple testing, we calculated adjusted *P* values using the False Discovery Rate (FDR) approach of Benjamini and Hochberg [-@benjamini1995], retaining genes under the 5% FDR threshold.
 
-To describe the overall molecular toolkit for thermal tolerance in *Aphaenogaster*, we identified the subset of genes under our FDR threshold that had significant $\beta_2(temp)$, $\beta_3(temp^2)$, $\beta_4(species * temp)$ or $\beta_5(species * temp^2)$ terms in the linear regression. We partitioned this set of thermally-responsive genes into four categories; genes that had greatest expression at high (> 31°) temperatures (*High*), low (< 10°C) (*Low*), intermediate (10 - 31°C) (*Intermediate*), or both high and low temperatures (*Bimodal*). For the *Bimodal* group, we required that expression at both low and high temperatures was at least two standard deviations greater than the expression at the mean temperature of 19.25°C.
+To describe the overall molecular toolkit for thermal tolerance in *Aphaenogaster*, we identified the subset of genes under our FDR threshold that had significant $\beta_2(temp)$, $\beta_3(temp^2)$, $\beta_4(species * temp)$ or $\beta_5(species * temp^2)$ terms. We partitioned this set of thermally-responsive genes into four categories; genes that had greatest expression at high (> 31°) temperatures (*High*), low (< 10°C) (*Low*), intermediate (10 - 30°C) (*Intermediate*), or both high and low temperatures (*Bimodal*). For the *Bimodal* group, we required that expression at both low and high temperatures was at one two standard deviation greater than the expression at the mean temperature of 19.5°C.
 
-For each of these thermally-responsive gene sets, we performed gene set enrichment analysis using the program `topGO` [@alexa2006; @alexa2010] with the `parentChild` algorithm [@grossman2007] implemented in R [@RCoreTeam2014]. Briefly, this approach identifies GO terms that are overrepresented in the significant genes relative to all GO terms in the transcriptome, accounting for dependencies among the GO terms. 
-
-
-**Colony-level comparisons**
-
-To gain insight into differences in the genetic basis of thermal tolerance between the *ApNC* and *ApVT* colonies, we subset the thermally-responsive genes to those that had a significant interaction with colony ( $\beta_4(species * temp)$ or $\beta_5(species * temp^2)$ term) in the regression analysis. 
-
-First, we explored the extent to which differences in the thermal reactionome between the colonies were due to differences in the mean or shape of the reaction norm for each individual transcript. Following the definitions of Murren et al [-@murren2014], for transcripts that had a significant colony x temperature interaction term in the log-linear model we tested for overall differences in the (a) mean expression value across temperatures, (b) slope of expression and (c) curvature of expression. For each comparison, we took the difference as $Value_A22 - Value_Ar$ and standardized by the mean of the two values to allow comparisons across transcripts that differed by five orders of magnitude in expression levels. We then performed a two-sided *t*-test to determine if the overall mean, slope or curvature was greater in *A22* than *Ar*.
+For each of these thermally-responsive gene sets, we performed gene set enrichment analysis (GSEA) using the program `topGO` [@alexa2006; @alexa2010] with the `parentChild` algorithm [@grossman2007] implemented in R [@RCoreTeam2014]. Briefly, this approach identifies GO terms that are overrepresented in the significant genes relative to all GO terms in the transcriptome, accounting for dependencies among the GO terms. 
 
 
-, we standardized by the mean value for each comparison [Houle-Hansen??] prior to performing a two-tailed 
-Second, for genes that responded to temperature in one colony but not the other, we compared levels of expression at the mean temperature 19.25°C. Specifically, we hypothesized that if expression of genes involved in plastic responses to thermal stress were canalized by geographically-divergent selection, their constitutive expression (measured in 
+### Colony-level comparisons ### 
 
+To gain greater insight on the genetic basis of thermal tolerance in *Aphaenogaster*, we performed comparative analyses between the two colonies. We focused on the subset of thermally-responsive genes that had a significant interaction with colony ( $\beta_4(species * temp)$ or $\beta_5(species * temp^2)$ term) in the regression analysis. For each gene, we predicted expression levels across temperatures for each colony using the full linear model, and then grouped genes into the four responsive categories, *High*, *Low*, *Intermediate*, and *Bimodal*, as well as a fifth category *Not Expressed*. To focus on differences in gene expression between the two colonies, we performed GSEA for the set difference of each category.
+
+With the same set of transcripts, we explored the extent to which differences in the thermal reactionome between the colonies were due to changes in the mean or shape of the reaction norm for each individual transcript. Following the example of Murren et al [-@murren2014], we tested for overall differences in the (a) mean expression value across temperatures (*M*), (b) slope of expression (*S*), (c) curvature of expression (*C*) and (d) wiggle of expression (*W*), which consists of all higher-order differences in shape not capture by the first three measures (formulas given in Appendix). As transcripts differed by five orders of magnitude in expression levels, we calculated the mean-standardized difference between the colonies $\Delta M = (Mean_{ApVT} - Mean_{Ar}) / \bar M$, where $\bar M = (Mean_{ApVT} + Mean_{Ar}) / 2$ yielding $\Delta M$, $\Delta S$, $\Delta C$, and $\Delta W$ for the mean, slope, curvature and wiggle of each transcript, respectively. Using the mean-standardized values, we performed one-sample two-sided *t*-tests to determine if the overall mean, slope or curvature were greater in *ApVT* than *ApNC*. 
+
+Further, to quantify the relative contribution of changes in the mean, slope, curvature or wiggle on the overall differences in reaction norms, we defined the *Total* difference in the reaction norm for each transcript as $\Delta T = \Delta M + \Delta S + \Delta C + Delta W$. We then partitioned the contribution of each measure by dividing it by $\Delta T$. 
+
+For the subset of genes that responded to temperature in one colony (i.e. *High* expression in the *ApVT* colony)  but not the other, we hypothesized that geographically-divergent selection may have favored constitutive expression. To test this idea, we compared levels of constitutive expression between *A22* and *ApNC* near the optimum temperature of 19.5° C . Specifically, we predicted higher constitutive expression in *ApNC* for genes with *High* expression in *A22*, and conversely, higher constitutive expression  in *A22* for *Low* genes in *ApNC* . 
+
+The *Intermediate* expressed transcripts are core molecular processes that are expressed at non-stressful temperatures, and shut-off when the organism experiences thermal stress. We hypothesized that if the more southern *ApNC* colony was more thermally-tolerant than *ApVT* colony, transcripts with 'Intermediate' expression (10-30° C) would be expressed across a wider range of temperatures. To test this with our data, for each *Intermediate* expressed transcript in each colony, we randomly sampled 1,000 temperature values weighted by the expression function (e.g. point of maximum expression had highest probability of being sampled). We then calculated the standard deviation of this random draw, and performed a *t*-test comparing the standard deviations of expression between colonies.
+
+In contrast, *Bimodal* expressed transcripts are those that are activated in response to thermal stress. Following the reasoning for *Intermediate* transcripts, we hypothesized that a more thermally-tolerant colony would We hypothesized that 
+
+
+we hypothesized that 
+
+if expression of genes involved in plastic responses to thermal stress were canalized by geographically-divergent selection, their constitutive expression (measured would be higher in the 
+
+
+
+we compared levels of expression at the mean temperature . Specifically, we hypothesized that 
 
 
 
 **Data and analysis availability**
 
 The raw Illumina reads are available at [...], the script for analysis and version history is available at (http://github.com/johnstantongeddes/ApTranscriptome).  
+
 
 
 ## Results

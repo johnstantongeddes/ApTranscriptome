@@ -3,7 +3,7 @@ Thermal reactionome of the common ant species *Aphaenogaster*
    
 **Author:** [John Stanton-Geddes](john.stantongeddes.research@gmail.com)
 
-**March 31, 2014**
+**April 4, 2014**
 
 **Technical Report No. 3**
 
@@ -646,21 +646,21 @@ length(A22.int.lm)
 
 # apply `transcriptSD` function to all transcripts
 A22.int.sd <- unlist(Map(transcriptSD, A22.int.lm, colony = "A22"))
+A22.int.sd <- data.frame(colony = "A22", exp_sd = A22.int.sd)
 
 # repeat for Ar
 Ar.int.lm <- RxNlmAIC[Ar.int.transcripts$Transcript]
 Ar.int.sd <- unlist(Map(transcriptSD, Ar.int.lm, colony = "Ar"))
+Ar.int.sd <- data.frame(colony = "Ar", exp_sd = Ar.int.sd)
 
 # T-test comparing standard deviation of expression between colonies
-t.test(A22.int.sd, Ar.int.sd)
+t.test(A22.int.sd$exp_sd, Ar.int.sd$exp_sd)
 ```
 
 Consistent with our hypothesis, 'Intermediate' transcripts in *Ar* are expressed over a significantly wider range of temperatures than in *A22*. 
 
 ```{r plotthermalbreadth, echo=FALSE, eval=TRUE)
 # prep data for plotting
-A22.int.sd <- data.frame(colony = "A22", exp_sd = A22.int.sd)
-Ar.int.sd <- data.frame(colony = "Ar", exp_sd = Ar.int.sd)
 Ap.int.sd <- rbind(A22.int.sd, Ar.int.sd)
 
 # ggplot
@@ -741,7 +741,7 @@ varshape.out$slope <- varshape.out$A22.slope - varshape.out$Ar.slope
 # to compare among transcripts that differ in scale of expression, standardize by overall mean for each transcript
 varshape.out$s.slope <- NA
 for(i in 1:nrow(varshape.out)) {
-  varshape.out[i, "s.slope"] <- (varshape.out[i, "offset"] / mean(c(varshape.out[i, "A22.slope"], varshape.out[i, "Ar.slope"])))
+  varshape.out[i, "s.slope"] <- (varshape.out[i, "slope"] / mean(c(varshape.out[i, "A22.slope"], varshape.out[i, "Ar.slope"])))
 }
 # for transcripts where both samples had slope=0, change s.slope from Inf to 0 as there is truly no difference in slope
 varshape.out[which(varshape.out$Ar.slope == 0 & varshape.out$A22.slope == 0), "s.slope"] <- 0
@@ -755,7 +755,7 @@ varshape.out$curvature <- varshape.out$A22.curve - varshape.out$Ar.curve
 # to compare among transcripts that differ in scale of expression, standardize by overall mean for each transcript
 varshape.out$s.curvature <- NA
 for(i in 1:nrow(varshape.out)) {
-  varshape.out[i, "s.curvature"] <- (varshape.out[i, "offset"] / mean(c(varshape.out[i, "A22.curve"], varshape.out[i, "Ar.curve"])))
+  varshape.out[i, "s.curvature"] <- (varshape.out[i, "curvature"] / mean(c(varshape.out[i, "A22.curve"], varshape.out[i, "Ar.curve"])))
 }
 # change 'Inf' values to 0
 varshape.out[which(varshape.out$Ar.curve == 0 & varshape.out$A22.curve == 0), "s.curvature"] <- 0
@@ -770,9 +770,9 @@ for(i in 1:nrow(varshape.out)) {
   varshape.out[i, "s.wiggle"] <- (varshape.out[i, "wiggle"] / mean(c(varshape.out[i, "A22.wiggle"], varshape.out[i, "Ar.wiggle"])))
 }
 # change 'Inf' values to 0
-varshape.out[which(varshape.out$Ar.curve == 0 & varshape.out$A22.curve == 0), "s.wiggle"] <- 0
+varshape.out[which(varshape.out$Ar.wiggle == 0 & varshape.out$A22.wiggle == 0), "s.wiggle"] <- 0
 # note that only 407 transcripts have any 'wiggle'
-length(which(!is.na(varshape.out$s.wiggle)))
+length(which(varshape.out$s.wiggle != 0))
 
 # t-test
 t.test(varshape.out$s.wiggle, alternative = "two.sided")
@@ -787,26 +787,17 @@ varshape.out$s.total <- abs(varshape.out$s.offset) + abs(varshape.out$s.slope) +
 
 t.test(varshape.out$s.total, alternative = "two.sided")
 
+# variation in reaction norms due to differences in mean
+varshape.out$prop.mean <- abs(varshape.out$s.offset) / varshape.out$s.total
+varshape.out$prop.slope <- abs(varshape.out$s.slope) / varshape.out$s.total
+varshape.out$prop.curve <- abs(varshape.out$s.curvature) / varshape.out$s.total
+varshape.out$prop.wiggle <- abs(varshape.out$s.wiggle) / varshape.out$s.total
+
+mean(varshape.out$prop.mean)
+mean(varshape.out$prop.slope)
+mean(varshape.out$prop.curve)
+mean(varshape.out$prop.wiggle)
 ```
-
-
-# table
-pandoc.table(varshape.out[which(abs(varshape.out$offset)>1000), c(".id", "A22.mean", "Ar.mean", "offset")])
-
-# t test
-t.test(varshape.out$A22.mean, varshape.out$Ar.mean, paired = TRUE)
-t.test(log(varshape.out$A22.mean), log(varshape.out$Ar.mean), paired = TRUE)
-
-wilcox.test(varshape.out$A22.mean, varshape.out$Ar.mean, alternative = "two.sided", paired = TRUE, conf.int = TRUE)
-
-t.test(varshape.out$A22.slope, varshape.out$Ar.slope)
-t.test(varshape.out$A22.curve, varshape.out$Ar.curve)
-t.test(varshape.out$A22.wiggle, varshape.out$Ar.wiggle)
-
-
-```
-
-
 
 
 
