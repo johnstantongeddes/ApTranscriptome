@@ -372,7 +372,7 @@ pandoc.table(cortable, style="rmarkdown", caption = "correlations between coloni
 
 To identify transcripts (roughly equivalent to genes) that show thermal responsiveness, I fit the following linear model to each transcript:
 
-$$ TPM = \beta_0 + \beta_1(colony) + \beta_2(temp) + \beta_3(temp^2) + \beta_4(colony * temp) + \\beta_5(colony * temp^2) + \epsilon $$
+$$ log(TPM + 1) = \beta_0 + \beta_1(colony) + \beta_2(temp) + \beta_3(temp^2) + \beta_4(colony * temp) + \beta_5(colony * temp^2) + \epsilon $$
 
 where TPM is transcripts per million. 
 
@@ -527,17 +527,13 @@ Ar.type.table <- table(Ap.response.type[ , 'Ar.type'])
 Ap.type.table <- rbind(A22.type.table, Ar.type.table)
 rownames(Ap.type.table) <- c("A22", "Ar")
 
-pandoc.table(Ap.type.table, style="rmarkdown", caption = "Number of transcripts with maximum expression at high, low, intermediate or both high and low (bimodal) temperatures.")
+# re-orderfor printing
+Ap.type.table <- Ap.type.table[ , c(2,4,1,3,5)]
 
-# only transcripts that differ in expression by colony
-A22.interaction.type.table <- table(interaction.response.type[ , 'A22.type'])
-Ar.interaction.type.table <- table(interaction.response.type[ , 'Ar.type'])
+pandoc.table(Ap.type.table, style="rmarkdown", caption = "Number of thermally-responsive transcripts with maximum expression at high, low, intermediate, both high and low (bimodal) temperatures or are not expressed for each colony.")
 
-Ap.interaction.type.table <- rbind(A22.interaction.type.table, Ar.interaction.type.table)
-rownames(Ap.interaction.type.table) <- c("A22", "Ar")
-
-pandoc.table(Ap.interaction.type.table, style="rmarkdown", caption = "For transcripts that differ in expression pattern between *A22* and *Ar*, the number of transcripts with maximum expression at high, low, intermediate or both high and low (bimodal) temperatures.")
-
+# Pearson Chi-square test
+chisq.test(Ap.type.table)
 ```
 
 
@@ -654,7 +650,7 @@ Ar.int.sd <- unlist(Map(transcriptSD, Ar.int.lm, colony = "Ar"))
 Ar.int.sd <- data.frame(colony = "Ar", exp_sd = Ar.int.sd)
 
 # T-test comparing standard deviation of expression between colonies
-t.test(A22.int.sd$exp_sd, Ar.int.sd$exp_sd)
+t.test(Ar.int.sd$exp_sd, A22.int.sd$exp_sd)
 ```
 
 Consistent with our hypothesis, 'Intermediate' transcripts in *Ar* are expressed over a significantly wider range of temperatures than in *A22*. 
@@ -689,7 +685,7 @@ length(Ar.bim.lm)
 Ar.bim.sd <- unlist(Map(transcriptSD, Ar.bim.lm, colony = "Ar"))
 
 # t-test to compare standard deviation of 'Bimodal' transcripts between colonies
-t.test(A22.bim.sd, Ar.bim.sd)
+t.test(Ar.bim.sd, A22.bim.sd)
 ```
 
 No difference in the standard deviation of expression for bimodally-expressed transcripts between colonies.
@@ -697,11 +693,11 @@ No difference in the standard deviation of expression for bimodally-expressed tr
 
 ### Compare peak expression among colonies ###
 
-Probability distribution function of peak expression for transcripts that differ in expression between *A22* and *Ar*
+Probability density function of peak expression for transcripts that differ in expression between *A22* and *Ar*
 
 ```{r max_exp_PDF}
 # reshape data
-Ap.df <- data.frame(Transcript = rep(Ap.response.type$Transcript, times = 2), colony = rep(c("A22", "Ar"), each = length(Ap.response.type$Transcript)), max.val = c(Ap.response.type$A22.max, Ap.response.type$Ar.max))
+Ap.df <- data.frame(Transcript = rep(Ap.response.type$Transcript, times = 2), colony = rep(c("ApVT", "ApNC"), each = length(Ap.response.type$Transcript)), max.val = c(Ap.response.type$A22.max, Ap.response.type$Ar.max))
 
 png(paste(resultsdir, "PDF_expression_all.png", sep=""))
 g3 <- ggplot(Ap.df, aes(x=max.val, fill=colony)) + geom_density(alpha=0.2, position="identity")
@@ -782,6 +778,12 @@ Next, I partition the differences in the reaction norms into the variation expla
 
 
 ```{r partition_reaction_norm_variation}
+# weighted mean-standardized values of each measure
+mean(abs((varshape.out$s.offset)))
+mean(abs((varshape.out$s.slope)))
+mean(abs((varshape.out$s.curvature)))
+mean(abs((varshape.out$s.wiggle)))
+
 # take absolute value of each value and sum to get total differences between reaction norms
 varshape.out$s.total <- abs(varshape.out$s.offset) + abs(varshape.out$s.slope) + abs(varshape.out$s.curvature) + abs(varshape.out$s.wiggle)
 
@@ -793,10 +795,18 @@ varshape.out$prop.slope <- abs(varshape.out$s.slope) / varshape.out$s.total
 varshape.out$prop.curve <- abs(varshape.out$s.curvature) / varshape.out$s.total
 varshape.out$prop.wiggle <- abs(varshape.out$s.wiggle) / varshape.out$s.total
 
+# Mean proportion and 95% CI of total variation of each measure
 mean(varshape.out$prop.mean)
+quantile(varshape.out$prop.mean, probs = c(0.05, 0.5, 0.95))
+
 mean(varshape.out$prop.slope)
+quantile(varshape.out$prop.slope, probs = c(0.05, 0.5, 0.95))
+
 mean(varshape.out$prop.curve)
+quantile(varshape.out$prop.curve, probs = c(0.05, 0.5, 0.95))
+
 mean(varshape.out$prop.wiggle)
+quantile(varshape.out$prop.wiggle, probs = c(0.05, 0.5, 0.95))
 ```
 
 
