@@ -238,3 +238,47 @@ geneid2GOmap <- function(annotmat) {
   } # end for loop
 } # end function
 
+
+############################################################################################
+## geneid2GOmap
+############################################################################################
+
+gsea <- function(genelist, geneID2GO, plotpath=NA) {
+  # Run topGO using parentChild 
+  #
+  # Args:
+  #  genelist: list of genes with 0 for non-significant and 1 for significant genes. 'names' need to correspond to gene names in geneID2GO file
+  # geneID2GO: gene read mappings created using `geneID2GOMap` function from topGO
+  # plotpath: file path to save plot of significant nodes, max of 10 due to size limitations. if NA, no plot is made
+  #
+  # Returns:
+  #  data.frame with enriched GO terms at p < 0.01
+  
+  # create topGOdata object
+  GOdata <- new("topGOdata",
+                description = "BP gene set analysis",
+                ontology = "BP",
+                allGenes = genelist,
+                geneSel = function(genelist) {return(genelist == 1)},
+                nodeSize = 10,
+                annot = annFUN.gene2GO,
+                gene2GO = geneID2GO)
+  
+  # perform enrichment analysis using parentchild method
+  resultParentChild <- runTest(GOdata, statistic = 'fisher', algorithm = 'parentchild')
+  
+  # get number of significant GO terms p < 0.01
+  numsignodes <- length(which(score(resultParentChild) < 0.01))
+  
+  # result table
+  resTable <- GenTable(GOdata, parentchild = resultParentChild, topNodes = numsignodes)
+  
+ 
+  if(!is.na(plotpath)) {
+    # plot nodes
+    pdf(plotpath)
+    showSigOfNodes(GOdata, score(resultParentChild), firstSigNodes = min(numsignodes, 10), useInfo = 'all')
+    dev.off()
+  }
+  
+}

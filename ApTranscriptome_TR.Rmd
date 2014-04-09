@@ -3,7 +3,7 @@ Thermal reactionome of the common ant species *Aphaenogaster*
    
 **Author:** [John Stanton-Geddes](john.stantongeddes.research@gmail.com)
 
-**April 4, 2014**
+**April 8, 2014**
 
 **Technical Report No. 3**
 
@@ -523,14 +523,21 @@ Examine transcripts by temperature response. Compare between colonies.
 # table type of response
 A22.type.table <- table(Ap.response.type[ , 'A22.type'])
 Ar.type.table <- table(Ap.response.type[ , 'Ar.type'])
+# overlap
+overlap <- c(length(Ap.response.type[which(Ap.response.type$A22.type == "Bimodal" & Ap.response.type$Ar.type == "Bimodal"), "Transcript"]),
+             length(Ap.response.type[which(Ap.response.type$A22.type == "High" & Ap.response.type$Ar.type == "High"), "Transcript"]),
+             length(Ap.response.type[which(Ap.response.type$A22.type == "Intermediate" & Ap.response.type$Ar.type == "Intermediate"), "Transcript"]),
+             length(Ap.response.type[which(Ap.response.type$A22.type == "Low" & Ap.response.type$Ar.type == "Low"), "Transcript"]),
+             length(Ap.response.type[which(Ap.response.type$A22.type == "NotExp" & Ap.response.type$Ar.type == "NotExp"), "Transcript"]))
 
-Ap.type.table <- rbind(A22.type.table, Ar.type.table)
-rownames(Ap.type.table) <- c("A22", "Ar")
+# make table
+Ap.type.table <- rbind(A22.type.table, Ar.type.table, overlap)
+rownames(Ap.type.table) <- c("A22", "Ar", "Both")
 
 # re-orderfor printing
 Ap.type.table <- Ap.type.table[ , c(2,4,1,3,5)]
 
-pandoc.table(Ap.type.table, style="rmarkdown", caption = "Number of thermally-responsive transcripts with maximum expression at high, low, intermediate, both high and low (bimodal) temperatures or are not expressed for each colony.")
+pandoc.table(Ap.type.table, style="rmarkdown", caption = "Number of thermally-responsive transcripts with maximum expression at high, low, intermediate, both high and low (bimodal) temperatures or are not expressed for each colony and their overlap.")
 
 # Pearson Chi-square test
 chisq.test(Ap.type.table)
@@ -655,7 +662,7 @@ t.test(Ar.int.sd$exp_sd, A22.int.sd$exp_sd)
 
 Consistent with our hypothesis, 'Intermediate' transcripts in *Ar* are expressed over a significantly wider range of temperatures than in *A22*. 
 
-```{r plotthermalbreadth, echo=FALSE, eval=TRUE)
+```{r plotthermalbreadth, echo=FALSE, eval=TRUE}
 # prep data for plotting
 Ap.int.sd <- rbind(A22.int.sd, Ar.int.sd)
 
@@ -831,23 +838,24 @@ setnames(signif.transcripts, "Sequence.Name", "Transcript")
 I perform gene set enrichment analysis below, but a quick `grep` shows that there are 26 transcripts with GO term "response to stress", though this is not enriched compared to the frequency of this term in the full dataset.
   
 ```{r GO_contingency_test}
+responsive.transcripts.ann <- signif.transcripts[names(responsive.transcripts)]
 # GO 'response to stress' hits in responsive transcripts
-responsive.transcripts[grep("GO:0006950", responsive.transcripts$GO.Biological.Process), list(Transcript, best.hit.to.nr)]
+responsive.transcripts.ann[grep("GO:0006950", responsive.transcripts.ann$GO.Biological.Process), list(Transcript, best.hit.to.nr)]
 
-resp.stress.responsive.count <- nrow(responsive.transcripts[grep("GO:0006950", responsive.transcripts$GO.Biological.Process), list(Transcript, best.hit.to.nr)])
+resp.stress.responsive.count <- nrow(responsive.transcripts.ann[grep("GO:0006950", responsive.transcripts.ann$GO.Biological.Process), list(Transcript, best.hit.to.nr)])
 # GO 'response to stress' hits in all transcripts
 resp.stress.all.count <- nrow(annotationtable[grep("GO:0006950", annotationtable$GO.Biological.Process), list(Sequence.Name, best.hit.to.nr)])
 
-GO.stress.table <- matrix(rbind(resp.stress.responsive.count, nrow(responsive.transcripts) - resp.stress.responsive.count, resp.stress.all.count, nrow(annotationtable) - resp.stress.all.count), nrow = 2)
+GO.stress.table <- matrix(rbind(resp.stress.responsive.count, nrow(responsive.transcripts.ann) - resp.stress.responsive.count, resp.stress.all.count, nrow(annotationtable) - resp.stress.all.count), nrow = 2)
 
 GO.stress.Xsq <- chisq.test(GO.stress.table)
 GO.stress.Xsq
 ```
 
-There are also 4 heat shock related genes in the responsive transcripts, out of 130 total.
+There are also 6 heat shock related genes in the responsive transcripts, out of 130 total.
 
 ```{r grep_shock}
-hsp_responsive <- responsive.transcripts[grep("shock", responsive.transcripts$best.hit.to.nr), list(Transcript, best.hit.to.nr)]
+hsp_responsive <- responsive.transcripts.ann[grep("shock", responsive.transcripts.ann$best.hit.to.nr), list(Transcript, best.hit.to.nr)]
 nrow(hsp_responsive)
 
 hsp_all <- annotationtable[grep("shock", annotationtable$best.hit.to.nr), list(Sequence.Name, best.hit.to.nr)]
@@ -885,10 +893,10 @@ Use `selectFDR` function to select transcripts with adjusted P < 0.05.
 ```{r gsea_all}
 # create geneList. note that NA values cause problems with topGO
 # so set any NA to 1 as need to retain for GO analysis
-Ap.geneList <- RxNout$padj
+Ap.geneList <- RxNpval$padj
 Ap.geneList[which(is.na(Ap.geneList))] <- 1
 stopifnot(length(which(is.na(Ap.geneList))) == 0)
-names(Ap.geneList) <- RxNout$Transcript
+names(Ap.geneList) <- RxNpval$Transcript
 str(Ap.geneList)
 
 # Function to select top genes (defined above)
@@ -910,7 +918,7 @@ Ap.BP.resultParentChild <- runTest(Ap.BP.GOdata, statistic = 'fisher', algorithm
 Ap.BP.resultParentChild
 
 # table results
-Ap.BP.ResTable <- GenTable(Ap.BP.GOdata, parentchild = Ap.BP.resultParentChild, topNodes = 118)
+Ap.BP.ResTable <- GenTable(Ap.BP.GOdata, parentchild = Ap.BP.resultParentChild, topNodes = 82)
 #Ap.BP.ResTable
 write.table(Ap.BP.ResTable, file = paste(resultsdir, "Ap_GO.BP_results.txt", sep=""), quote=FALSE, row.names=FALSE, sep = "\t")
 pandoc.table(Ap.BP.ResTable)
@@ -922,185 +930,225 @@ showSigOfNodes(Ap.BP.GOdata, score(Ap.BP.resultParentChild), firstSigNodes = 10,
 dev.off()
 ```
 
-**2) High and low expressed transcripts**
+**2) High**
 
-Use `selectTranscript` function to select transcripts based on 'A22.exp.type'. As only significant transcripts have an 'A22.exp.type' assigned, this is a small subset of the above.
+Genes with *High* expression in both colonies
 
-```{r A22.exp.type_function}
-selectTranscript <- function(score) {
-    return(score == 1)
-}
+Use `selectTranscript` function to select transcripts from 'Ap.response.type' for GSEA.
 
-# To select genes, add 'A22.exp.type' to RxN df
-RxNout.t <- merge(RxNout, Ap.A22.exp.type, by="Transcript", all=TRUE)
-length(which(!is.na(RxNout.t$A22.exp.type)))
+```{r gsea_high}
+# Select transcripts
+Ap.high <- Ap.response.type[which(Ap.response.type$Ar.type == "High" & Ap.response.type$A22.type == "High"), "Transcript"]
+Ap.geneList.high <- rep(0, length = length(Ap.geneList))
+names(Ap.geneList.high) <- names(Ap.geneList)
+Ap.geneList.high[(which(names(Ap.geneList.high) %in% Ap.high))] <- 1
+# check correct number of values set to 1
+table(Ap.geneList.high)
+
+# Run GSEA
+Ap.high.gsea <- gsea(genelist = Ap.geneList.high, geneID2GO = geneID2GO)
+pandoc.table(Ap.high.gsea)
 ```
 
 
-```{r bim.gsea, echo=TRUE, eval=TRUE}
-# create geneList
-Ap.bim.geneList <- rep(0, length = nrow(RxNout.t))
-Ap.bim.geneList[which(RxNout.t$A22.exp.type=="Bimodal")] <- 1
-names(Ap.bim.geneList) <- RxNout.t$Transcript
-str(Ap.bim.geneList)
-table(Ap.bim.geneList)
+**3) Low**
 
-# create topGOdata object
-Ap.bim.BP.GOdata <- new("topGOdata",
-                 description = "BP gene set analysis",
-                 ontology = "BP",
-                 allGenes = Ap.bim.geneList,
-                 geneSel = selectTranscript,
-                 nodeSize = 10,
-                 annot = annFUN.gene2GO,
-                 gene2GO = geneID2GO)
+Genes with *Low* expression in both colonies
 
-Ap.bim.BP.GOdata
+```{r gsea_low}
+# Select transcripts
+Ap.low <- Ap.response.type[which(Ap.response.type$Ar.type == "Low" & Ap.response.type$A22.type == "Low"), "Transcript"]
+Ap.geneList.low <- rep(0, length = length(Ap.geneList))
+names(Ap.geneList.low) <- names(Ap.geneList)
+Ap.geneList.low[(which(names(Ap.geneList.low) %in% Ap.low))] <- 1
+# check correct number of values set to 1
+table(Ap.geneList.low)
 
-# perform enrichment analysis using parentchild method
-Ap.bim.BP.resultParentChild <- runTest(Ap.bim.BP.GOdata, statistic = 'fisher', algorithm = 'parentchild')
-Ap.bim.BP.resultParentChild
-```
-
-Enriched gene sets for genes expressed at both high and low temperatures.
-
-```{r, echo=FALSE, results="asis"}
-Ap.bim.BP.ResTable <- GenTable(Ap.bim.BP.GOdata, parentchild = Ap.bim.BP.resultParentChild, topNodes = 52)
-#Ap.bim.BP.ResTable
-write.table(Ap.bim.BP.ResTable, file = paste(resultsdir, "Ap_bimodal_GO.BP_results.txt", sep=""), quote=FALSE, row.names=FALSE, sep = "\t")
-pandoc.table(Ap.bim.BP.ResTable)
-```
-
-
-**3) Intermediate-temperature expressed transcripts**
-
-```{r int.gsea, echo=TRUE, eval=TRUE}
-# create geneList
-Ap.int.geneList <- rep(0, length = nrow(RxNout.t))
-Ap.int.geneList[which(RxNout.t$A22.exp.type=="Intermediate")] <- 1
-names(Ap.int.geneList) <- RxNout.t$Transcript
-str(Ap.int.geneList)
-table(Ap.int.geneList)
-
-# create topGOdata object
-Ap.int.BP.GOdata <- new("topGOdata",
-                 description = "BP gene set analysis",
-                 ontology = "BP",
-                 allGenes = Ap.int.geneList,
-                 geneSel = selectTranscript,
-                 nodeSize = 10,
-                 annot = annFUN.gene2GO,
-                 gene2GO = geneID2GO)
-
-Ap.int.BP.GOdata
-
-# perform enrichment analysis using parentchild method
-Ap.int.BP.resultParentChild <- runTest(Ap.int.BP.GOdata, statistic = 'fisher', algorithm = 'parentchild')
-Ap.int.BP.resultParentChild
-```
-
-Enriched gene sets for genes expressed at intermediate temperatures.
-
-```{r, echo=FALSE, results="asis"}
-Ap.int.BP.ResTable <- GenTable(Ap.int.BP.GOdata, parentchild = Ap.int.BP.resultParentChild, topNodes=16)
-Ap.int.BP.ResTable
-write.table(Ap.int.BP.ResTable, file = paste(resultsdir, "Ap_intermediate_GO.BP_results.txt", sep=""), quote=FALSE, row.names=FALSE, sep = "\t")
-pandoc.table(Ap.int.BP.ResTable)
-```
-
-
-**4) High temperature expressed transcripts**
-
-
-```{r hig.gsea, echo=TRUE, eval=TRUE}
-# create geneList
-Ap.hig.geneList <- rep(0, length = nrow(RxNout.t))
-Ap.hig.geneList[which(RxNout.t$A22.exp.type=="High")] <- 1
-names(Ap.hig.geneList) <- RxNout.t$Transcript
-str(Ap.hig.geneList)
-table(Ap.hig.geneList)
-
-# create topGOdata object
-Ap.hig.BP.GOdata <- new("topGOdata",
-                 description = "BP gene set analysis",
-                 ontology = "BP",
-                 allGenes = Ap.hig.geneList,
-                 geneSel = selectTranscript,
-                 nodeSize = 10,
-                 annot = annFUN.gene2GO,
-                 gene2GO = geneID2GO)
-
-Ap.hig.BP.GOdata
-
-# perform enrichment analysis using parentchild method
-Ap.hig.BP.resultParentChild <- runTest(Ap.hig.BP.GOdata, statistic = 'fisher', algorithm = 'parentchild')
-Ap.hig.BP.resultParentChild
-```
-
-Enriched gene sets for genes expressed at both high temperatures only.
-
-```{r, echo=FALSE, results="asis"}
-Ap.hig.BP.ResTable <- GenTable(Ap.hig.BP.GOdata, parentchild = Ap.hig.BP.resultParentChild, topNodes=12)
-#Ap.hig.BP.ResTable
-write.table(Ap.hig.BP.ResTable, file = paste(resultsdir, "Ap_high_GO.BP_results.txt", sep=""), quote=FALSE, row.names=FALSE, sep = "\t")
-pandoc.table(Ap.hig.BP.ResTable)
-```
-
-
-**5) Low temperature expressed transcripts**
-
-```{r low.gsea, echo=TRUE, eval=TRUE}
-# create geneList
-Ap.low.geneList <- rep(0, length = nrow(RxNout.t))
-Ap.low.geneList[which(RxNout.t$A22.exp.type=="Low")] <- 1
-names(Ap.low.geneList) <- RxNout.t$Transcript
-str(Ap.low.geneList)
-table(Ap.low.geneList)
-
-# create topGOdata object
-Ap.low.BP.GOdata <- new("topGOdata",
-                 description = "BP gene set analysis",
-                 ontology = "BP",
-                 allGenes = Ap.low.geneList,
-                 geneSel = selectTranscript,
-                 nodeSize = 10,
-                 annot = annFUN.gene2GO,
-                 gene2GO = geneID2GO)
-
-Ap.low.BP.GOdata
-
-# perform enrichment analysis using parentchild method
-Ap.low.BP.resultParentChild <- runTest(Ap.low.BP.GOdata, statistic = 'fisher', algorithm = 'parentchild')
-Ap.low.BP.resultParentChild
-```
-
-Enriched gene sets for genes expressed at low temperatures only.
-
-```{r, echo=FALSE, results="asis"}
-Ap.low.BP.ResTable <- GenTable(Ap.low.BP.GOdata, parentchild = Ap.low.BP.resultParentChild, topNodes=26)
-Ap.low.BP.ResTable
-write.table(Ap.low.BP.ResTable, file = paste(resultsdir, "Ap_low_GO.BP_results.txt", sep=""), quote=FALSE, row.names=FALSE, sep = "\t")
+# Run GSEA
+Ap.low.gsea <- gsea(genelist = Ap.geneList.low, geneID2GO = geneID2GO)
 pandoc.table(Ap.low.BP.ResTable)
 ```
 
-```{r, echo=FALSE}
-# graph significant nodes
-pdf(paste(resultsdir, "Ap_bimodal_BP_topGO_sig_nodes.pdf", sep=""))
-showSigOfNodes(Ap.bim.BP.GOdata, score(Ap.bim.BP.resultParentChild), firstSigNodes = 52, useInfo = 'all')
-dev.off()
 
-pdf(paste(resultsdir, "Ap_intermediate_BP_topGO_sig_nodes.pdf", sep=""))
-showSigOfNodes(Ap.int.BP.GOdata, score(Ap.int.BP.resultParentChild), firstSigNodes = 16, useInfo = 'all')
-dev.off()
+**4) Bimodal**
 
-pdf(paste(resultsdir, "Ap_high_BP_topGO_sig_nodes.pdf", sep=""))
-showSigOfNodes(Ap.hig.BP.GOdata, score(Ap.hig.BP.resultParentChild), firstSigNodes = 12, useInfo = 'all')
-dev.off()
+Genes with *Bimodal* expression in both colonies
 
-pdf(paste(resultsdir, "Ap_low_BP_topGO_sig_nodes.pdf", sep=""))
-showSigOfNodes(Ap.low.BP.GOdata, score(Ap.low.BP.resultParentChild), firstSigNodes = 26, useInfo = 'all')
-dev.off()
+```{r gsea_bimodal}
+Ap.bim <- Ap.response.type[which(Ap.response.type$A22.type == "Bimodal" & Ap.response.type$Ar.type == "Bimodal"), "Transcript"]
+# create gene list, setting value to 1 for "bim" transcripts
+Ap.geneList.bim <- rep(0, length = length(Ap.geneList))
+names(Ap.geneList.bim) <- names(Ap.geneList)
+Ap.geneList.bim[(which(names(Ap.geneList.bim) %in% Ap.bim))] <- 1
+# check correct number of values set to 1
+table(Ap.geneList.bim)
+
+# Run GSEA
+Ap.bim.gsea <- gsea(genelist = Ap.geneList.bim, geneID2GO = geneID2GO)
+pandoc.table(Ap.bim.gsea)
 ```
+
+
+**5) Intermediate**
+
+Genes with *Intermediate* expression in both colonies
+
+```{r gsea_intermediate}
+Ap.int <- Ap.response.type[which(Ap.response.type$A22.type == "Intermediate" & Ap.response.type$Ar.type == "Intermediate"), "Transcript"]
+# create gene list, setting value to 1 for "int" transcripts
+Ap.geneList.int <- rep(0, length = length(Ap.geneList))
+names(Ap.geneList.int) <- names(Ap.geneList)
+Ap.geneList.int[(which(names(Ap.geneList.int) %in% Ap.int))] <- 1
+# check correct number of values set to 1
+table(Ap.geneList.int)
+
+# Run GSEA
+Ap.int.gsea <- gsea(genelist = Ap.geneList.int, geneID2GO = geneID2GO)
+pandoc.table(Ap.int.gsea)
+```
+
+
+
+Next, I perform GSEA for genes in each functional type in one colony but not the other (e.g. the set difference) to gain insight on differences between the colonies.
+
+**A22 'High' genes not in Ar**
+
+```{r gsea_high_A22}
+A22.high <- Ap.response.type[which(Ap.response.type$A22.type == "High" & Ap.response.type$Ar.type != "High"), "Transcript"]
+# create gene list, setting value to 1 for "bim" transcripts
+A22.geneList.high <- rep(0, length = length(Ap.geneList))
+names(A22.geneList.high) <- names(Ap.geneList)
+A22.geneList.high[(which(names(A22.geneList.high) %in% A22.high))] <- 1
+# check correct number of values set to 1
+table(A22.geneList.high)
+
+# Run GSEA
+A22.high.gsea <- gsea(genelist = A22.geneList.high, geneID2GO = geneID2GO)
+pandoc.table(A22.high.gsea)
+```
+
+
+**Ar 'High' genes not in Ar**
+
+```{r gsea_high_Ar}
+Ar.high <- Ap.response.type[which(Ap.response.type$A22.type != "High" & Ap.response.type$Ar.type == "High"), "Transcript"]
+# create gene list, setting value to 1 for "bim" transcripts
+Ar.geneList.high <- rep(0, length = length(Ap.geneList))
+names(Ar.geneList.high) <- names(Ap.geneList)
+Ar.geneList.high[(which(names(Ar.geneList.high) %in% Ar.high))] <- 1
+# check correct number of values set to 1
+table(Ar.geneList.high)
+
+# Run GSEA
+Ar.high.gsea <- gsea(genelist = Ar.geneList.high, geneID2GO = geneID2GO)
+pandoc.table(Ar.high.gsea)
+```
+
+
+**A22 'Low' genes not in Ar**
+
+```{r gsea_low_A22}
+A22.low <- Ap.response.type[which(Ap.response.type$A22.type == "Low" & Ap.response.type$Ar.type != "Low"), "Transcript"]
+# create gene list, setting value to 1 for "bim" transcripts
+A22.geneList.low <- rep(0, length = length(Ap.geneList))
+names(A22.geneList.low) <- names(Ap.geneList)
+A22.geneList.low[(which(names(A22.geneList.low) %in% A22.low))] <- 1
+# check correct number of values set to 1
+table(A22.geneList.low)
+
+# Run GSEA
+A22.low.gsea <- gsea(genelist = A22.geneList.low, geneID2GO = geneID2GO)
+pandoc.table(A22.low.gsea)
+```
+
+
+**Ar 'Low' genes not in Ar**
+
+```{r gsea_low_Ar}
+Ar.low <- Ap.response.type[which(Ap.response.type$A22.type != "Low" & Ap.response.type$Ar.type == "Low"), "Transcript"]
+# create gene list, setting value to 1 for "bim" transcripts
+Ar.geneList.low <- rep(0, length = length(Ap.geneList))
+names(Ar.geneList.low) <- names(Ap.geneList)
+Ar.geneList.low[(which(names(Ar.geneList.low) %in% Ar.low))] <- 1
+# check correct number of values set to 1
+table(Ar.geneList.low)
+
+# Run GSEA
+Ar.low.gsea <- gsea(genelist = Ar.geneList.low, geneID2GO = geneID2GO)
+pandoc.table(Ar.low.gsea)
+```
+
+
+
+**A22 'Bimodal' genes not in Ar**
+
+```{r gsea_bim_A22}
+A22.bim <- Ap.response.type[which(Ap.response.type$A22.type == "Bimodal" & Ap.response.type$Ar.type != "Bimodal"), "Transcript"]
+# create gene list, setting value to 1 for "bim" transcripts
+A22.geneList.bim <- rep(0, length = length(Ap.geneList))
+names(A22.geneList.bim) <- names(Ap.geneList)
+A22.geneList.bim[(which(names(A22.geneList.bim) %in% A22.bim))] <- 1
+# check correct number of values set to 1
+table(A22.geneList.bim)
+
+# Run GSEA
+A22.bim.gsea <- gsea(genelist = A22.geneList.bim, geneID2GO = geneID2GO)
+pandoc.table(A22.bim.gsea)
+```
+
+
+**Ar 'Bimodal' genes not in Ar**
+
+```{r gsea_bim_Ar}
+Ar.bim <- Ap.response.type[which(Ap.response.type$A22.type != "Bimodal" & Ap.response.type$Ar.type == "Bimodal"), "Transcript"]
+# create gene list, setting value to 1 for "bim" transcripts
+Ar.geneList.bim <- rep(0, length = length(Ap.geneList))
+names(Ar.geneList.bim) <- names(Ap.geneList)
+Ar.geneList.bim[(which(names(Ar.geneList.bim) %in% Ar.bim))] <- 1
+# check correct number of values set to 1
+table(Ar.geneList.bim)
+
+# Run GSEA
+Ar.bim.gsea <- gsea(genelist = Ar.geneList.bim, geneID2GO = geneID2GO)
+pandoc.table(Ar.bim.gsea)
+```
+
+
+
+**A22 'Intermediate' genes not in Ar**
+
+```{r gsea_int_A22}
+A22.int <- Ap.response.type[which(Ap.response.type$A22.type == "Intermediate" & Ap.response.type$Ar.type != "Intermediate"), "Transcript"]
+# create gene list, setting value to 1 for "bim" transcripts
+A22.geneList.int <- rep(0, length = length(Ap.geneList))
+names(A22.geneList.int) <- names(Ap.geneList)
+A22.geneList.int[(which(names(A22.geneList.int) %in% A22.int))] <- 1
+# check correct number of values set to 1
+table(A22.geneList.int)
+
+# Run GSEA
+A22.int.gsea <- gsea(genelist = A22.geneList.int, geneID2GO = geneID2GO)
+pandoc.table(A22.int.gsea)
+```
+
+
+**Ar 'Low' genes not in Ar**
+
+```{r gsea_int_Ar}
+Ar.int <- Ap.response.type[which(Ap.response.type$A22.type != "Intermediate" & Ap.response.type$Ar.type == "Intermediate"), "Transcript"]
+# create gene list, setting value to 1 for "bim" transcripts
+Ar.geneList.int <- rep(0, length = length(Ap.geneList))
+names(Ar.geneList.int) <- names(Ap.geneList)
+Ar.geneList.int[(which(names(Ar.geneList.int) %in% Ar.int))] <- 1
+# check correct number of values set to 1
+table(Ar.geneList.int)
+
+# Run GSEA
+Ar.int.gsea <- gsea(genelist = Ar.geneList.int, geneID2GO = geneID2GO, plotpath = "results/Ar_int_BP_topGO_sig_nodes.pdf")
+pandoc.table(Ar.int.gsea)
+```
+
+
 
 Visualize differens in GO terms among expression types using a wordcloud.
 
