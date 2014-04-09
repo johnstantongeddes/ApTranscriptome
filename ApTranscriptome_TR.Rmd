@@ -528,16 +528,16 @@ overlap <- c(length(Ap.response.type[which(Ap.response.type$A22.type == "Bimodal
              length(Ap.response.type[which(Ap.response.type$A22.type == "High" & Ap.response.type$Ar.type == "High"), "Transcript"]),
              length(Ap.response.type[which(Ap.response.type$A22.type == "Intermediate" & Ap.response.type$Ar.type == "Intermediate"), "Transcript"]),
              length(Ap.response.type[which(Ap.response.type$A22.type == "Low" & Ap.response.type$Ar.type == "Low"), "Transcript"]),
-             length(Ap.response.type[which(Ap.response.type$A22.type == "NotExp" & Ap.response.type$Ar.type == "NotExp"), "Transcript"]))
+             length(Ap.response.type[which(Ap.response.type$A22.type == "NotResp" & Ap.response.type$Ar.type == "NotResp"), "Transcript"]))
 
 # make table
 Ap.type.table <- rbind(A22.type.table, Ar.type.table, overlap)
-rownames(Ap.type.table) <- c("A22", "Ar", "Both")
+rownames(Ap.type.table) <- c("ApVT", "ApNC", "Overlap")
 
 # re-orderfor printing
 Ap.type.table <- Ap.type.table[ , c(2,4,1,3,5)]
 
-pandoc.table(Ap.type.table, style="rmarkdown", caption = "Number of thermally-responsive transcripts with maximum expression at high, low, intermediate, both high and low (bimodal) temperatures or are not expressed for each colony and their overlap.")
+pandoc.table(Ap.type.table, style="rmarkdown", caption = "Number of transcripts with maximum expression at high, low, intermediate, both high and low (bimodal) temperatures or are not thermally-responsivefor each colony and their overlap.")
 
 # Pearson Chi-square test
 chisq.test(Ap.type.table)
@@ -635,7 +635,7 @@ t.test(log(A22.int.transcripts$A22.opt+1), log(A22.int.transcripts$Ar.opt+1))
 wilcox.test(A22.int.transcripts$A22.opt, A22.int.transcripts$Ar.opt, alternative = "two.sided", paired = TRUE, conf.int = TRUE)
 ```
 
-One of two tests, for *Ar* intermediate transcripts also finds greater constitutive expression in *Ar* than *A22*. 
+The non-parametric test for both comparisions also finds greater constitutive expression in *Ar* than *A22*.
 
 
 ### Thermal tolerance indicated by region of constant gene expression ###
@@ -831,8 +831,6 @@ signif.transcripts <- annotationtable[signif.transcripts]
 setnames(signif.transcripts, "Sequence.Name", "Transcript")
 ```
 
-
-
 ## Gene set enrichment analysis ##
 
 I perform gene set enrichment analysis below, but a quick `grep` shows that there are 26 transcripts with GO term "response to stress", though this is not enriched compared to the frequency of this term in the full dataset.
@@ -852,6 +850,16 @@ GO.stress.Xsq <- chisq.test(GO.stress.table)
 GO.stress.Xsq
 ```
 
+
+```{r echo=FALSE, results='hide'}
+# combine responsive.transcripts.ann with "type" information
+Ap.response.type.sub <- 
+responsive.transcripts.ann.type <- merge(responsive.transcripts.ann, Ap.response.type[,c("Transcript", "A22.type", "Ar.type")], by = "Transcript", all = TRUE)
+str(responsive.transcripts.ann.type)
+write.csv(responsive.transcripts.ann.type, file = "results/Ap_responsive_genes_20140409.csv", row.names = FALSE)
+```
+
+
 There are also 6 heat shock related genes in the responsive transcripts, out of 130 total.
 
 ```{r grep_shock}
@@ -861,7 +869,6 @@ nrow(hsp_responsive)
 hsp_all <- annotationtable[grep("shock", annotationtable$best.hit.to.nr), list(Sequence.Name, best.hit.to.nr)]
 nrow(hsp_all)
 ```
-
 
 
 
@@ -915,13 +922,12 @@ Ap.BP.GOdata
 
 # perform enrichment analysis using parentchild method
 Ap.BP.resultParentChild <- runTest(Ap.BP.GOdata, statistic = 'fisher', algorithm = 'parentchild')
-Ap.BP.resultParentChild
+# Ap.BP.resultParentChild
 
 # table results
 Ap.BP.ResTable <- GenTable(Ap.BP.GOdata, parentchild = Ap.BP.resultParentChild, topNodes = 82)
-#Ap.BP.ResTable
-write.table(Ap.BP.ResTable, file = paste(resultsdir, "Ap_GO.BP_results.txt", sep=""), quote=FALSE, row.names=FALSE, sep = "\t")
-pandoc.table(Ap.BP.ResTable)
+dim(Ap.BP.ResTable)
+#pandoc.table(Ap.BP.ResTable)
 
 # graph significant nodes
 
@@ -946,8 +952,8 @@ Ap.geneList.high[(which(names(Ap.geneList.high) %in% Ap.high))] <- 1
 table(Ap.geneList.high)
 
 # Run GSEA
-Ap.high.gsea <- gsea(genelist = Ap.geneList.high, geneID2GO = geneID2GO)
-pandoc.table(Ap.high.gsea)
+Ap.high.gsea <- gsea(genelist = Ap.geneList.high, geneID2GO = geneID2GO, plotpath = "results/Ar_int_BP_topGO_sig_nodes.pdf")
+#pandoc.table(Ap.high.gsea)
 ```
 
 
@@ -966,7 +972,7 @@ table(Ap.geneList.low)
 
 # Run GSEA
 Ap.low.gsea <- gsea(genelist = Ap.geneList.low, geneID2GO = geneID2GO)
-pandoc.table(Ap.low.BP.ResTable)
+#pandoc.table(Ap.low.BP.ResTable)
 ```
 
 
@@ -985,7 +991,7 @@ table(Ap.geneList.bim)
 
 # Run GSEA
 Ap.bim.gsea <- gsea(genelist = Ap.geneList.bim, geneID2GO = geneID2GO)
-pandoc.table(Ap.bim.gsea)
+#pandoc.table(Ap.bim.gsea)
 ```
 
 
@@ -1004,9 +1010,23 @@ table(Ap.geneList.int)
 
 # Run GSEA
 Ap.int.gsea <- gsea(genelist = Ap.geneList.int, geneID2GO = geneID2GO)
-pandoc.table(Ap.int.gsea)
+#pandoc.table(Ap.int.gsea)
 ```
 
+```{r gsea_table, echo=FALSE, eval=TRUE, results='asis'}
+## merge results into single table
+Ap.high.gsea$Type <- "High"
+Ap.low.gsea$Type <- "Low"
+Ap.bim.gsea$Type <- "Bimodal"
+Ap.int.gsea$Type <- "Intermediate"
+# combine
+Ap.gsea <- rbind(Ap.high.gsea, Ap.low.gsea, Ap.bim.gsea, Ap.int.gsea)
+# reorder
+Ap.gsea1 <- Ap.gsea[,c("Type", "GO.ID", "Term", "Annotated", "Significant", "Expected", "parentchild")]
+colnames(Ap.gsea1)[7] <- "P"
+# display
+pandoc.table(Ap.gsea1, split.tables = "Inf")
+```
 
 
 Next, I perform GSEA for genes in each functional type in one colony but not the other (e.g. the set difference) to gain insight on differences between the colonies.
@@ -1024,11 +1044,11 @@ table(A22.geneList.high)
 
 # Run GSEA
 A22.high.gsea <- gsea(genelist = A22.geneList.high, geneID2GO = geneID2GO)
-pandoc.table(A22.high.gsea)
+#pandoc.table(A22.high.gsea)
 ```
 
 
-**Ar 'High' genes not in Ar**
+**Ar 'High' genes not in A22**
 
 ```{r gsea_high_Ar}
 Ar.high <- Ap.response.type[which(Ap.response.type$A22.type != "High" & Ap.response.type$Ar.type == "High"), "Transcript"]
@@ -1041,7 +1061,6 @@ table(Ar.geneList.high)
 
 # Run GSEA
 Ar.high.gsea <- gsea(genelist = Ar.geneList.high, geneID2GO = geneID2GO)
-pandoc.table(Ar.high.gsea)
 ```
 
 
@@ -1058,11 +1077,10 @@ table(A22.geneList.low)
 
 # Run GSEA
 A22.low.gsea <- gsea(genelist = A22.geneList.low, geneID2GO = geneID2GO)
-pandoc.table(A22.low.gsea)
 ```
 
 
-**Ar 'Low' genes not in Ar**
+**Ar 'Low' genes not in A22**
 
 ```{r gsea_low_Ar}
 Ar.low <- Ap.response.type[which(Ap.response.type$A22.type != "Low" & Ap.response.type$Ar.type == "Low"), "Transcript"]
@@ -1075,7 +1093,6 @@ table(Ar.geneList.low)
 
 # Run GSEA
 Ar.low.gsea <- gsea(genelist = Ar.geneList.low, geneID2GO = geneID2GO)
-pandoc.table(Ar.low.gsea)
 ```
 
 
@@ -1093,11 +1110,10 @@ table(A22.geneList.bim)
 
 # Run GSEA
 A22.bim.gsea <- gsea(genelist = A22.geneList.bim, geneID2GO = geneID2GO)
-pandoc.table(A22.bim.gsea)
 ```
 
 
-**Ar 'Bimodal' genes not in Ar**
+**Ar 'Bimodal' genes not in A22**
 
 ```{r gsea_bim_Ar}
 Ar.bim <- Ap.response.type[which(Ap.response.type$A22.type != "Bimodal" & Ap.response.type$Ar.type == "Bimodal"), "Transcript"]
@@ -1110,7 +1126,6 @@ table(Ar.geneList.bim)
 
 # Run GSEA
 Ar.bim.gsea <- gsea(genelist = Ar.geneList.bim, geneID2GO = geneID2GO)
-pandoc.table(Ar.bim.gsea)
 ```
 
 
@@ -1128,11 +1143,10 @@ table(A22.geneList.int)
 
 # Run GSEA
 A22.int.gsea <- gsea(genelist = A22.geneList.int, geneID2GO = geneID2GO)
-pandoc.table(A22.int.gsea)
 ```
 
 
-**Ar 'Low' genes not in Ar**
+**Ar 'Intermediate' genes not in A22**
 
 ```{r gsea_int_Ar}
 Ar.int <- Ap.response.type[which(Ap.response.type$A22.type != "Intermediate" & Ap.response.type$Ar.type == "Intermediate"), "Transcript"]
@@ -1144,9 +1158,37 @@ Ar.geneList.int[(which(names(Ar.geneList.int) %in% Ar.int))] <- 1
 table(Ar.geneList.int)
 
 # Run GSEA
-Ar.int.gsea <- gsea(genelist = Ar.geneList.int, geneID2GO = geneID2GO, plotpath = "results/Ar_int_BP_topGO_sig_nodes.pdf")
-pandoc.table(Ar.int.gsea)
+Ar.int.gsea <- gsea(genelist = Ar.geneList.int, geneID2GO = geneID2GO)
 ```
+
+
+Make a table with results.
+
+```{r gsea_table, echo=FALSE, eval=TRUE, results='asis'}
+A22.high.gsea$Type <- "High"
+A22.low.gsea$Type <- "Low"
+A22.int.gsea$Type <- "Intermediate"
+A22.bim.gsea$Type <- "Bimodal"
+A22.gsea <- rbind(A22.high.gsea, A22.low.gsea, A22.int.gsea, A22.bim.gsea)
+A22.gsea$Colony <- "ApVT"
+
+Ar.high.gsea$Type <- "High"
+Ar.low.gsea$Type <- "Low"
+Ar.bim.gsea$Type <- "Bimodal"
+Ar.int.gsea$Type <- "Intermediate"
+Ar.gsea <- rbind(Ar.high.gsea, Ar.low.gsea, Ar.int.gsea, Ar.bim.gsea)
+Ar.gsea$Colony <- "ApNC"
+
+# combine
+Ap.setdiff.gsea <- rbind(A22.gsea, Ar.gsea)
+# reorder
+Ap.setdiff.gsea <- Ap.setdiff.gsea[,c("Colony", "Type", "GO.ID", "Term", "Annotated", "Significant", "Expected", "parentchild")]
+colnames(Ap.setdiff.gsea)[8] <- "P"
+
+Ap.setdiff.gsea
+```
+
+
 
 
 
@@ -1346,6 +1388,12 @@ png(paste(resultsdir, "Ap_expression_interaction_by_colony_exp_smooth.png", sep=
     scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
   p4
 dev.off()
+```
+
+
+```{r rData, echo=FALSE}
+# save RData for manuscript file
+save(Ap.type.table, Ap.df, file = "ms.RData")
 ```
 
 

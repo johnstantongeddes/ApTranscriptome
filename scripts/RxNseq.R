@@ -59,11 +59,11 @@ RxNtype <- function(lmitem) {
     # calculate for A22
     A22.pout <- pout[pout$colony == "A22", ]
     # if pTPM doesn't vary, set max and min values to NA
-    if(sd(A22.pout$pTPM) < 0.01) {
+    if(sd(A22.pout$pTPM) < 0.00001) {
         A22.max.val <- NA
         A22.min.val <- NA
         A22.opt <- A22.pout[A22.pout$val == 19.5, "pTPM"]
-        A22.exp.type <- "NotExp"
+        A22.exp.type <- "NotResp"
     } else {
         # else, set values from data
         A22.max.val <- median(A22.pout[which(A22.pout$pTPM == max(A22.pout$pTPM)), "val"])
@@ -86,11 +86,11 @@ RxNtype <- function(lmitem) {
     # calculate for Ar
     Ar.pout <- pout[pout$colony == "Ar", ]
     # if pTPM doesn't vary, set max and min values to NA
-    if(sd(Ar.pout$pTPM) < 0.01) {
+    if(sd(Ar.pout$pTPM) < 0.00001) {
         Ar.max.val <- NA
         Ar.min.val <- NA
         Ar.opt <- Ar.pout[Ar.pout$val == 19.5, "pTPM"]
-        Ar.exp.type <- "NotExp"
+        Ar.exp.type <- "NotResp"
     } else {
             # else, set values from data
             Ar.max.val <- median(Ar.pout[which(Ar.pout$pTPM == max(Ar.pout$pTPM)), "val"])
@@ -218,8 +218,7 @@ geneid2GOmap <- function(annotmat) {
   #
   # Returns:
   #  geneid2go.map saved in root directory
-  
-  
+    
   # requires
   require(stringr)
   
@@ -270,15 +269,14 @@ gsea <- function(genelist, geneID2GO, plotpath=NA) {
   # get number of significant GO terms p < 0.01
   numsignodes <- length(which(score(resultParentChild) < 0.01))
   
-  # result table
-  resTable <- GenTable(GOdata, parentchild = resultParentChild, topNodes = numsignodes)
-  
- 
+  # if 'plotpath' is set, make plot of top 10 significant nodes 
   if(!is.na(plotpath)) {
     # plot nodes
     pdf(plotpath)
     showSigOfNodes(GOdata, score(resultParentChild), firstSigNodes = min(numsignodes, 10), useInfo = 'all')
     dev.off()
-  }
+  }  
   
+  # result table
+  resTable <- GenTable(GOdata, parentchild = resultParentChild, topNodes = numsignodes)
 }

@@ -41,14 +41,16 @@ $$ log(TPM + 1) = \beta_0 + \beta_1(species) + \beta_2(temp) + \beta_3(temp^2) +
     
 to each gene. We used $log(TPM + 1)$ as the response to control for skew in the expression data. For a continous predictor such as temperature, this regression approach is preferred to an ANOVA approach as it can reveal non-linear responses such as hump-shaped or threshold effects even [@cottingham2005]. This method is robust to overdispersion as we expect errors in the read count distribution [@anders2010] to be independent with respect to temperature. To correct for multiple testing, we calculated adjusted *P* values using the False Discovery Rate (FDR) approach of Benjamini and Hochberg [-@benjamini1995], retaining genes under the 5% FDR threshold.
 
-To describe the overall molecular toolkit for thermal tolerance in *Aphaenogaster*, we identified the subset of genes under our FDR threshold that had significant $\beta_2(temp)$, $\beta_3(temp^2)$, $\beta_4(species * temp)$ or $\beta_5(species * temp^2)$ terms. We partitioned this set of thermally-responsive genes into four categories; genes that had greatest expression at high (> 31°) temperatures (*High*), low (< 10°C) (*Low*), intermediate (10 - 30°C) (*Intermediate*), or both high and low temperatures (*Bimodal*). For the *Bimodal* group, we required that expression at both low and high temperatures was at one two standard deviation greater than the expression at the mean temperature of 19.5°C.
+We identified thermally-responsive genes as the subset under our FDR threshold that had significant $\beta_2(temp)$, $\beta_3(temp^2)$, $\beta_4(species * temp)$ or $\beta_5(species * temp^2)$ terms after stepwide model selection by AIC. All analyses were performed in R [@RCoreTeam2014] and are fully reproducible (Supplemental file). 
 
-For each of these thermally-responsive gene sets, we performed gene set enrichment analysis (GSEA) using the program `topGO` [@alexa2006; @alexa2010] with the `parentChild` algorithm [@grossman2007] implemented in R [@RCoreTeam2014]. Briefly, this approach identifies GO terms that are overrepresented in the significant genes relative to all GO terms in the transcriptome, accounting for dependencies among the GO terms. 
+For each thermally-responsive gene, we predicted expression levels across the tested thermal range using the final linear model separately for each colony. We used the predicted gene expression values to partition the thermally-responsive genes into five expression categories for each colony; genes that had greatest expression at high (> 31°) temperatures (*High*), low (< 10°C) temperatures (*Low*), intermediate (10 - 30°C) temperatures (*Intermediate*), both high and low temperatures (*Bimodal*) or were not thermally-responsive in that colony (*NotResp*). For the *Bimodal* group, we required that expression at both low and high temperatures was at least one standard deviation greater than the expression at the mean temperature of 19.5°C.
+
+To describe the overall molecular toolkit for thermal tolerance in *Aphaenogaster*, we performed gene set enrichment analysis (GSEA) on the intersection of each expression category in the two colonies using the program `topGO` [@alexa2006; @alexa2010] with the `parentChild` algorithm [@grossman2007] implemented in R [@RCoreTeam2014]. Briefly, this approach identifies GO terms that are overrepresented in the significant genes relative to all GO terms in the transcriptome, accounting for dependencies among the GO terms. 
 
 
 ### Colony-level comparisons ### 
 
-To gain greater insight on the genetic basis of thermal tolerance in *Aphaenogaster*, we performed comparative analyses between the two colonies. We focused on the subset of thermally-responsive genes that had a significant interaction with colony ( $\beta_4(species * temp)$ or $\beta_5(species * temp^2)$ term) in the regression analysis. For each gene, we predicted expression levels across temperatures for each colony using the full linear model, and then grouped genes into the four responsive categories, *High*, *Low*, *Intermediate*, and *Bimodal*, as well as a fifth category *Not Expressed*. To focus on differences in gene expression between the two colonies, we performed GSEA for the set difference of each category.
+To gain greater insight on the genetic basis of thermal tolerance in *Aphaenogaster*, we performed comparative analyses between the two colonies focusing on the thermally-responsive genes that had a significant colony x temperature interaction. For each gene, we predicted expression levels across temperatures for each colony using the full linear model, and then grouped genes into the four responsive categories, *High*, *Low*, *Intermediate*, and *Bimodal*, as well as a fifth category *Not Expressed*. To focus on differences in gene expression between the two colonies, we performed GSEA for the set difference of each category.
 
 With the same set of genes, we explored the extent to which differences in the thermal reactionome between the colonies were due to changes in the mean or shape of the reaction norm for each individual gene. Following the example of Murren et al [-@murren2014], we tested for overall differences in the (a) mean expression value across temperatures (*M*), (b) slope of expression (*S*), (c) curvature of expression (*C*) and (d) wiggle of expression (*W*), which consists of all higher-order differences in shape not capture by the first three measures (formulas given in Appendix). As genes differed by five orders of magnitude in expression levels, we calculated the mean-standardized difference between the colonies $\Delta M = (Mean_{ApVT} - Mean_{Ar}) / \bar M$, where $\bar M = (Mean_{ApVT} + Mean_{Ar}) / 2$ yielding $\Delta M$, $\Delta S$, $\Delta C$, and $\Delta W$ for the mean, slope, curvature and wiggle of each gene, respectively. Using the mean-standardized values, we performed one-sample two-sided *t*-tests to determine if the overall mean, slope or curvature were greater in *ApVT* than *ApNC*. 
 
@@ -68,14 +70,15 @@ The raw Illumina reads are available at [...], the script for analysis and versi
 
 ## Results
 
+```{r load, echo=FALSE}
+load("../ms.RData")
+```
+
 The Trinity *de novo* transcriptome assembly included 126,172 genes with a total length of 100 million bp. Filtering to remove redundant or chimeric reads resulted in an assembly with 96,253 contigs and a total of 105,536 genes. For all genes, the total length was 63 million bp with an N~50~ length of 895 bp and a mean contig size of 593 bp. Of the 105,536 filtered genes, 55,432 had hits to the NCBI-nr database. Of these, 38,711 genes mapped to GO terms, 1,659 genes were identified to an enzyme and 18,935 genes mapped to a domain with >50% coverage. Of these, 5,787 genes have best hits to putative genes in the genome sequence of the ant species *Solenopsis invicta* and XXXX are annotated to genes previously identified from organisms within the class Insecta.
 
-|  &nbsp;   |  High  |  Low  |  Bimodal  |  Intermediate  |  NotExp  |
-|:---------:|:------:|:-----:|:---------:|:--------------:|:--------:|
-|  **ApVT**  |  1027  | 4530  |   1491    |      561       |   883    |
-|  **ApNC**   |  936   | 3207  |    818    |      2156      |   1375   |
-
-Table: Number of thermally-responsive transcripts with maximum expression at high, low, intermediate, both high and low (bimodal) temperatures or are not expressed for each colony.
+```{r expression_type_table, echo=FALSE, results='asis'}
+pandoc.table(Ap.type.table, style="rmarkdown", caption = "Number of transcripts with maximum expression at high, low, intermediate, both high and low (bimodal) temperatures or are not thermally-responsivefor each colony and their overlap.")
+```
 
 ### Thermally-responsive genes ###
 
@@ -83,15 +86,9 @@ We identified 22,495 genes with overall model fits of P < 0.05, retaining 9,809 
 
 ![Probability density function of peak expression for all thermally-responsive in *ApNC* (blue) and *ApVT* (red) colonies](../results/PDF_expression_all.png)
 
-As the molecular pathways involved in thermal response to cold and hot temperatures may differ, we performed gene set enrichment analysis on each expression category separately. Out of a total of 2,859 GO terms scored, we found 8 enriched (*P* < 0.01) for *High* transcripts, 45 enriched for *Low* transcripts, 2 enriched for *Bimodal* transcripts and 9 enriched for *Intermediate* transcripts. The enriched GO terms for *High* included categories such as "gene expression", "tissue regeneration" 
+As the molecular pathways involved in thermal response to cold and hot temperatures may differ, we performed gene set enrichment analysis on each expression category separately. Out of a total of 2,859 GO terms scored, we found 6 enriched (*P* < 0.01) for *High* transcripts, included categories implicated in stress response such as "gene expression" and "tissue regeneration" (Table S1). For *Low* genes, 60 GO terms were enriched including some implicated in stress response (e.g. detection of external stimulus; Table S1). For *Bimodal* genes, 11 GO terms were enriched including 10 "regulation" terms (e.g. regulation of primary metabolic process) indicating that these are general genes involved in activating responses to change (Table S1). Finally, for *Intermediate* genes 6 GO terms were enriched, all some type of metabolic or biosynthetic process (Table S1) consistent with the expectation that these are non-essential genes expressed in optimal conditions that are shut-down under thermal stress.
 
-*High* group 
-These included a number of  (Table S1). 
-
-
-, 26 at low temperatures, 52 at both high and low temperatures and 16 at intermediate temperatures. At high temperatures, the enriched GO terms included terms implicated in stress tolerance such as 'regulation of response to stimulus' and 'positive regulation of ubiqutination, while at low temperatures enriched GO terms included 'detection of stimulus' and 'dormancy response' (Table 1, Fig. 3). Terms enriched at both high and low temperatures included 'regulation of response to stimulus', 'positive regulation of protein ubiquitination', and 'negative regulation of programmed cell death'. At intermediate temperatures, enriched GO terms were primarily related to glycosylation and development (e.g. mitosis). 
-
-
+In addition, we examined the reaction norms for genes that we *a priori* expected to have significant thermal responses. In particular, we looked at the expression patterns of heat shock proteins including ...
 
 
 ### Colony-level comparisons ###
@@ -104,7 +101,7 @@ Plasticity is a well-characterized mechanism by which organims tolerate environm
 
 We tested for a transcriptome-wide pattern of thermal tolerance and sensitivity by examining the standard deviation of expression for the *Intermediate* expressed genes. Consistent with our expectations, the more southern *ApNC* colony had greater thermal breadth for *Intermediate* genes than the *ApVT* colony (*t*~df=1406~ = -9.25, *P* < 0.001, 95% CI difference in means 0.41 - 0.64). In contrast, there was no difference in thermal sensitivity as measured by the standard deviation of expression for *Bimodal* expressed genes (*t*~df=1406~ = 0.31, *P* = 0.76). 
 
-Gene set enrichment analysis...
+We performed gene set enrichment analysis on the set difference of each expression category to reveal differences among the colonies response to thermal shock. For *High* genes, there were 4 enriched GO terms in *ApVT* and 12 in *ApNC*. For *Low* genes, there were 40 enriched GO terms in *ApVT* and 23 in *ApNC*. For *Intermediate* genes, there were 3 enriched GO terms in *ApVT* and 54 in *ApNC*. For *Bimodal* genes, there were 12 enriched GO terms in *ApVT* and 10 in *ApNC*. 
 
 
 ## Discussion
