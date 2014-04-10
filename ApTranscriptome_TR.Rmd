@@ -3,7 +3,7 @@ Thermal reactionome of the common ant species *Aphaenogaster*
    
 **Author:** [John Stanton-Geddes](john.stantongeddes.research@gmail.com)
 
-**April 8, 2014**
+**April 10, 2014**
 
 **Technical Report No. 3**
 
@@ -13,7 +13,7 @@ Thermal reactionome of the common ant species *Aphaenogaster*
 
 ```{r setup, echo=FALSE, results='hide', message = FALSE}
 # Global settings
-options(stringsAsFactors=FALSE)
+options(stringsAsFactors=FALSE, digits = 3, scipen = 1)
 
 # Load libraries
 library(R.utils)
@@ -657,7 +657,7 @@ Ar.int.sd <- unlist(Map(transcriptSD, Ar.int.lm, colony = "Ar"))
 Ar.int.sd <- data.frame(colony = "Ar", exp_sd = Ar.int.sd)
 
 # T-test comparing standard deviation of expression between colonies
-t.test(Ar.int.sd$exp_sd, A22.int.sd$exp_sd)
+t1 <- t.test(Ar.int.sd$exp_sd, A22.int.sd$exp_sd)
 ```
 
 Consistent with our hypothesis, 'Intermediate' transcripts in *Ar* are expressed over a significantly wider range of temperatures than in *A22*. 
@@ -692,7 +692,7 @@ length(Ar.bim.lm)
 Ar.bim.sd <- unlist(Map(transcriptSD, Ar.bim.lm, colony = "Ar"))
 
 # t-test to compare standard deviation of 'Bimodal' transcripts between colonies
-t.test(Ar.bim.sd, A22.bim.sd)
+t2 <- t.test(Ar.bim.sd, A22.bim.sd)
 ```
 
 No difference in the standard deviation of expression for bimodally-expressed transcripts between colonies.
@@ -729,7 +729,8 @@ boxplot(log(varshape.out$A22.mean), log(varshape.out$Ar.mean))
 
 # calculate differences in mean, slope, curvature and wiggle between colonies for each transcript
 # offset = mean1 - mean2
-varshape.out$offset <- varshape.out$A22.mean - varshape.out$Ar.mean
+varshape.out$offset
+<- varshape.out$A22.mean - varshape.out$Ar.mean
 # to compare among transcripts that differ in scale of expression, standardize by overall mean for each transcript
 varshape.out$s.offset <- NA
 for(i in 1:nrow(varshape.out)) {
@@ -737,7 +738,7 @@ for(i in 1:nrow(varshape.out)) {
 }
 
 # t-test
-t.test(varshape.out$s.offset, alternative = "two.sided")
+t3 <- t.test(varshape.out$s.offset, alternative = "two.sided")
 
 # slope = slope1 - slope2
 varshape.out$slope <- varshape.out$A22.slope - varshape.out$Ar.slope
@@ -750,7 +751,7 @@ for(i in 1:nrow(varshape.out)) {
 varshape.out[which(varshape.out$Ar.slope == 0 & varshape.out$A22.slope == 0), "s.slope"] <- 0
 
 # t-test
-t.test(varshape.out$s.slope, alternative = "two.sided")
+t4 <- t.test(varshape.out$s.slope, alternative = "two.sided")
 
 
 # curvature = curvature1 - curvature2
@@ -763,7 +764,7 @@ for(i in 1:nrow(varshape.out)) {
 # change 'Inf' values to 0
 varshape.out[which(varshape.out$Ar.curve == 0 & varshape.out$A22.curve == 0), "s.curvature"] <- 0
 # t-test
-t.test(varshape.out$s.curvature, alternative = "two.sided")
+tt.test(varshape.out$s.curvature, alternative = "two.sided")
 
 
 # wiggle
@@ -831,40 +832,51 @@ signif.transcripts <- annotationtable[signif.transcripts]
 setnames(signif.transcripts, "Sequence.Name", "Transcript")
 ```
 
-## Gene set enrichment analysis ##
-
-I perform gene set enrichment analysis below, but a quick `grep` shows that there are 26 transcripts with GO term "response to stress", though this is not enriched compared to the frequency of this term in the full dataset.
-  
-```{r GO_contingency_test}
-responsive.transcripts.ann <- signif.transcripts[names(responsive.transcripts)]
-# GO 'response to stress' hits in responsive transcripts
-responsive.transcripts.ann[grep("GO:0006950", responsive.transcripts.ann$GO.Biological.Process), list(Transcript, best.hit.to.nr)]
-
-resp.stress.responsive.count <- nrow(responsive.transcripts.ann[grep("GO:0006950", responsive.transcripts.ann$GO.Biological.Process), list(Transcript, best.hit.to.nr)])
-# GO 'response to stress' hits in all transcripts
-resp.stress.all.count <- nrow(annotationtable[grep("GO:0006950", annotationtable$GO.Biological.Process), list(Sequence.Name, best.hit.to.nr)])
-
-GO.stress.table <- matrix(rbind(resp.stress.responsive.count, nrow(responsive.transcripts.ann) - resp.stress.responsive.count, resp.stress.all.count, nrow(annotationtable) - resp.stress.all.count), nrow = 2)
-
-GO.stress.Xsq <- chisq.test(GO.stress.table)
-GO.stress.Xsq
-```
-
-
 ```{r echo=FALSE, results='hide'}
+responsive.transcripts.ann.type <- signif.transcripts[names(responsive.transcripts)]
 # combine responsive.transcripts.ann with "type" information
-Ap.response.type.sub <- 
 responsive.transcripts.ann.type <- merge(responsive.transcripts.ann, Ap.response.type[,c("Transcript", "A22.type", "Ar.type")], by = "Transcript", all = TRUE)
 str(responsive.transcripts.ann.type)
 write.csv(responsive.transcripts.ann.type, file = "results/Ap_responsive_genes_20140409.csv", row.names = FALSE)
 ```
 
 
+## Gene set enrichment analysis ##
+
+I perform gene set enrichment analysis below, but a quick `grep` shows that there are 26 transcripts with GO term "response to stress", though this is not enriched compared to the frequency of this term in the full dataset.
+  
+```{r GO_contingency_test}
+# GO 'response to stress' hits in responsive transcripts
+GO0006950.responsive <- responsive.transcripts.ann.type[grep("GO:0006950", responsive.transcripts.ann.type$GO.Biological.Process), list(Transcript, best.hit.to.nr, A22.type, Ar.type)]
+
+# in high category
+GO0006950.responsive[union(with(GO0006950.responsive, grep("High", Ar.type)), with(GO0006950.responsive, grep("High", A22.type))), ]
+# in low category
+GO0006950.responsive[union(with(GO0006950.responsive, grep("Low", Ar.type)), with(GO0006950.responsive, grep("Low", A22.type))), ]
+# in bimodal category
+GO0006950.responsive[union(with(GO0006950.responsive, grep("Bimodal", Ar.type)), with(GO0006950.responsive, grep("Bimodal", A22.type))), ]
+# in intermediate category
+GO0006950.responsive[union(with(GO0006950.responsive, grep("Intermediate", Ar.type)), with(GO0006950.responsive, grep("Intermediate", A22.type))), ]
+
+# Chi-square test to see if 'response to stress' related genes overrepresented in responsive.transcripts compared to full list
+resp.stress.responsive.count <- nrow(responsive.transcripts.ann.type[grep("GO:0006950", responsive.transcripts.ann.type$GO.Biological.Process), list(Transcript, best.hit.to.nr)])
+# GO 'response to stress' hits in all transcripts
+resp.stress.all.count <- nrow(annotationtable[grep("GO:0006950", annotationtable$GO.Biological.Process), list(Sequence.Name, best.hit.to.nr)])
+
+GO.stress.table <- matrix(rbind(resp.stress.responsive.count, nrow(responsive.transcripts.ann.type) - resp.stress.responsive.count, resp.stress.all.count, nrow(annotationtable) - resp.stress.all.count), nrow = 2)
+
+GO.stress.Xsq <- chisq.test(GO.stress.table)
+GO.stress.Xsq
+```
+
+
+
+
 There are also 6 heat shock related genes in the responsive transcripts, out of 130 total.
 
 ```{r grep_shock}
-hsp_responsive <- responsive.transcripts.ann[grep("shock", responsive.transcripts.ann$best.hit.to.nr), list(Transcript, best.hit.to.nr)]
-nrow(hsp_responsive)
+hsp_responsive <- responsive.transcripts.ann.type[grep("shock", responsive.transcripts.ann.type$best.hit.to.nr), list(Transcript, best.hit.to.nr, A22.type, Ar.type)]
+hsp_responsive
 
 hsp_all <- annotationtable[grep("shock", annotationtable$best.hit.to.nr), list(Sequence.Name, best.hit.to.nr)]
 nrow(hsp_all)

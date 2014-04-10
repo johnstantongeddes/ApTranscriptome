@@ -72,18 +72,20 @@ The raw Illumina reads are available at [...], the script for analysis and versi
 
 ## Results
 
-```{r load, echo=FALSE, results='hide'}
-options(scipen = 1, digits = 3, warn = -1)
-load("../ms.RData")
-suppressMessages(library(pander))
-suppressMessages(library(ggplot2))
-```
+
+
 
 The Trinity *de novo* transcriptome assembly included 126,172 genes with a total length of 100 million bp. Filtering to remove redundant or chimeric reads resulted in an assembly with 96,253 contigs and a total of 105,536 genes. For all genes, the total length was 63 million bp with an N~50~ length of 895 bp and a mean contig size of 593 bp. Of the 105,536 filtered genes, 55,432 had hits to the NCBI-nr database. Of these, 38,711 genes mapped to GO terms, 1,659 genes were identified to an enzyme and 18,935 genes mapped to a domain with >50% coverage. Of these, 5,787 genes have best hits to putative genes in the genome sequence of the ant species *Solenopsis invicta* and XXXX are annotated to genes previously identified from organisms within the class Insecta.
 
-```{r expression_type_table, echo=FALSE, results='asis'}
-pandoc.table(Ap.type.table, style="rmarkdown", caption = "Number of transcripts with maximum expression at high, low, intermediate, both high and low (bimodal) temperatures or are not thermally-responsivefor each colony and their overlap.")
-```
+
+|    &nbsp;     |  High  |  Low  |  Bimodal  |  Intermediate  |  NotResp  |
+|:-------------:|:------:|:-----:|:---------:|:--------------:|:---------:|
+|   **ApVT**    |  1179  | 4720  |   1534    |      660       |    399    |
+|   **ApNC**    |  1163  | 3457  |    888    |      2376      |    608    |
+|  **Overlap**  |  309   | 2417  |    294    |      352       |     0     |
+
+Table: Number of transcripts with maximum expression at high, low, intermediate, both high and low (bimodal) temperatures or are not thermally-responsivefor each colony and their overlap.
+
 
 ### Thermally-responsive genes
 
