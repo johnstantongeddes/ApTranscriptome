@@ -16,13 +16,13 @@ To explore the molecular toolkit used by *Aphaenogaster* to cope with thermal st
 
 ## Methods
 
-### Samples ###
+### Samples
 
 Colonies of the *Aphaenogaster picea-rudis* complex were collected from Molly Bog, Vermont (University of Vermont Natural Areas; lat, lon) and Durham, North Carolina ( 36.037° N -78.874° W), designated as *ApVT* and *ApNC* respectively. The phylogeny of *Aphaeogaster* is currently unresolved [@umphrey1996]. Though preliminary work indicates that the northern part of the distribution (including *ApVT*) to be a distinct clade and possibly species (Bernice Bacon DeMarco, pers. communication), we will refer to these as distinct colonies rather than species. These colonies were maintained in the lab for 5 months prior to experimentation. 
 
 From each species, we haphazardly collected 12 ants at the same time on 12 days. Each day, the 12 ants were placed in glass tubes into a water bath (...) at one of 12 randomly-assigned temperatures, every 3.5°C between 0° and 38.5°C, for one hour. The minimum and maximum temperatures were selected based on preliminary work showing that these temperatures are close to the critical minimum and maximum temperatures for an *Aphaenogaster* from VT (A. Nguyen, unpublished data) . At the end of the hour, the ants were flash frozen in liquid nitrogen and stored at -80°C. mRNA was extracted from three pooled ants using a DNeasy kit (Qiagen Inc; Valencia, CA). Ants were homogenized in Buffer ATL with zirconium silicate beads in a Bullet Blender (Next Advance; Averill Park, NY) and the standard Qiagen protocol was followed from this point. 
 
-### Sequencing, assembly and annotation ### 
+### Sequencing, assembly and annotation
 
 For each species, the 12 samples were barcoded and sequenced in a single lane of 2 x 100bp paired-end reads on an Illumina HiSeq 1500 yielding 200 and 160 million reads for the ApVT and ArNC samples respectively. Reads were filtered to remove Illumina adapter sequences and low quality bases using the program Trimmomatic [@lohse2012]. 
 
@@ -31,7 +31,7 @@ We assembled the sequenced reads into the full set of mRNA transcripts (the `tra
 We performed functional annotation of the transcriptome assembly using the web-based tool `FastAnnotator` [@chen2012] which annotates and classifies genes by Gene Ontology (GO) term assignment, enzyme identification and domain identification. 
 
 
-### Thermally-responsive genes ### 
+### Thermally-responsive genes
 
 We quantified expression of each gene using the program `Sailfish` [@patro2013]. `Sailfish` reports gene expression as transcripts per million (TPM) which is the preferred measure of gene expression as values are comparable among sequencing runs [@wagner2012]. In addition, `Sailfish` corrects for sequence composition bias and gene length. As preliminary examination of the data (see supplemental...) indicated that 7°C samples may have been mis-labeled, we omitted these data from the analysis. The expression values were highly correlated between colonies at each temperature treatment (r^2^ > 0.98) indicating that assembling the transcriptome with data from both colonies was justified (Supplemental).
 
@@ -48,13 +48,13 @@ For each thermally-responsive gene, we predicted expression levels across the te
 To describe the overall molecular toolkit for thermal tolerance in *Aphaenogaster*, we performed gene set enrichment analysis (GSEA) on the intersection of each expression category in the two colonies using the program `topGO` [@alexa2006; @alexa2010] with the `parentChild` algorithm [@grossman2007] implemented in R [@RCoreTeam2014]. Briefly, this approach identifies GO terms that are overrepresented in the significant genes relative to all GO terms in the transcriptome, accounting for dependencies among the GO terms. 
 
 
-### Colony-level comparisons ### 
+### Colony-level comparisons
 
 To gain greater insight on the genetic basis of thermal tolerance in *Aphaenogaster*, we performed comparative analyses between the two colonies focusing on the thermally-responsive genes that had a significant colony x temperature interaction. For each gene, we predicted expression levels across temperatures for each colony using the full linear model, and then grouped genes into the four responsive categories, *High*, *Low*, *Intermediate*, and *Bimodal*, as well as a fifth category *Not Expressed*. To focus on differences in gene expression between the two colonies, we performed GSEA for the set difference of each category.
 
 With the same set of genes, we explored the extent to which differences in the thermal reactionome between the colonies were due to changes in the mean or shape of the reaction norm for each individual gene. Following the example of Murren et al [-@murren2014], we tested for overall differences in the (a) mean expression value across temperatures (*M*), (b) slope of expression (*S*), (c) curvature of expression (*C*) and (d) wiggle of expression (*W*), which consists of all higher-order differences in shape not capture by the first three measures (formulas given in Appendix). As genes differed by five orders of magnitude in expression levels, we calculated the mean-standardized difference between the colonies $\Delta M = (Mean_{ApVT} - Mean_{Ar}) / \bar M$, where $\bar M = (Mean_{ApVT} + Mean_{Ar}) / 2$ yielding $\Delta M$, $\Delta S$, $\Delta C$, and $\Delta W$ for the mean, slope, curvature and wiggle of each gene, respectively. Using the mean-standardized values, we performed one-sample two-sided *t*-tests to determine if the overall mean, slope or curvature were greater in *ApVT* than *ApNC*. 
 
-Further, to quantify the relative contribution of changes in the mean, slope, curvature or wiggle on the overall differences in reaction norms, we defined the *Total* difference in the reaction norm for each gene as $\Delta T = \Delta M + \Delta S + \Delta C + Delta W$. We then partitioned the contribution of each measure by dividing it by $\Delta T$. 
+Further, to quantify the relative contribution of changes in the mean, slope, curvature or wiggle on the overall differences in reaction norms, we defined the *Total* difference in the reaction norm for each gene as $\Delta T = \Delta M + \Delta S + \Delta C + \Delta W$. We then partitioned the contribution of each measure by dividing it by $\Delta T$. 
 
 For the subset of genes that responded to temperature in one colony (i.e. *High* expression in the *ApVT* colony)  but not the other, we hypothesized that geographically-divergent selection may have favored constitutive expression. To test this idea, we compared levels of constitutive expression between *A22* and *ApNC* near the optimum temperature of 19.5° C . Specifically, we predicted higher constitutive expression in *ApNC* for genes with *High* expression in *A22*, and conversely, higher constitutive expression  in *A22* for *Low* genes in *ApNC* . 
 
@@ -70,8 +70,10 @@ The raw Illumina reads are available at [...], the script for analysis and versi
 
 ## Results
 
-```{r load, echo=FALSE}
+```{r load, echo=FALSE, results='hide'}
 load("../ms.RData")
+suppressWarnings(library(pander))
+suppressWarnings(library(ggplot2))
 ```
 
 The Trinity *de novo* transcriptome assembly included 126,172 genes with a total length of 100 million bp. Filtering to remove redundant or chimeric reads resulted in an assembly with 96,253 contigs and a total of 105,536 genes. For all genes, the total length was 63 million bp with an N~50~ length of 895 bp and a mean contig size of 593 bp. Of the 105,536 filtered genes, 55,432 had hits to the NCBI-nr database. Of these, 38,711 genes mapped to GO terms, 1,659 genes were identified to an enzyme and 18,935 genes mapped to a domain with >50% coverage. Of these, 5,787 genes have best hits to putative genes in the genome sequence of the ant species *Solenopsis invicta* and XXXX are annotated to genes previously identified from organisms within the class Insecta.
@@ -80,7 +82,7 @@ The Trinity *de novo* transcriptome assembly included 126,172 genes with a total
 pandoc.table(Ap.type.table, style="rmarkdown", caption = "Number of transcripts with maximum expression at high, low, intermediate, both high and low (bimodal) temperatures or are not thermally-responsivefor each colony and their overlap.")
 ```
 
-### Thermally-responsive genes ###
+### Thermally-responsive genes
 
 We identified 22,495 genes with overall model fits of P < 0.05, retaining 9,809 after correcting for FDR. Of these transripts, 8,044 significantly change expression with temperature including 6,727 that have a colony x temperature interaction. The number of transcripts that increased expression with temperature (*High*), decreased expression with temperature (*Low*), increased expression at both high and low (*Bimodal*) temperatures, decreased expression at high and low temperatures (*Intermediate*) or were not expressed differed significantly between the colonies ($\chi^2 = 170, P < 0.0001$; Table 1). For both colonies, the majority of responsive transcripts were in the *Low* category (Fig. 1). More transcripts had *Intermediate* expression in *ApNC* than in *ApVT*, which had nearly twice as many bimodally-expressed transcripts  (Fig. 1, Table 1).  
 
@@ -91,7 +93,7 @@ As the molecular pathways involved in thermal response to cold and hot temperatu
 In addition, we examined the reaction norms for genes that we *a priori* expected to have significant thermal responses. In particular, we looked at the expression patterns of heat shock proteins including ...
 
 
-### Colony-level comparisons ###
+### Colony-level comparisons
 
 We quantified differences in the reaction norms of thermally-responsive genes between colonies as changes to due shifts in mean ($\Delta M$), slope ($\Delta S$), curvature ($\Delta W$) and wiggle ($\Delta W$). Overall, we found that there was no significant difference in position of the mean (*t* = -0.95, *P* = 0.34), but changes in the shape due to slope (*t* = 24.67, *P* < 0.001), curvature (*t* = 15.71, *P* < 0.001) and wiggle (*t* = -12.45, *P* < 0.001) were all highly signifcant. On average, slope (95% CI 0.41 - 0.48) and curvature (95% CI 0.25 - 0.33) were greater in *ApVT* than *ApNC*, indicating a steeper response to temperature. 
 
