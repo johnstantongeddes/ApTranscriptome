@@ -466,21 +466,21 @@ grepFunc <- function(lmitem, term = NA) {
   keep <- if(length(grep(term, coef.names)) > 0) TRUE else FALSE
 }
 
-interaction.transcripts <- RxNlmAIC[which(Map(grepFunc, RxNlmAIC, term = "colonyAr:") == TRUE)]
-other.transcripts <- RxNlmAIC[setdiff(names(RxNlmAIC), names(interaction.transcripts))]
-temperature.transcripts <- other.transcripts[which(Map(grepFunc, other.transcripts, term = "val") == TRUE)]
-colony.transcripts <- other.transcripts[setdiff(names(other.transcripts), names(temperature.transcripts))]
-responsive.transcripts <- c(temperature.transcripts, interaction.transcripts)
-rm(other.transcripts)
+interaction.lms <- RxNlmAIC[which(Map(grepFunc, RxNlmAIC, term = "colonyAr:") == TRUE)]
+other.lms <- RxNlmAIC[setdiff(names(RxNlmAIC), names(interaction.lms))]
+temperature.lms <- other.lms[which(Map(grepFunc, other.lms, term = "val") == TRUE)]
+colony.lms <- other.lms[setdiff(names(other.lms), names(temperature.lms))]
+responsive.lms <- c(temperature.lms, interaction.lms)
+rm(other.lms)
 ```
 
 
 ```{r table_results, echo=FALSE, results='asis'}
 clist <- c('Total', 'Colony', 'Temperature', 'Temperature:Colony')
 siglist <- c(length(RxNlmAIC),
-             length(colony.transcripts),
-             length(temperature.transcripts),
-             length(interaction.transcripts)
+             length(colony.lms),
+             length(temperature.lms),
+             length(interaction.lms)
              )
 
 sigtable <- data.frame(Coefficient = clist, "Number significant" = siglist)
@@ -504,12 +504,12 @@ I do this first for the thermally-responsive transcripts where there is no inter
 
 ```{r expression_shape, eval=TRUE, echo=TRUE}
 # calculate response type for responsive transcripts
-interaction.response.type <- ldply(interaction.transcripts, .progress = "text", .inform = TRUE, RxNtype)
-stopifnot(nrow(interaction.response.type) == length(interaction.transcripts))
+interaction.response.type <- ldply(interaction.lms, .progress = "text", .inform = TRUE, RxNtype)
+stopifnot(nrow(interaction.response.type) == length(interaction.lms))
 
 # calculate response types for transcripts without interactions
-temperature.response.type <- ldply(temperature.transcripts, .progress = "text", .inform = TRUE, RxNtype)
-stopifnot(nrow(temperature.response.type) == length(temperature.transcripts))
+temperature.response.type <- ldply(temperature.lms, .progress = "text", .inform = TRUE, RxNtype)
+stopifnot(nrow(temperature.response.type) == length(temperature.lms))
 
 # merge results
 Ap.response.type <- rbind(interaction.response.type, temperature.response.type)
@@ -544,32 +544,13 @@ chisq.test(Ap.type.table)
 ```
 
 
-Table 4 shows the number of transcripts that fall into each expression type for each each colony. The totals for each colony include the `r nrow(temperature.transcripts)` transcripts that have consistent temperature responses between the two colonies. 
+Table 4 shows the number of transcripts that fall into each expression type for each each colony. The totals for each colony include the `r nrow(temperature.lms)` transcripts that have consistent temperature responses between the two colonies. 
 
-
-
-## Shiny interactive web-app
-
-**2014-04-02 -- CURRENTLY BROKEN**
-
-To assist visualization of specific transcripts, I made a interactive web-app using the [shiny](http://www.rstudio.com/shiny/) package. The scripts for this app are in the sub-directory `.\ApRxN-shinyapp`.
-
-Export data for interactive shiny app. 
-
-```{r shiny_file, eval=FALSE, echo=FALSE}
-shiny.transcripts <- TPM.dt.sub[Ap.response.type$Transcript]
-
-# scale expression values 
-shiny.transcripts[,pTPM.scaled:=scale(pTPM), by = Transcript]
-str(responsive.transcripts.TPM)
-write.csv(responsive.transcripts.TPM, file = "ApRxN-shinyapp/responsive.transcripts.TPM.csv", quote = TRUE, row.names = FALSE)
-```
 
 
 ## Colony-level comparison ##
 
 In this section, I compare the thermal reactionome between the *Ar* and *A22* colonies. 
-
 
 ### Plasticity versus constitutive expression
 
@@ -707,9 +688,12 @@ Probability density function of peak expression for transcripts that differ in e
 Ap.df <- data.frame(Transcript = rep(Ap.response.type$Transcript, times = 2), colony = rep(c("ApVT", "ApNC"), each = length(Ap.response.type$Transcript)), max.val = c(Ap.response.type$A22.max, Ap.response.type$Ar.max))
 
 png(paste(resultsdir, "PDF_expression_all.png", sep=""))
-g3 <- ggplot(Ap.df, aes(x=max.val, fill=colony)) + geom_density(alpha=0.2, position="identity")
-g3 + scale_y_continuous(name="Density") +
+g3 <- ggplot(Ap.df, aes(x=max.val, fill=colony)) + 
+  geom_density(alpha=0.2, position="identity") + 
+  #scale_fill_manual(name = "Colony", values = c("white", "black")) + 
+  scale_y_continuous(name="Density") +
   scale_x_continuous(name="Temperature of maximum expression")
+suppressWarnings(print(g3))
 dev.off()
 ```
 
@@ -721,7 +705,7 @@ For the transcripts that differed in thermal responsiveness due to temperature, 
 - *Wiggle, W*: variability in shape not captured by the previous three measures
 
 ```{r offset, echo=TRUE, eval=TRUE}
-varshape.out <- ldply(interaction.transcripts, .progress = "text", RxNvarshape)
+varshape.out <- ldply(interaction.lms, .progress = "text", RxNvarshape)
 
 # plot
 boxplot(varshape.out$A22.mean, varshape.out$Ar.mean)
@@ -833,11 +817,11 @@ setnames(signif.transcripts, "Sequence.Name", "Transcript")
 ```
 
 ```{r echo=FALSE, results='hide'}
-responsive.transcripts.ann.type <- signif.transcripts[names(responsive.transcripts)]
-# combine responsive.transcripts.ann with "type" information
-responsive.transcripts.ann.type <- merge(responsive.transcripts.ann, Ap.response.type[,c("Transcript", "A22.type", "Ar.type")], by = "Transcript", all = TRUE)
-str(responsive.transcripts.ann.type)
-write.csv(responsive.transcripts.ann.type, file = "results/Ap_responsive_genes_20140409.csv", row.names = FALSE)
+responsive.lms.ann.type <- signif.transcripts[names(responsive.lms)]
+# combine responsive.lms.ann with "type" information
+responsive.lms.ann.type <- merge(responsive.lms.ann.type, Ap.response.type[,c("Transcript", "A22.type", "Ar.type")], by = "Transcript", all = TRUE)
+str(responsive.lms.ann.type)
+write.csv(responsive.lms.ann.type, file = "results/Ap_responsive_genes_20140409.csv", row.names = FALSE)
 ```
 
 
@@ -847,7 +831,7 @@ I perform gene set enrichment analysis below, but a quick `grep` shows that ther
   
 ```{r GO_contingency_test}
 # GO 'response to stress' hits in responsive transcripts
-GO0006950.responsive <- responsive.transcripts.ann.type[grep("GO:0006950", responsive.transcripts.ann.type$GO.Biological.Process), list(Transcript, best.hit.to.nr, A22.type, Ar.type)]
+GO0006950.responsive <- responsive.lms.ann.type[grep("GO:0006950", responsive.lms.ann.type$GO.Biological.Process), list(Transcript, best.hit.to.nr, A22.type, Ar.type)]
 
 # in high category
 GO0006950.responsive[union(with(GO0006950.responsive, grep("High", Ar.type)), with(GO0006950.responsive, grep("High", A22.type))), ]
@@ -858,12 +842,12 @@ GO0006950.responsive[union(with(GO0006950.responsive, grep("Bimodal", Ar.type)),
 # in intermediate category
 GO0006950.responsive[union(with(GO0006950.responsive, grep("Intermediate", Ar.type)), with(GO0006950.responsive, grep("Intermediate", A22.type))), ]
 
-# Chi-square test to see if 'response to stress' related genes overrepresented in responsive.transcripts compared to full list
-resp.stress.responsive.count <- nrow(responsive.transcripts.ann.type[grep("GO:0006950", responsive.transcripts.ann.type$GO.Biological.Process), list(Transcript, best.hit.to.nr)])
+# Chi-square test to see if 'response to stress' related genes overrepresented in responsive.lms compared to full list
+resp.stress.responsive.count <- nrow(responsive.lms.ann.type[grep("GO:0006950", responsive.lms.ann.type$GO.Biological.Process), list(Transcript, best.hit.to.nr)])
 # GO 'response to stress' hits in all transcripts
 resp.stress.all.count <- nrow(annotationtable[grep("GO:0006950", annotationtable$GO.Biological.Process), list(Sequence.Name, best.hit.to.nr)])
 
-GO.stress.table <- matrix(rbind(resp.stress.responsive.count, nrow(responsive.transcripts.ann.type) - resp.stress.responsive.count, resp.stress.all.count, nrow(annotationtable) - resp.stress.all.count), nrow = 2)
+GO.stress.table <- matrix(rbind(resp.stress.responsive.count, nrow(responsive.lms.ann.type) - resp.stress.responsive.count, resp.stress.all.count, nrow(annotationtable) - resp.stress.all.count), nrow = 2)
 
 GO.stress.Xsq <- chisq.test(GO.stress.table)
 GO.stress.Xsq
@@ -875,7 +859,7 @@ GO.stress.Xsq
 There are also 6 heat shock related genes in the responsive transcripts, out of 130 total.
 
 ```{r grep_shock}
-hsp_responsive <- responsive.transcripts.ann.type[grep("shock", responsive.transcripts.ann.type$best.hit.to.nr), list(Transcript, best.hit.to.nr, A22.type, Ar.type)]
+hsp_responsive <- responsive.lms.ann.type[grep("shock", responsive.lms.ann.type$best.hit.to.nr), list(Transcript, best.hit.to.nr, A22.type, Ar.type)]
 hsp_responsive
 
 hsp_all <- annotationtable[grep("shock", annotationtable$best.hit.to.nr), list(Sequence.Name, best.hit.to.nr)]
@@ -1202,205 +1186,81 @@ Ap.setdiff.gsea
 
 
 
-
-
-Visualize differens in GO terms among expression types using a wordcloud.
-
-```{gsea_wordcloud, cache=TRUE}
-# create Corpus for text mining
-GO.dfs <- c(paste(Ap.low.BP.ResTable$Term, collapse=" "), paste(Ap.hig.BP.ResTable$Term, collapse=" "),
-            paste(Ap.int.BP.ResTable$Term, collapse=" "), paste(Ap.bim.BP.ResTable$Term, collapse=" "))
-
-vs <- VectorSource(GO.dfs)
-GO.corp <- Corpus(vs)
-GO.corp
-
-GO.corp <- tm_map(GO.corp, removePunctuation)
-
-# create matrix of terms
-term.matrix <- TermDocumentMatrix(GO.corp)
-term.matrix <- as.matrix(term.matrix)
-colnames(term.matrix) <- c('low', 'high', 'intermediate', 'bimodal')
-
-# comparison cloud
-comparison.cloud(term.matrix, max.words=200, random.order=FALSE, scale=c(0.25, 0.5))
-```
-
-
-## Comparison of expression patterns between colonies
-
-A set of `r nrow(interaction.transcripts)` transcripts have expression patterns that depend on colony. In this section, I examine how these transcripts differ between colonies. Specifically, I expect genes that are up-regulated at high temperatures in the northern *A22* colony to be at constitutively higher expression in the more southern *Ar* colony. Conversely, I will examine the extent to which genes upregulated at colder temperatures in the *Ar* colony are constitutively expressed in the *A22* colony.
-
-
-
-
-
-
-
-
 ## Visualize responsive transcripts
 
-Make plots for all significant transcripts
+Organize data
 
-```{r plot_responsive, echo=FALSE, eval=FALSE, cache=TRUE}
-# Line plot, expression against temp, faceted by colony
-p1 <- ggplot(temperature.transcripts.TPM, aes(x=val, y=exp.scaled, group=Transcript)) +
-  geom_line() +
-  facet_grid(. ~ colony) +
-  scale_y_continuous(name="Expression (scaled)") +
-  scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
-p1
-
-
-# Smooth plot, expression against temp, faceted by colony
-p2 <- ggplot(temperature.transcripts.TPM, aes(x=val, y=exp.scaled, group=Transcript)) +
-  geom_smooth() +
-  facet_grid(. ~ colony) +
-  scale_y_continuous(name="Expression (scaled)") +
-  scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
-p2
-
-# Same as p1, faceted by expression type
-p3 <- ggplot(temperature.transcripts.TPM, aes(x=val, y=exp.scaled, group=Transcript)) +
-  geom_line() +
-  facet_grid(A22.exp.type ~ colony) +
-  scale_y_continuous(name="Expression (scaled)") +
-  scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
-p3
-
-# Smooth plot, expression against temp, faceted by colony
-p4 <- ggplot(temperature.transcripts.TPM, aes(x=val, y=exp.scaled, group=Transcript)) +
-  geom_smooth() +
-  facet_grid(A22.exp.type ~ colony) +
-  scale_y_continuous(name="Expression (scaled)") +
-  scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
-p4
+```{r plot_data}
+# extract TPM data for thermally-responsive transcripts
+resp.TPM.dt.sub <- TPM.dt.sub[names(responsive.lms)]
+setkey(resp.TPM.dt.sub, Transcript)
+str(resp.TPM.dt.sub)
+length(unique(resp.TPM.dt.sub$Transcript))
+# scale transcripts so can compare
+resp.TPM.dt.sub[,TPM.scaled:=scale(TPM), by = Transcript]
 ```
 
-Make plots for transcripts with significant temperature by colony interaction
+Make plots for all genes expressed at *High* temps in GO category "GO:0006950: response to stress"
 
-```{r plot_interaction_responsive, echo=FALSE, eval=FALSE, cache=TRUE}
+```{r plot_GOstress, echo=FALSE, eval=FALSE, cache=TRUE}
+high.stress.terms <- GO0006950.responsive[intersect(with(GO0006950.responsive, grep("High", Ar.type)), with(GO0006950.responsive, grep("High", A22.type))), ]
+
 # Line plot, expression against temp, faceted by colony
-p1 <- ggplot(temperature.transcripts.TPM.interaction, aes(x=val, y=exp.scaled, group=Transcript)) +
-  geom_line() +
-  facet_grid(. ~ colony) +
+trp1 <- ggplot(resp.TPM.dt.sub[high.stress.terms$Transcript], aes(x=val, y=TPM.scaled, group=Transcript)) + 
+  geom_line() + 
+  facet_grid(. ~ colony) + 
   scale_y_continuous(name="Expression (scaled)") +
   scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
-p1
-
-
-# Smooth plot, expression against temp, faceted by colony
-p2 <- ggplot(temperature.transcripts.TPM.interaction, aes(x=val, y=exp.scaled, group=Transcript)) +
-  geom_smooth() +
-  facet_grid(. ~ colony) +
-  scale_y_continuous(name="Expression (scaled)") +
-  scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
-p2
-
-# Same as p1, faceted by expression type
-p3 <- ggplot(temperature.transcripts.TPM.interaction, aes(x=val, y=exp.scaled, group=Transcript)) +
-  geom_line() +
-  facet_grid(A22.exp.type ~ colony) +
-  scale_y_continuous(name="Expression (scaled)") +
-  scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
-p3
+print(trp1)
 
 # Smooth plot, expression against temp, faceted by colony
-p4 <- ggplot(temperature.transcripts.TPM.interaction, aes(x=val, y=exp.scaled, group=Transcript)) +
-  geom_smooth() +
-  facet_grid(A22.exp.type ~ colony) +
+trp2 <- ggplot(resp.TPM.dt.sub[high.stress.terms$Transcript], aes(x=val, y=TPM.scaled, group=Transcript)) + 
+  geom_smooth(method = "lm", formula = y ~ poly(x, 2)) + 
+  facet_grid(. ~ colony) + 
   scale_y_continuous(name="Expression (scaled)") +
   scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
-p4
+print(trp2)
+```
+
+Make plots for all genes expressed at *Low* temps in GO category "GO:0006950: response to stress"
+
+```{r plot_GOstress, echo=FALSE, eval=FALSE, cache=TRUE}
+low.stress.terms <- GO0006950.responsive[intersect(with(GO0006950.responsive, grep("Low", Ar.type)), with(GO0006950.responsive, grep("Low", A22.type))), ]
+
+# Line plot, expression against temp, faceted by colony
+trp3 <- ggplot(resp.TPM.dt.sub[low.stress.terms$Transcript], aes(x=val, y=TPM.scaled, group=Transcript)) + 
+  geom_line() + 
+  facet_grid(. ~ colony) + 
+  scale_y_continuous(name="Expression (scaled)") +
+  scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
+print(trp3)
+
+# Smooth plot, expression against temp, faceted by colony
+trp4 <- ggplot(resp.TPM.dt.sub[low.stress.terms$Transcript], aes(x=val, y=TPM.scaled, group=Transcript)) + 
+  geom_smooth(method = "lm", formula = y ~ poly(x, 2)) + 
+  facet_grid(. ~ colony) + 
+  scale_y_continuous(name="Expression (scaled)") +
+  scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
+print(trp4)
 ```
 
 
+## Shiny interactive web-app
 
-```{r plot, echo=FALSE, eval=FALSE, cache=TRUE}
-# Line plot, expression against temp, faceted by colony
-png(paste(resultsdir, "Ap_expression_by_colony_line.png", sep=""))
-  p1 <- ggplot(temperature.transcripts.TPM, aes(x=val, y=exp.scaled, group=Transcript)) +
-    geom_line() +
-    facet_grid(. ~ colony) +
-    scale_y_continuous(name="Expression (scaled)") +
-    scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
-  p1
-dev.off()
+To assist visualization of specific transcripts, I made a interactive web-app using the [shiny](http://www.rstudio.com/shiny/) package. The scripts for this app are in the sub-directory `.\ApRxN-shinyapp`.
 
-# Smooth plot, expression against temp, faceted by colony
-png(paste(resultsdir, "Ap_expression_by_colony_smooth.png", sep=""))
-  p2 <- ggplot(temperature.transcripts.TPM, aes(x=val, y=exp.scaled, group=Transcript)) +
-    geom_smooth() +
-    facet_grid(. ~ colony) +
-    scale_y_continuous(name="Expression (scaled)") +
-    scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
-  p2
-dev.off()
+Export data for interactive shiny app. 
 
-# Same as p1, faceted by expression type
-png(paste(resultsdir, "Ap_expression_by_colony_exp_line.png", sep=""))
-  p3 <- ggplot(temperature.transcripts.TPM, aes(x=val, y=exp.scaled, group=Transcript)) +
-    geom_line() +
-    facet_grid(A22.exp.type ~ colony) +
-    scale_y_continuous(name="Expression (scaled)") +
-    scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
-  p3
-dev.off()
+```{r shiny_file, eval=FALSE, echo=FALSE}
+shiny.dt <- TPM.dt.sub[Ap.response.type$Transcript]
 
-# Smooth plot, expression against temp, faceted by colony
-png(paste(resultsdir, "Ap_expression_by_colony_exp_smooth.png", sep=""))
-  p4 <- ggplot(temperature.transcripts.TPM, aes(x=val, y=exp.scaled, group=Transcript)) +
-    geom_smooth() +
-    facet_grid(A22.exp.type ~ colony) +
-    scale_y_continuous(name="Expression (scaled)") +
-    scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
-  p4
-dev.off()
-
+# scale expression values 
+shiny.dt[,TPM.scaled:=scale(TPM), by = Transcript]
+str(shiny.dt)
+write.csv(shiny.dt, file = "ApRxN-shinyapp/responsive.lms.TPM.csv", quote = TRUE, row.names = FALSE)
 ```
 
 
-```{r plot_interaction_responsive_to_file, echo=FALSE, eval=FALSE, cache=TRUE}
-# Line plot, expression against temp, faceted by colony
-png(paste(resultsdir, "Ap_expression_interaction_by_colony_line.png", sep=""))
-  p1 <- ggplot(temperature.transcripts.TPM.interaction, aes(x=val, y=exp.scaled, group=Transcript)) +
-    geom_line() +
-    facet_grid(. ~ colony) +
-    scale_y_continuous(name="Expression (scaled)") +
-    scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
-  p1
-dev.off()
-
-# Smooth plot, expression against temp, faceted by colony
-png(paste(resultsdir, "Ap_expression_interaction_by_colony_smooth.png", sep=""))
-  p2 <- ggplot(temperature.transcripts.TPM.interaction, aes(x=val, y=exp.scaled, group=Transcript)) +
-    geom_smooth() +
-    facet_grid(. ~ colony) +
-    scale_y_continuous(name="Expression (scaled)") +
-    scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
-  p2
-dev.off()
-
-# Same as p1, faceted by expression type
-png(paste(resultsdir, "Ap_expression_interaction_by_colony_exp_line.png", sep=""))
-  p3 <- ggplot(temperature.transcripts.TPM.interaction, aes(x=val, y=exp.scaled, group=Transcript)) +
-    geom_line() +
-    facet_grid(A22.exp.type ~ colony) +
-    scale_y_continuous(name="Expression (scaled)") +
-    scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
-  p3
-dev.off()
-
-# Smooth plot, expression against temp, faceted by colony
-png(paste(resultsdir, "Ap_expression_interaction_by_colony_exp_smooth.png", sep=""))
-  p4 <- ggplot(temperature.transcripts.TPM.interaction, aes(x=val, y=exp.scaled, group=Transcript)) +
-    geom_smooth() +
-    facet_grid(A22.exp.type ~ colony) +
-    scale_y_continuous(name="Expression (scaled)") +
-    scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
-  p4
-dev.off()
-```
 
 
 ```{r rData, echo=FALSE}
