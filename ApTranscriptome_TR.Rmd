@@ -32,7 +32,7 @@ library(MASS)
 #biocLite("topGO")
 #biocLite("Rgraphviz")
 library(topGO) 
-suppressMessages(library(Rgraphviz))
+#suppressMessages(library(Rgraphviz))
 
 # load custom functions
 source("scripts/RxNseq.R")
@@ -1164,7 +1164,7 @@ Ar.int.gsea <- gsea(genelist = Ar.geneList.int, geneID2GO = geneID2GO)
 
 Make a table with results.
 
-```{r gsea_table, echo=FALSE, eval=TRUE, results='asis'}
+```{r gsea_table_2, echo=FALSE, eval=TRUE, results='asis'}
 A22.high.gsea$Type <- "High"
 A22.low.gsea$Type <- "Low"
 A22.int.gsea$Type <- "Intermediate"
@@ -1209,6 +1209,16 @@ Make plots for all genes expressed at *High* temps in GO category "GO:0006950: r
 ```{r plot_GOstress, echo=FALSE, eval=FALSE, cache=TRUE}
 high.stress.terms <- GO0006950.responsive[intersect(with(GO0006950.responsive, grep("High", Ar.type)), with(GO0006950.responsive, grep("High", A22.type))), ]
 
+
+# in low category
+low.genes <- GO0006950.responsive[union(with(GO0006950.responsive, grep("Low", Ar.type)), with(GO0006950.responsive, grep("Low", A22.type))), ]
+# in bimodal category
+bim.genes <- GO0006950.responsive[union(with(GO0006950.responsive, grep("Bimodal", Ar.type)), with(GO0006950.responsive, grep("Bimodal", A22.type))), ]
+# in intermediate category
+int.genes <- GO0006950.responsive[union(with(GO0006950.responsive, grep("Intermediate", Ar.type)), with(GO0006950.responsive, grep("Intermediate", A22.type))), ]
+
+
+
 # Line plot, expression against temp, faceted by colony
 trp1 <- ggplot(resp.TPM.dt.sub[high.stress.terms$Transcript], aes(x=val, y=TPM.scaled, group=Transcript)) + 
   geom_line() + 
@@ -1230,7 +1240,7 @@ dev.off()
 
 Make plots for all genes expressed at *Low* temps in GO category "GO:0006950: response to stress"
 
-```{r plot_GOstress, echo=FALSE, eval=FALSE, cache=TRUE}
+```{r plot_GOstress_low, echo=FALSE, eval=FALSE, cache=TRUE}
 low.stress.terms <- GO0006950.responsive[intersect(with(GO0006950.responsive, grep("Low", Ar.type)), with(GO0006950.responsive, grep("Low", A22.type))), ]
 
 # Line plot, expression against temp, faceted by colony
