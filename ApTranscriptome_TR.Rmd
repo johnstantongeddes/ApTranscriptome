@@ -188,11 +188,9 @@ annotationtable <- data.table(annotationfile)
 head(annotationtable)
 ```
 
-Note that I used the reduced assembly, prior to cleaning out contaminants. Rather than re-running this, I remove contaminants by ...
+Note that I used the reduced assembly, prior to cleaning out contaminants. As I use the "clean" assembly for read mapping and identification of responsive genes, the contaminants are dis-regarded in downstream analyses. 
 
 
-                                                 
-                                                
 ## Identification of thermally-responsive genes ##
 
 ### Quantify gene expression ###
@@ -388,7 +386,7 @@ Of the `r nrow(RxNpval)` transcripts, `r length(which(RxNpval$pval < 0.05))` hav
 
 Many of these are likely false positives, so I adjust P-values using false discovery rate (FDR). Only those transcripts with less than 5% FDR are retained as significant. 
 
-```{r fdr}
+```{r padjust}
 RxNpval$padj <- p.adjust(RxNpval$pval, method = "fdr")
 # Plot FDR values against initial pvalues
 par(mfrow = c(2,1))
@@ -485,9 +483,6 @@ str(Ap.response.type)
 
 # save results to file
 write.table(file = paste(resultsdir, "Ap_responsive_transcripts.txt", sep = ""), Ap.response.type, row.names = FALSE, col.names = TRUE, quote = FALSE, sep = "\t")
-```
-
-
 ```
 
 Examine transcripts by temperature response. Compare between colonies.
@@ -680,8 +675,7 @@ boxplot(log(varshape.out$A22.mean), log(varshape.out$Ar.mean))
 
 # calculate differences in mean, slope, curvature and wiggle between colonies for each transcript
 # offset = mean1 - mean2
-varshape.out$offset
-<- varshape.out$A22.mean - varshape.out$Ar.mean
+varshape.out$offset <- varshape.out$A22.mean - varshape.out$Ar.mean
 # to compare among transcripts that differ in scale of expression, standardize by overall mean for each transcript
 varshape.out$s.offset <- NA
 for(i in 1:nrow(varshape.out)) {
