@@ -270,12 +270,12 @@ gsea <- function(genelist, geneID2GO, plotpath=NA) {
   numsignodes <- length(which(score(resultParentChild) < 0.01))
   
   # if 'plotpath' is set, make plot of top 10 significant nodes 
-  if(!is.na(plotpath)) {
-    # plot nodes
-    pdf(plotpath)
-    showSigOfNodes(GOdata, score(resultParentChild), firstSigNodes = min(numsignodes, 10), useInfo = 'all')
-    dev.off()
-  }  
+#  if(!is.na(plotpath)) {
+#    # plot nodes
+#    pdf(plotpath)
+#    showSigOfNodes(GOdata, score(resultParentChild), firstSigNodes = min(numsignodes, 10), useInfo = 'all')
+#    dev.off()
+#  }  
   
   # result table
   resTable <- GenTable(GOdata, parentchild = resultParentChild, topNodes = numsignodes)

@@ -3,7 +3,7 @@ Thermal reactionome of the common ant species *Aphaenogaster*
    
 **Author:** [John Stanton-Geddes](john.stantongeddes.research@gmail.com)
 
-**April 10, 2014**
+**April 29, 2014**
 
 **Technical Report No. 3**
 
@@ -142,15 +142,25 @@ colnames(assemstats) <- c("Total contigs", "Total length", "Median contig size",
 pandoc.table(assemstats, style="rmarkdown", caption = "Statistics for Trinity and cap3+uclust reduced transcriptome assemblies")
 ```
 
-Running Trinity is time and computationally-intensive, so the final filtered assembly can be downloaded from [http://johnstantongeddes.org/assets/files/Trinity_filtered_assembly.tgz] 
+To remove contigs that are likely contaminants from bacterial, archael, virus or human sources, we used the program [DeconSeq](http://deconseq.sourceforge.net/) `r citep("10.1371/journal.pone.0017288")`. We downloaded the bacteria, virus, archae and human [databases of contaminants](ftp://edwards.sdsu.edu:7009/deconseq/db), modified the `DeconSeqConfig.pm` file as described [here](http://www.vcru.wisc.edu/simonlab/bioinformatics/programs/install/deconseq.htm) to point to the databases, and ran DeconSeq specifiying 95% identity over 50% the length of contig
+
+    deconseq.pl -c 50 -i 95 -f Trinity_cap3_uclust.fasta -d Trinity_cap3_uclust -dbs hsref,bast,vir,arch
+	
+This resulted in removing 5,675 contigs as contaminants, leaving 99,861 "clean" contigs. We spot-checked the contaminants by BLAST and confirmed that they matched bacteria, human or viral sources by greater than 95%. 
+
+
+Running Trinity and subsequent programs is time and memory-intensive, so the final filtered clean assembly can be downloaded from [...] 
 
 ~~~
 # download filtered Trinity assembly, uncompress and move
-wget http://johnstantongeddes.org/assets/files/Trinity_filtered_assembly.tgz
-tar -zxvf trimmomatic_output.tar.gz
+wget http://johnstantongeddes.org/assets/files/Aphaenogaster_transcriptome.tar
+tar -xvf Aphaenogaster_transcriptome.tar
+# check md5sum
+md5sum Trinity_cap3_uclust_clean.fa
+# c604159ee944dddda7b4e2a556bf2f53
 mkdir -p results/
 mkdir -p results/trinity-full/
-mv Trinity_cap3_uclust.fasta /results/trinity-full/.
+mv Trinity_cap3_uclust_clean.fasta results/trinity-full/.
 ~~~
 
 
@@ -159,14 +169,15 @@ mv Trinity_cap3_uclust.fasta /results/trinity-full/.
 
 Annotation was performed by uploading the reduced assembly "Trinity_cap3_uclust.fasta" to the web-based annotation program [FastAnnotator](http://fastannotator.cgu.edu.tw/index.php) `r citep("10.1186/1471-2164-13-S7-S9")`.
 
-#Results are available as job ID [13894410176993](http://fastannotator.cgu.edu.tw/job.php?jobid=13894410176993#page=basicinfo).
+Results are available as job ID [13894410176993](http://fastannotator.cgu.edu.tw/job.php?jobid=13894410176993#page=basicinfo).
 
 This annotation file can be read directly to R:
 
-```{r download, echo = TRUE, results = "hide"}
+```{r download, echo = TRUE}
 ### Annotation file
+
 # from either AWS or GoogleDrive
-annotationURL <- getURL("http://johnstantongeddes.org/assets/files/Aphaeno_transcriptome_AnnotationTable.txt")
+annotationURL <- getURL("http://johnstantongeddes.org/assets/files/ApTranscriptome_AnnotationTable_20140113.txt")
 #a2 <- getURL("https://googledrive.com/host/0B75IymziRJ_9Tlg1U1Vxbjk1bzg") # GoogleDrive link
 
 annotationfile <- read.csv(textConnection(annotationURL), header = TRUE, sep = "\t", stringsAsFactors = FALSE)
@@ -177,52 +188,9 @@ annotationtable <- data.table(annotationfile)
 head(annotationtable)
 ```
 
-Transcriptome annotations are nearly impossible to visualize in a meaningful way. For lack of better ideas, I made a word cloud:
+Note that I used the reduced assembly, prior to cleaning out contaminants. Rather than re-running this, I remove contaminants by ...
 
-```{r wordcloud, cache=TRUE, eval=FALSE}
-library(tm)
-library(wordcloud)
-library(RColorBrewer)
-library(stringr)
 
-# subset and extract unique best hits to NCBI nr database
-ann <- unique(annotationfile$best.hit.to.nr)
-annsplit <- str_split_fixed(ann, pattern = " ", n=2)
-annvec <- annsplit[,2]
-
-# create Corpus of terms. convert to dataframe for plotting wordcloud
-ap.corpus <- Corpus(VectorSource(annvec))
-ap.corpus <- tm_map(ap.corpus, removePunctuation)
-ap.corpus <- tm_map(ap.corpus, tolower)
-ap.corpus <- tm_map(ap.corpus, function(x) removeWords(x, stopwords("english")))
-tdm <- TermDocumentMatrix(ap.corpus)
-m <- as.matrix(tdm)
-v <- sort(rowSums(m),decreasing=TRUE)
-d <- data.frame(word = names(v),freq=v)
-pal <- brewer.pal(4, "Dark2")
-pal <- pal[-(1:2)]
-
-#png(paste(resultsdir, "wordcloud.png", sep=""), width=1280,height=800)
-wordcloud(d$word,d$freq, scale=c(8,.3),min.freq=2,max.words=100, random.order=T, rot.per=.15, colors=pal, vfont=c("sans serif","plain"))
-#dev.off()
-```
-
-This wordcloud shows that we do not know much about the transcriptome - mostly hypothetical or predicted proteins. I removed these uninformative words and generated a new wordcloud. 
-
-```{r wordcloud2, cache=TRUE}
-# remove 'protein', 'predicted' and 'hypothetical'
-rmwords <- c("hypothetical", "protein", "isoform", "subunit", "family", "putative", "partial", "domain", "containing", "predicted", "domaincontaining", "uncharacterized")
-ap.corpus.rmwords <- tm_map(ap.corpus, removeWords, rmwords)
-tdm <- TermDocumentMatrix(ap.corpus.rmwords)
-m <- as.matrix(tdm)
-v <- sort(rowSums(m),decreasing=TRUE)
-d <- data.frame(word = names(v),freq=v)
-pal <- brewer.pal(8, "Dark2")
-pal <- pal[-(1:2)]
-#png(paste(resultsdir, "wordcloud2.png", sep=""), width=1280,height=800)
-wordcloud(d$word,d$freq, scale=c(8,.3),min.freq=2,max.words=100, random.order=T, rot.per=.15, colors=pal, vfont=c("sans serif","plain"))
-#dev.off()
-```
                                                  
                                                 
 ## Identification of thermally-responsive genes ##
@@ -236,7 +204,7 @@ I quantified gene expression using [sailfish](http://www.cs.cmu.edu/~ckingsf/sof
 
 Then build the index of the assembly:
 
-    sailfish index -t Trinity_cap3_uclust.fasta -o sailfish-index -k 20 -p 4
+    sailfish index -t Trinity_cap3_uclust_clean.fasta -o sailfish-index -k 20 -p 4
 
 Once this is done, quantify expression for the Trimmomatic filtered reads from each colony-treatment sample separately. Note that for each sample, there are three four filtered read files:
 
@@ -474,7 +442,6 @@ responsive.lms <- c(temperature.lms, interaction.lms)
 rm(other.lms)
 ```
 
-
 ```{r table_results, echo=FALSE, results='asis'}
 clist <- c('Total', 'Colony', 'Temperature', 'Temperature:Colony')
 siglist <- c(length(RxNlmAIC),
@@ -515,29 +482,29 @@ stopifnot(nrow(temperature.response.type) == length(temperature.lms))
 Ap.response.type <- rbind(interaction.response.type, temperature.response.type)
 colnames(Ap.response.type)[which(colnames(Ap.response.type) == ".id")] <- "Transcript"
 str(Ap.response.type)
+
+# save results to file
+write.table(file = paste(resultsdir, "Ap_responsive_transcripts.txt", sep = ""), Ap.response.type, row.names = FALSE, col.names = TRUE, quote = FALSE, sep = "\t")
+```
+
+
 ```
 
 Examine transcripts by temperature response. Compare between colonies.
 
 ```{r temperature_response, eval=TRUE, echo=FALSE, results='asis'}
-# table type of response
 A22.type.table <- table(Ap.response.type[ , 'A22.type'])
 Ar.type.table <- table(Ap.response.type[ , 'Ar.type'])
-# overlap
-overlap <- c(length(Ap.response.type[which(Ap.response.type$A22.type == "Bimodal" & Ap.response.type$Ar.type == "Bimodal"), "Transcript"]),
-             length(Ap.response.type[which(Ap.response.type$A22.type == "High" & Ap.response.type$Ar.type == "High"), "Transcript"]),
-             length(Ap.response.type[which(Ap.response.type$A22.type == "Intermediate" & Ap.response.type$Ar.type == "Intermediate"), "Transcript"]),
-             length(Ap.response.type[which(Ap.response.type$A22.type == "Low" & Ap.response.type$Ar.type == "Low"), "Transcript"]),
-             length(Ap.response.type[which(Ap.response.type$A22.type == "NotResp" & Ap.response.type$Ar.type == "NotResp"), "Transcript"]))
 
-# make table
-Ap.type.table <- rbind(A22.type.table, Ar.type.table, overlap)
-rownames(Ap.type.table) <- c("ApVT", "ApNC", "Overlap")
+type.table <- table(Ap.response.type[ , 'A22.type'], Ap.response.type[ , 'Ar.type'])
+# reorder for plotting
+tt2 <- type.table[c(2,4,1,3,5), c(2,4,1,3,5)]
 
-# re-orderfor printing
-Ap.type.table <- Ap.type.table[ , c(2,4,1,3,5)]
+png(file = paste(resultsdir, "responsive_transcripts_mosaicplot.png", sep = ""))
+mosaicplot(tt2, shade = TRUE, xlab = "ApVT", ylab = "AcNC", main = "Mosaic plot of responsive transcripts")
+dev.off()
 
-pandoc.table(Ap.type.table, style="rmarkdown", caption = "Number of transcripts with maximum expression at high, low, intermediate, both high and low (bimodal) temperatures or are not thermally-responsivefor each colony and their overlap.")
+pandoc.table(tt2, style="rmarkdown", caption = "Number of transcripts with maximum expression at high, low, intermediate, both high and low (bimodal) temperatures or are not thermally-responsivefor each colony and their overlap.")
 
 # Pearson Chi-square test
 chisq.test(Ap.type.table)
@@ -926,9 +893,9 @@ dim(Ap.BP.ResTable)
 
 # graph significant nodes
 
-pdf(paste(resultsdir, "Ap.BP_topGO_sig_nodes.pdf", sep=""))
-showSigOfNodes(Ap.BP.GOdata, score(Ap.BP.resultParentChild), firstSigNodes = 10, useInfo = 'all')
-dev.off()
+#pdf(paste(resultsdir, "Ap.BP_topGO_sig_nodes.pdf", sep=""))
+#showSigOfNodes(Ap.BP.GOdata, score(Ap.BP.resultParentChild), firstSigNodes = 10, useInfo = 'all')
+#dev.off()
 ```
 
 **2) High**
@@ -947,7 +914,7 @@ Ap.geneList.high[(which(names(Ap.geneList.high) %in% Ap.high))] <- 1
 table(Ap.geneList.high)
 
 # Run GSEA
-Ap.high.gsea <- gsea(genelist = Ap.geneList.high, geneID2GO = geneID2GO, plotpath = "results/Ar_int_BP_topGO_sig_nodes.pdf")
+Ap.high.gsea <- gsea(genelist = Ap.geneList.high, geneID2GO = geneID2GO, plotpath = NA)
 #pandoc.table(Ap.high.gsea)
 # output for Revigo
 write.table(Ap.high.gsea[,"GO.ID"], file = "results/Ap_high_gsea.txt", row.names = FALSE, sep = "\t", quote = FALSE)
@@ -1281,7 +1248,7 @@ write.csv(shiny.dt, file = "ApRxN-shinyapp/responsive.lms.TPM.csv", quote = TRUE
 
 ```{r rData, echo=FALSE}
 # save RData for manuscript file
-save(Ap.type.table, Ap.df, w1, w2, file = "ms.RData")
+save(tt2, Ap.df, w1, w2, file = "ms.RData")
 ```
 
 

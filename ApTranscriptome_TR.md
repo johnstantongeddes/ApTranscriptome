@@ -3,7 +3,7 @@ Thermal reactionome of the common ant species *Aphaenogaster*
    
 **Author:** [John Stanton-Geddes](john.stantongeddes.research@gmail.com)
 
-**April 10, 2014**
+**April 29, 2014**
 
 **Technical Report No. 3**
 
@@ -12,9 +12,6 @@ Thermal reactionome of the common ant species *Aphaenogaster*
 **University of Vermont**
 
 
-```
-## Error: there is no package called 'Rgraphviz'
-```
 
 
 
@@ -104,11 +101,52 @@ Subsequent to running `cap3`, we ran [uclust](http://drive5.com/usearch/manual/u
 
 These post-processing step removed 16% of the initial reads (Table 1).
 
+To remove contigs that are likely contaminants from bacterial, archael, virus or human sources, we used the program [DeconSeq](http://deconseq.sourceforge.net/) (<a href="http://dx.doi.org/10.1371/journal.pone.0017288">Schmieder et al. 2011</a>). We downloaded the bacteria, virus, archae and human [databases of contaminants](ftp://edwards.sdsu.edu:7009/deconseq/db), modified the `DeconSeqConfig.pm` file as described [here](http://www.vcru.wisc.edu/simonlab/bioinformatics/programs/install/deconseq.htm) to point to the databases, and ran DeconSeq specifiying 95% identity over 50% the length of contig
+
+    deconseq.pl -c 50 -i 95 -f Trinity_cap3_uclust.fasta -d Trinity_cap3_uclust -dbs hsref,bast,vir,arch
+	
+This resulted in removing 5,675 contigs as contaminants, leaving 99,861 "clean" contigs. We spot-checked the contaminants by BLAST and confirmed that they matched bacteria, human or viral sources by greater than 95%. 
 
 
 
+|    &nbsp;     |  Total contigs  |  Total length  |  Median contig size  |
+|:-------------:|:---------------:|:--------------:|:--------------------:|
+|  **trinity**  |     126,172     |  100,389,539   |         358          |
+|  **reduced**  |     105,536     |   62,648,997   |         320          |
+
+Table: Statistics for Trinity and cap3+uclust reduced transcriptome assemblies (continued below)
+
+ 
+
+|    &nbsp;     |  Mean contig size  |  N50 contig  |  N50 Length  |
+|:-------------:|:------------------:|:------------:|:------------:|
+|  **trinity**  |        795         |    16,201    |    1,631     |
+|  **reduced**  |        593         |    15,491    |     895      |
 
 
+Running Trinity and subsequent programs is time and memory-intensive, so the final filtered clean assembly can be downloaded from [...] 
+
+~~~
+# download filtered Trinity assembly, uncompress and move
+wget http://johnstantongeddes.org/assets/files/Aphaenogaster_transcriptome.tar
+tar -xvf Aphaenogaster_transcriptome.tar
+# check md5sum
+md5sum Trinity_cap3_uclust_clean.fa
+# c604159ee944dddda7b4e2a556bf2f53
+mkdir -p results/
+mkdir -p results/trinity-full/
+mv Trinity_cap3_uclust_clean.fasta results/trinity-full/.
+~~~
+
+
+
+## Transcriptome annotation ##
+
+Annotation was performed by uploading the reduced assembly "Trinity_cap3_uclust.fasta" to the web-based annotation program [FastAnnotator](http://fastannotator.cgu.edu.tw/index.php) (<a href="">unknown, unknown</a>).
+
+Results are available as job ID [13894410176993](http://fastannotator.cgu.edu.tw/job.php?jobid=13894410176993#page=basicinfo).
+
+This annotation file can be read directly to R:
 
 
 
