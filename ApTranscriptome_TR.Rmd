@@ -3,7 +3,7 @@ Thermal reactionome of the common ant species *Aphaenogaster*
    
 **Author:** [John Stanton-Geddes](john.stantongeddes.research@gmail.com)
 
-**April 10, 2014**
+**April 29, 2014**
 
 **Technical Report No. 3**
 
@@ -131,13 +131,6 @@ Subsequent to running `cap3`, we ran [uclust](http://drive5.com/usearch/manual/u
 
 These post-processing step removed `r round((126172-105536)/126172 * 100, 0)`% of the initial reads (Table 1).
 
-To remove contigs that are likely contaminants from bacterial, archael, virus or human sources, we used the program [DeconSeq](http://deconseq.sourceforge.net/) `r citep("10.1371/journal.pone.0017288")`. We downloaded the bacteria, virus, archae and human [databases of contaminants](ftp://edwards.sdsu.edu:7009/deconseq/db), modified the `DeconSeqConfig.pm` file as described [here](http://www.vcru.wisc.edu/simonlab/bioinformatics/programs/install/deconseq.htm) to point to the databases, and ran DeconSeq specifiying 95% identity over 50% the length of contig
-
-    deconseq.pl -c 50 -i 95 -f Trinity_cap3_uclust.fasta -d Trinity_cap3_uclust -dbs hsref,bast,vir,arch
-	
-This resulted in removing 5,675 contigs as contaminants, leaving 99,861 "clean" contigs. We spot-checked the contaminants by BLAST and confirmed that they matched bacteria, human or viral sources by greater than 95%. 
-
-
 ```{r assemstats, results = "asis", echo=FALSE}
 # make table
 trinity <- c("126,172", "100,389,539", "358", "795", "16,201", "1,631")
@@ -148,6 +141,13 @@ colnames(assemstats) <- c("Total contigs", "Total length", "Median contig size",
 
 pandoc.table(assemstats, style="rmarkdown", caption = "Statistics for Trinity and cap3+uclust reduced transcriptome assemblies")
 ```
+
+To remove contigs that are likely contaminants from bacterial, archael, virus or human sources, we used the program [DeconSeq](http://deconseq.sourceforge.net/) `r citep("10.1371/journal.pone.0017288")`. We downloaded the bacteria, virus, archae and human [databases of contaminants](ftp://edwards.sdsu.edu:7009/deconseq/db), modified the `DeconSeqConfig.pm` file as described [here](http://www.vcru.wisc.edu/simonlab/bioinformatics/programs/install/deconseq.htm) to point to the databases, and ran DeconSeq specifiying 95% identity over 50% the length of contig
+
+    deconseq.pl -c 50 -i 95 -f Trinity_cap3_uclust.fasta -d Trinity_cap3_uclust -dbs hsref,bast,vir,arch
+	
+This resulted in removing 5,675 contigs as contaminants, leaving 99,861 "clean" contigs. We spot-checked the contaminants by BLAST and confirmed that they matched bacteria, human or viral sources by greater than 95%. 
+
 
 Running Trinity and subsequent programs is time and memory-intensive, so the final filtered clean assembly can be downloaded from [...] 
 
@@ -173,10 +173,11 @@ Results are available as job ID [13894410176993](http://fastannotator.cgu.edu.tw
 
 This annotation file can be read directly to R:
 
-```{r download, echo = TRUE, results = "hide"}
+```{r download, echo = TRUE}
 ### Annotation file
+
 # from either AWS or GoogleDrive
-annotationURL <- getURL("http://johnstantongeddes.org/assets/files/Aphaeno_transcriptome_AnnotationTable.txt")
+annotationURL <- getURL("http://johnstantongeddes.org/assets/files/ApTranscriptome_AnnotationTable_20140113.txt")
 #a2 <- getURL("https://googledrive.com/host/0B75IymziRJ_9Tlg1U1Vxbjk1bzg") # GoogleDrive link
 
 annotationfile <- read.csv(textConnection(annotationURL), header = TRUE, sep = "\t", stringsAsFactors = FALSE)
@@ -441,7 +442,6 @@ responsive.lms <- c(temperature.lms, interaction.lms)
 rm(other.lms)
 ```
 
-
 ```{r table_results, echo=FALSE, results='asis'}
 clist <- c('Total', 'Colony', 'Temperature', 'Temperature:Colony')
 siglist <- c(length(RxNlmAIC),
@@ -482,6 +482,12 @@ stopifnot(nrow(temperature.response.type) == length(temperature.lms))
 Ap.response.type <- rbind(interaction.response.type, temperature.response.type)
 colnames(Ap.response.type)[which(colnames(Ap.response.type) == ".id")] <- "Transcript"
 str(Ap.response.type)
+
+# save results to file
+write.table(file = paste(resultsdir, "Ap_responsive_transcripts.txt", sep = ""), Ap.response.type, row.names = FALSE, col.names = TRUE, quote = FALSE, sep = "\t")
+```
+
+
 ```
 
 Examine transcripts by temperature response. Compare between colonies.
@@ -489,7 +495,6 @@ Examine transcripts by temperature response. Compare between colonies.
 ```{r temperature_response, eval=TRUE, echo=FALSE, results='asis'}
 A22.type.table <- table(Ap.response.type[ , 'A22.type'])
 Ar.type.table <- table(Ap.response.type[ , 'Ar.type'])
-
 
 type.table <- table(Ap.response.type[ , 'A22.type'], Ap.response.type[ , 'Ar.type'])
 # reorder for plotting
@@ -888,9 +893,9 @@ dim(Ap.BP.ResTable)
 
 # graph significant nodes
 
-pdf(paste(resultsdir, "Ap.BP_topGO_sig_nodes.pdf", sep=""))
-showSigOfNodes(Ap.BP.GOdata, score(Ap.BP.resultParentChild), firstSigNodes = 10, useInfo = 'all')
-dev.off()
+#pdf(paste(resultsdir, "Ap.BP_topGO_sig_nodes.pdf", sep=""))
+#showSigOfNodes(Ap.BP.GOdata, score(Ap.BP.resultParentChild), firstSigNodes = 10, useInfo = 'all')
+#dev.off()
 ```
 
 **2) High**
@@ -909,7 +914,7 @@ Ap.geneList.high[(which(names(Ap.geneList.high) %in% Ap.high))] <- 1
 table(Ap.geneList.high)
 
 # Run GSEA
-Ap.high.gsea <- gsea(genelist = Ap.geneList.high, geneID2GO = geneID2GO, plotpath = "results/Ar_int_BP_topGO_sig_nodes.pdf")
+Ap.high.gsea <- gsea(genelist = Ap.geneList.high, geneID2GO = geneID2GO, plotpath = NA)
 #pandoc.table(Ap.high.gsea)
 # output for Revigo
 write.table(Ap.high.gsea[,"GO.ID"], file = "results/Ap_high_gsea.txt", row.names = FALSE, sep = "\t", quote = FALSE)
