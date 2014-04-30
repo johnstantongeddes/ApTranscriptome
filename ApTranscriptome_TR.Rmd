@@ -30,7 +30,7 @@ library(MASS)
 # Load Bioconductor libraries
 #source("http://bioconductor.org/biocLite.R")
 #biocLite("topGO")
-#biocLite("Rgraphviz")
+#biocLite("Rgraphviz") # INSTALL BROKEN IN R 3.1.0
 library(topGO) 
 #suppressMessages(library(Rgraphviz))
 
@@ -77,9 +77,9 @@ mv ind_files data/.
 
 ## Sample description ##
 
-Two ant colonies were used for the transcriptome sequencing. The first, designated A22, was collected at Molly Bog, Vermont in August 2012 by Nick Gotelli and Andrew Nguyen. This colony was putatively identifed as *A. picea*. The second colony, designated Ar, was collected by Lauren Nichols in Raleigh, North Carolina. These colonies were maintained in the lab for 6 months prior to sample collection. 
+Two ant colonies were used for the transcriptome sequencing. The first, designated *A22*, was collected at Molly Bog, Vermont in August 2012 by Nick Gotelli and Andrew Nguyen. The second colony, designated *Ar*, was collected by Lauren Nichols in Raleigh, North Carolina. These colonies were identified as *A. picea* and *A. carolinensis* by Bernice Bacon de Marco. The colonies were maintained in the lab for 6 months prior to sample collection. 
 
-For each colony, three ants were exposed to one of 12 temperature treatments, every 3.5C ranging from 0C to 38.5C, for one hour in glass tubes in a water bath. The ants were flash frozen and stored at -80C until RNA was extracted using a two step extraction; [RNAzol RT](http://www.mrcgene.com/rnazol.htm) (Molecular Research Center, Inc) followed by an [RNeasy Micro](http://www.qiagen.com/products/catalog/sample-technologies/rna-sample-technologies/total-rna/rneasy-micro-kit) column (Qiagen). Samples from each colony were pooled and sequenced in separate lanes on a 100bp paired-end run of an Illumina HiSeq at the University of Minnesota Genomics Center, yielding 20e6 and 16e6 reads for the A22 and Ar samples, respectively.
+For each colony, three ants were exposed to one of 12 temperature treatments, every 3.5C ranging from 0C to 38.5C, for one hour in glass tubes in a water bath. The ants were flash frozen and stored at -80C until RNA was extracted using a two step extraction; [RNAzol RT](http://www.mrcgene.com/rnazol.htm) (Molecular Research Center, Inc) followed by an [RNeasy Micro](http://www.qiagen.com/products/catalog/sample-technologies/rna-sample-technologies/total-rna/rneasy-micro-kit) column (Qiagen). Samples from each colony were pooled and sequenced in separate lanes on a 100bp paired-end run of an Illumina HiSeq at the University of Minnesota Genomics Center, yielding 20^6^ and 16^6^ reads for the *A22* and *Ar* samples, respectively.
 
 
 
@@ -386,6 +386,7 @@ Of the `r nrow(RxNpval)` transcripts, `r length(which(RxNpval$pval < 0.05))` hav
 
 Many of these are likely false positives, so I adjust P-values using false discovery rate (FDR). Only those transcripts with less than 5% FDR are retained as significant. 
 
+
 ```{r padjust}
 RxNpval$padj <- p.adjust(RxNpval$pval, method = "fdr")
 # Plot FDR values against initial pvalues
@@ -397,6 +398,7 @@ hist(RxNpval$padj)
 signif.transcripts <- RxNpval[which(RxNpval$padj < 0.05), ]
 
 # extract significant transcripts
+setkey(TPM.dt.sub, Transcript)
 sig.TPM.dt.sub <- TPM.dt.sub[signif.transcripts$Transcript]
 ```
 
@@ -495,8 +497,8 @@ type.table <- table(Ap.response.type[ , 'A22.type'], Ap.response.type[ , 'Ar.typ
 # reorder for plotting
 tt2 <- type.table[c(2,4,1,3,5), c(2,4,1,3,5)]
 
-png(file = paste(resultsdir, "responsive_transcripts_mosaicplot.png", sep = ""))
-mosaicplot(tt2, shade = TRUE, xlab = "ApVT", ylab = "AcNC", main = "Mosaic plot of responsive transcripts")
+png(file = paste(resultsdir, "responsive_transcripts_mosaicplot.png", sep = ""), width = 600, height = 480)
+mosaicplot(tt2, xlab = "ApVT", ylab = "AcNC", cex = 0.7, las = 1, main = "")
 dev.off()
 
 pandoc.table(tt2, style="rmarkdown", caption = "Number of transcripts with maximum expression at high, low, intermediate, both high and low (bimodal) temperatures or are not thermally-responsivefor each colony and their overlap.")
@@ -537,7 +539,7 @@ The `t.test` fails to account for the many orders of magnitude difference in exp
 (w1 <- wilcox.test(A22.high.transcripts$A22.opt, A22.high.transcripts$Ar.opt, alternative = "two.sided", paired = TRUE, conf.int = TRUE))
 ```
 
-Yes - transcripts that are up-regulated at high temperatures in *A22* are more highly-expressed at 19.25C in *Ar*. Note that A22 had the larger library size so if this was due to TPM not correctly accounting for differences in reads between samples, we would expect to see a positive instead of negative value here.
+Yes - transcripts that are up-regulated at high temperatures in *A22* are more highly-expressed at 19.25°C in *Ar*. Note that A22 had the larger library size so if this was due to TPM not correctly accounting for differences in reads between samples, we would expect to see a positive instead of negative value here.
 
 Next I test the converse, that transcripts that are up-regulated at low temperatures in *Ar* are more highly-expressed at 19.25C temperatures in *A22*. 
 
@@ -580,10 +582,12 @@ wilcox.test(A22.int.transcripts$A22.opt, A22.int.transcripts$Ar.opt, alternative
 
 The non-parametric test for both comparisions also finds greater constitutive expression in *Ar* than *A22*.
 
+The overall pattern that emerges from these 4 tests is that constitutive expression at optimal conditions of 19.5°C is overall greater for *Ar* than *A22*.
+
 
 ### Thermal tolerance indicated by region of constant gene expression ###
 
-The 'Intermediate' expressed transcripts are core molecular processes that are expressed at non-stressful temperatures, and shut-off when the organism experiences thermall stress. We hypothesized that if the more southern *Ar* colony was more thermally-tolerant than *A22*, transcripts with 'Intermediate' expression (10-30C) would be active across a wider range of temperatures. To test this with our data, we calculated the standard deviation of the expression function for each temperature transcript that was 'Intermediate' expressed in each colony.
+The 'Intermediate' expressed transcripts are core molecular processes that are expressed at non-stressful temperatures, and shut-off when the organism experiences thermall stress. We hypothesized that if the more southern *Ar* colony was more thermally-tolerant than *A22*, transcripts with 'Intermediate' expression (10-30°C) would be active across a wider range of temperatures. To test this with our data, we calculated the standard deviation of the expression function for each temperature transcript that was 'Intermediate' expressed in each colony.
 
 ```{r thermal_breadth}
 # extract 'Intermediate' expressed transcripts for A22 colony
@@ -616,6 +620,60 @@ g1 + scale_y_continuous(name="Density") +
 ```
 
 
+```{r plot_thermal_breadth2, echo = FALSE, eval = TRUE}
+# predict expression for these transcripts
+int.predicted <- matrix(nrow = 0, ncol = 5)
+
+# for A22
+colony = "A22"
+
+for(i in 1:length(A22.int.lm)) {
+    lmitem <- A22.int.lm[[i]]
+    pred.vals <- seq(from = 0, to = 38.5, by = 2.5)
+    newdf <- data.frame(Transcript = names(A22.int.lm[i]), colony = rep(colony, length = length(pred.vals)), val = pred.vals)
+    pout <- predict(lmitem, newdata=newdf)
+    pout <- cbind(newdf, logTPM = pout) # note this is on log scale
+    # back-transform from log-scale
+    pout$pTPM <- exp(pout$logTPM)
+    # change any negative values to zero
+    pout$pTPM <- ifelse(pout$pTPM < 0, 0, round(pout$pTPM, 5))
+    # concatenate
+    int.predicted <- rbind(int.predicted, pout)
+}
+
+# for Ar
+colony = "Ar"
+
+for(i in 1:length(Ar.int.lm)) {
+    lmitem <- Ar.int.lm[[i]]
+    pred.vals <- seq(from = 0, to = 38.5, by = 2.5)
+    newdf <- data.frame(Transcript = names(Ar.int.lm[i]), colony = rep(colony, length = length(pred.vals)), val = pred.vals)
+    pout <- predict(lmitem, newdata=newdf)
+    pout <- cbind(newdf, logTPM = pout) # note this is on log scale
+    # back-transform from log-scale
+    pout$pTPM <- exp(pout$logTPM)
+    # change any negative values to zero
+    pout$pTPM <- ifelse(pout$pTPM < 0, 0, round(pout$pTPM, 5))
+    # concatenate
+    int.predicted <- rbind(int.predicted, pout)
+}
+
+# change to data.table
+int.predicted <- data.table(int.predicted)
+# scale transcripts so can compare
+int.predicted[,pTPM.scaled:=scale(pTPM), by = Transcript]
+str(int.predicted)
+
+# plot
+intplot <- ggplot(int.predicted, aes(x=val, y=pTPM.scaled, group=Transcript)) + 
+  geom_line() + 
+  facet_grid(. ~ colony)
+intplot
+```
+
+Plot shows all the intermediate transcripts, though not possible to tell that *Ar* transcripts have greater variance than *A22* transcripts.
+
+
 ### Thermal sensitivity indicated by response of bimodally-expressed transcripts ###
 
 As the converse of the above hypothesis, a colony that is especially thermally-sensitive is likely to activate expression of molecular processes more quickly. We tested this using the same approach as for the 'Intermediate' transcripts, but using the inverse of the 'Bimodal' expressed transcripts. 
@@ -635,7 +693,7 @@ length(Ar.bim.lm)
 Ar.bim.sd <- unlist(Map(transcriptSD, Ar.bim.lm, colony = "Ar"))
 
 # t-test to compare standard deviation of 'Bimodal' transcripts between colonies
-t2 <- t.test(Ar.bim.sd, A22.bim.sd)
+(t2 <- t.test(Ar.bim.sd, A22.bim.sd))
 ```
 
 No difference in the standard deviation of expression for bimodally-expressed transcripts between colonies.
@@ -683,7 +741,7 @@ for(i in 1:nrow(varshape.out)) {
 }
 
 # t-test
-t3 <- t.test(varshape.out$s.offset, alternative = "two.sided")
+(t3 <- t.test(varshape.out$s.offset, alternative = "two.sided"))
 
 # slope = slope1 - slope2
 varshape.out$slope <- varshape.out$A22.slope - varshape.out$Ar.slope
@@ -696,7 +754,7 @@ for(i in 1:nrow(varshape.out)) {
 varshape.out[which(varshape.out$Ar.slope == 0 & varshape.out$A22.slope == 0), "s.slope"] <- 0
 
 # t-test
-t4 <- t.test(varshape.out$s.slope, alternative = "two.sided")
+(t4 <- t.test(varshape.out$s.slope, alternative = "two.sided"))
 
 
 # curvature = curvature1 - curvature2
@@ -709,7 +767,7 @@ for(i in 1:nrow(varshape.out)) {
 # change 'Inf' values to 0
 varshape.out[which(varshape.out$Ar.curve == 0 & varshape.out$A22.curve == 0), "s.curvature"] <- 0
 # t-test
-tt.test(varshape.out$s.curvature, alternative = "two.sided")
+(t5 <- t.test(varshape.out$s.curvature, alternative = "two.sided"))
 
 
 # wiggle
@@ -724,7 +782,7 @@ varshape.out[which(varshape.out$Ar.wiggle == 0 & varshape.out$A22.wiggle == 0), 
 length(which(varshape.out$s.wiggle != 0))
 
 # t-test
-t.test(varshape.out$s.wiggle, alternative = "two.sided")
+(t6 <- t.test(varshape.out$s.wiggle, alternative = "two.sided"))
 ```
 
 Next, I partition the differences in the reaction norms into the variation explained by differences in the trait means (offset), slope, curvature and wiggle.
