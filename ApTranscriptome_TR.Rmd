@@ -382,7 +382,7 @@ modpFunc <- function(foo) {
 RxNpval <- ddply(TPM.dt.sub, .(Transcript), .progress="text", .inform="TRUE", modpFunc)
 ```
 
-Of the `r nrow(RxNpval)` transcripts, `r length(which(RxNpval$pval < 0.05))` have models with P < 0.05.
+Of the `r nrow(RxNpval)` transcripts, `r length(which(RxNpval$pval < 0.05))` have models with P < 0.05! 
 
 Many of these are likely false positives, so I adjust P-values using false discovery rate (FDR). Only those transcripts with less than 5% FDR are retained as significant. 
 
@@ -393,17 +393,27 @@ RxNpval$padj <- p.adjust(RxNpval$pval, method = "fdr")
 par(mfrow = c(2,1))
 hist(RxNpval$pval)
 hist(RxNpval$padj)
+```
 
+Wow - even after controlling for FDR `r nrow(signif.transcripts)` transcipts are significant! 
+
+Next, I use the draconianally-stringent Bonferonni correction. 
+
+```{r bonferroni}
+RxNpval$pbonf <- p.adjust(RxNpval$pval, method = "bonferroni")
+```
+
+Wow - `r length(which(RxNpval$pbonf < 0.05))` transcripts significant after Bonferroni correction!
+
+
+```{r select_bonferroni}
 # subset to significant transcripts
-signif.transcripts <- RxNpval[which(RxNpval$padj < 0.05), ]
+signif.transcripts <- RxNpval[which(RxNpval$pbonf < 0.05), ]
 
 # extract significant transcripts
 setkey(TPM.dt.sub, Transcript)
 sig.TPM.dt.sub <- TPM.dt.sub[signif.transcripts$Transcript]
 ```
-
-At the 5% FDR significance threshold, there are `r nrow(signif.transcripts)` transcripts with an overall significant model.
-
 
 (2) Fit linear model to overall significant transcripts; perform stepAIC to retain only significant terms, and save `lm` output to list
 
@@ -508,9 +518,6 @@ chisq.test(Ap.type.table)
 ```
 
 
-Table 4 shows the number of transcripts that fall into each expression type for each each colony. The totals for each colony include the `r nrow(temperature.lms)` transcripts that have consistent temperature responses between the two colonies. 
-
-
 
 ## Colony-level comparison ##
 
@@ -518,7 +525,7 @@ In this section, I compare the thermal reactionome between the *Ar* and *A22* co
 
 ### Plasticity versus constitutive expression
 
-Selection may have acted in response to thermal stress such that some genes are constitutively activated in one colony while plastically-expressed in the other. I evaluate this hypothesis by comparing expression levels at the at optimum (19.5C) temperature between the two colonies for genes in that are either in the 'High' or 'Low' expression group in the other colony. Specifically, I expect that genes upregulated at high temperatures in *A22* are more highly expressed at 19.5C in *Ar*? Conversely, I expect genes that are upregulated at low temps in *Ar* to have greater constitutive expression in *A22*? 
+Selection may have acted in response to thermal stress such that some genes are constitutively activated in one colony while plastically-expressed in the other. I evaluate this hypothesis by comparing expression levels at the at optimum (19.5C) temperature between the two colonies for genes in that are either in the 'High' or 'Low' expression group in the other colony. Specifically, are genes upregulated at high temperatures in *A22* more highly expressed near optimum temperatures of 19.5°C in *Ar*? 
 
 ```{r optimum_expression_comparison, cache=TRUE, eval=FALSE}
 # list of transcripts that are 'high' expressed in A22
@@ -539,9 +546,9 @@ The `t.test` fails to account for the many orders of magnitude difference in exp
 (w1 <- wilcox.test(A22.high.transcripts$A22.opt, A22.high.transcripts$Ar.opt, alternative = "two.sided", paired = TRUE, conf.int = TRUE))
 ```
 
-Yes - transcripts that are up-regulated at high temperatures in *A22* are more highly-expressed at 19.25°C in *Ar*. Note that A22 had the larger library size so if this was due to TPM not correctly accounting for differences in reads between samples, we would expect to see a positive instead of negative value here.
+Contrary to expectations, genes upregulated at high temperatures in *A22* also have greater expression at 19.5°C than *Ar*. 
 
-Next I test the converse, that transcripts that are up-regulated at low temperatures in *Ar* are more highly-expressed at 19.25C temperatures in *A22*. 
+Next I test the converse, that transcripts that are up-regulated at low temperatures in *Ar* are more highly-expressed at 19.25°C temperatures in *A22*. 
 
 ```{r Ar_low_wilcoxon}
 # list of transcripts that are 'high' expressed in Ar
@@ -558,7 +565,7 @@ boxplot(log(Ar.low.transcripts$A22.opt+1), log(Ar.low.transcripts$Ar.opt+1))
 (w2 <- wilcox.test(Ar.low.transcripts$A22.opt, Ar.low.transcripts$Ar.opt, alternative = "two.sided", paired = TRUE, conf.int = TRUE))
 ```
 
-Counter to expectations, expression at 19.5C is also greater in *Ar* than *A22* for transcripts upregulated at low temperatures in *Ar*. 
+Consistent with expectations, and the above test, expression at 19.5°C is also greater in *A22* than *Ar* for transcripts upregulated at low temperatures in *Ar*. 
 
 To confirm that there are not sample-level issues, I performed the same comparison using transcripts where I do *not* expect to see a difference in expression.
 
@@ -568,6 +575,7 @@ Ar.int.transcripts <- Ap.response.type[which(Ap.response.type$Ar.type == "Interm
 # T test
 t.test(Ar.int.transcripts$A22.opt, Ar.int.transcripts$Ar.opt)
 t.test(log(Ar.int.transcripts$A22.opt+1), log(Ar.int.transcripts$Ar.opt+1))
+boxplot(log(Ar.int.transcripts$A22.opt+1), log(Ar.int.transcripts$Ar.opt+1))
 # Wilcoxon signed rank-test
 wilcox.test(Ar.int.transcripts$A22.opt, Ar.int.transcripts$Ar.opt, alternative = "two.sided", paired = TRUE, conf.int = TRUE)
 
@@ -576,13 +584,14 @@ A22.int.transcripts <- Ap.response.type[which(Ap.response.type$A22.type == "Inte
 # T test
 t.test(A22.int.transcripts$A22.opt, A22.int.transcripts$Ar.opt)
 t.test(log(A22.int.transcripts$A22.opt+1), log(A22.int.transcripts$Ar.opt+1))
+boxplot(log(A22.int.transcripts$A22.opt+1), log(A22.int.transcripts$Ar.opt+1))
 # Wilcoxon signed rank-test
 wilcox.test(A22.int.transcripts$A22.opt, A22.int.transcripts$Ar.opt, alternative = "two.sided", paired = TRUE, conf.int = TRUE)
 ```
 
-The non-parametric test for both comparisions also finds greater constitutive expression in *Ar* than *A22*.
+The non-parametric test for both comparisions also finds greater constitutive expression in *A22* than *Ar*.
 
-The overall pattern that emerges from these 4 tests is that constitutive expression at optimal conditions of 19.5°C is overall greater for *Ar* than *A22*.
+The overall pattern that emerges from these 4 tests is that constitutive expression at optimal conditions of 19.5°C is overall greater for *A22* than *Ar*.
 
 
 ### Thermal tolerance indicated by region of constant gene expression ###
@@ -600,6 +609,7 @@ A22.int.sd <- data.frame(colony = "A22", exp_sd = A22.int.sd)
 
 # repeat for Ar
 Ar.int.lm <- RxNlmAIC[Ar.int.transcripts$Transcript]
+length(Ar.int.lm)
 Ar.int.sd <- unlist(Map(transcriptSD, Ar.int.lm, colony = "Ar"))
 Ar.int.sd <- data.frame(colony = "Ar", exp_sd = Ar.int.sd)
 
@@ -607,7 +617,7 @@ Ar.int.sd <- data.frame(colony = "Ar", exp_sd = Ar.int.sd)
 (t1 <- t.test(Ar.int.sd$exp_sd, A22.int.sd$exp_sd, alternative = "two.sided"))
 ```
 
-Consistent with our hypothesis, 'Intermediate' transcripts in *Ar* are expressed over a significantly wider range of temperatures than in *A22*. 
+
 
 ```{r plotthermalbreadth, echo=FALSE, eval=TRUE}
 # prep data for plotting
