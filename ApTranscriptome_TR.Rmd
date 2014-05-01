@@ -202,7 +202,7 @@ I quantified gene expression using [sailfish](http://www.cs.cmu.edu/~ckingsf/sof
 
 Then build the index of the assembly:
 
-    sailfish index -t Trinity_cap3_uclust_clean.fasta -o sailfish-index -k 20 -p 4
+    sailfish index -t Trinity_cap3_uclust_clean.fasta -o sailfish-index-Trinity_cap3_uclust -k 20 -p 4
 
 Once this is done, quantify expression for the Trimmomatic filtered reads from each colony-treatment sample separately. Note that for each sample, there are three four filtered read files:
 
@@ -213,7 +213,7 @@ Once this is done, quantify expression for the Trimmomatic filtered reads from e
                                                  
 Make a directory for the expression values
 
-    mkdir sailfish-expression                                                 
+    mkdir sailfish-expression-Trinity-cap3-uclust
 
 Then, for each sample, run the following command:
                                                  
@@ -225,9 +225,9 @@ Or, using a loop in R:
 # directory containing trimmed reads
 readdir <- "data/ind_files/" 
 # sailfish index directory
-sfindex <- "results/trinity-full/sailfish-index"
+sfindex <- "results/trinity-full/sailfish-index-Trinity_cap3_uclust"
 # sailfish expression directory
-sfexpressionroot <- "results/trinity-full/sailfish-expression/"
+sfexpressionroot <- "results/trinity-full/sailfish-expression-Trinity-cap3-uclust/"
 
 # list of reads in each of four trimmed classes
 readlist <- list.files(readdir)
@@ -389,14 +389,17 @@ Many of these are likely false positives, so I adjust P-values using false disco
 ```{r padjust}
 RxNpval$padj <- p.adjust(RxNpval$pval, method = "fdr")
 # Plot FDR values against initial pvalues
+png(file=paste(resultsdir, "pval_hist.png"))
 par(mfrow = c(2,1))
 hist(RxNpval$pval)
 hist(RxNpval$padj)
+dev.off()
 
 # subset to significant transcripts
 signif.transcripts <- RxNpval[which(RxNpval$padj < 0.05), ]
 
 # extract significant transcripts
+setkey(TPM.dt.sub, Transcript)
 sig.TPM.dt.sub <- TPM.dt.sub[signif.transcripts$Transcript]
 ```
 
