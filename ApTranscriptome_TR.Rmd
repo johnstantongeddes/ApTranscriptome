@@ -146,24 +146,24 @@ To remove contigs that are likely contaminants from bacterial, archael, virus or
 
     deconseq.pl -c 50 -i 95 -f Trinity_cap3_uclust.fasta -d Trinity_cap3_uclust -dbs hsref,bast,vir,arch
 	
-This resulted in removing 5,675 contigs as contaminants, leaving 99,861 "clean" contigs. We spot-checked the contaminants by BLAST and confirmed that they matched bacteria, human or viral sources by greater than 95%. 
+This resulted in removing 5,675 contigs as contaminants, leaving 99,861 "clean" contigs. We spot-checked the contaminants by BLAST and confirmed that they matched bacteria, human or viral sources by greater than 95%. For expression quantification, we use the full assembly to ensure that "contaminant" reads are assigned to the contaminants. After quantification, these transcripts will then be removed from further analyses.
 
-
-Running Trinity and subsequent programs is time and memory-intensive, so the final filtered clean assembly can be downloaded from [...] 
+Running Trinity and subsequent programs is time and memory-intensive so the final assembly can be downloaded and used for all further analyses. In addition, the compressed archive contains the "clean" and "contaminant" sequences after filtering with DeconSeq.
 
 ~~~
 # download filtered Trinity assembly, uncompress and move
 wget http://johnstantongeddes.org/assets/files/Aphaenogaster_transcriptome.tar
-tar -xvf Aphaenogaster_transcriptome.tar
 # check md5sum
-md5sum Trinity_cap3_uclust_clean.fa
-# 0160a82ec62c6f371c84e4963fed09d1
+md5sum Aphaenogaster_transcriptome.tar
+# fd6dbb0b3e88e1c797c9e74611b245b2
+
+# uncompress and move
+tar -xvf Aphaenogaster_transcriptome.tar
 mkdir -p results/
 mkdir -p results/trinity-full/
 mv Trinity_cap3_uclust.fasta results/trinity-full/.
 mv Trinity_cap3_uclust_clean.fasta results/trinity-full/.
 ~~~
-
 
 
 ## Transcriptome annotation ##
@@ -335,6 +335,38 @@ pandoc.table(cortable, style="rmarkdown", caption = "correlations between coloni
 ```
 
 
+**Preliminary [examination](https://minilims1.uvm.edu/BCProject-26-Cahan/methods.html#clustering-of-samples) of the data indicated that the A22_7 and Ar_7 samples may have been switched, so I remove these values from the combined expression data set for the two species.** 
+
+```{r combined_TPM, echo=TRUE, eval=TRUE, cache=TRUE}
+A22.TPM[,colony:="A22"]
+Ar.TPM[,colony:="Ar"]
+TPM.dt <- rbind(A22.TPM, Ar.TPM)
+TPM.dt$colony <- as.factor(TPM.dt$colony)
+str(TPM.dt)
+
+setkey(TPM.dt, val)
+TPM.dt.sub <- TPM.dt[val != 7] 
+unique(TPM.dt.sub$val)
+length(unique(TPM.dt.sub$Transcript))
+```
+
+### Remove *contaminant* transcripts
+
+```{r remove_contaminants}
+# extract transcript names from fasta file rather than loading whole file
+system("grep '^>' results/trinity-full/Trinity_cap3_uclust_cont.fa | cut -f 1 -d ' ' | sed -r 's/^.{1}//' > results/trinity-full/cont.list")
+
+# read file
+cont.list <- read.table("results/trinity-full/cont.list")
+str(cont.list)
+
+
+# remove from TPM.dt.sub
+setkey(TPM.dt.sub, Transcript)
+TPM.dt.sub <- TPM.dt.sub[!cont.list]
+str(TPM.dt.sub)
+length(unique(TPM.dt.sub$Transcript))
+``` 
 
 
 ### Regression-model to identify thermally-responsive genes
@@ -345,21 +377,6 @@ $$ log(TPM + 1) = \beta_0 + \beta_1(colony) + \beta_2(temp) + \beta_3(temp^2) + 
 
 where TPM is transcripts per million. 
 
-
-
-**Preliminary [examination](https://minilims1.uvm.edu/BCProject-26-Cahan/methods.html#clustering-of-samples) of the data indicated that the A22_7 and Ar_7 samples may have been switched, so I remove these values from the analysis.** 
-
-```{r RxN, echo=TRUE, eval=TRUE, cache=TRUE}
-A22.TPM[,colony:="A22"]
-Ar.TPM[,colony:="Ar"]
-TPM.dt <- rbind(A22.TPM, Ar.TPM)
-TPM.dt$colony <- as.factor(TPM.dt$colony)
-str(TPM.dt)
-
-setkey(TPM.dt, val)
-TPM.dt.sub <- TPM.dt[val != 7] 
-unique(TPM.dt.sub$val)
-```
 
 (1) Identify transcripts with overall significant model fit. Adjust *P* values for multiple testing using FDR and retain transcripts with FDR < 0.05. Use log-transformed response to account for outliers.
 
@@ -402,7 +419,6 @@ dev.off()
 signif.transcripts <- RxNpval[which(RxNpval$padj < 0.05), ]
 
 # extract significant transcripts
-setkey(TPM.dt.sub, Transcript)
 sig.TPM.dt.sub <- TPM.dt.sub[signif.transcripts$Transcript]
 ```
 
