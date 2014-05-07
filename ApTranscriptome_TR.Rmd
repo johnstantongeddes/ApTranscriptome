@@ -443,7 +443,7 @@ RxNlmAIC <- dlply(sig.TPM.dt.sub, .(Transcript), .progress="text", lmFunc)
 ```
 
 
-## Thermally-responsive transcripts
+### Grouping of thermally-responsive transcripts
 
 The set of transcripts with significant expression patterns include those with expression that differs by colony, temperature and the interaction of colony and temperature. In this section, I am specifically interested in the thermally-responsive transcripts (temperature and colony x temperature) so I subset the significant transcripts to examine these. 
 
@@ -518,7 +518,7 @@ type.table <- table(Ap.response.type[ , 'A22.type'], Ap.response.type[ , 'Ar.typ
 tt2 <- type.table[c(2,4,1,3,5), c(2,4,1,3,5)]
 
 png(file = paste(resultsdir, "responsive_transcripts_mosaicplot.png", sep = ""))
-mosaicplot(tt2, shade = TRUE, xlab = "ApVT", ylab = "AcNC", main = "Mosaic plot of responsive transcripts")
+mosaicplot(tt2, xlab = "ApVT", ylab = "AcNC", main = "Mosaic plot of responsive transcripts")
 dev.off()
 
 pandoc.table(tt2, style="rmarkdown", caption = "Number of transcripts with maximum expression at high, low, intermediate, both high and low (bimodal) temperatures or are not thermally-responsivefor each colony and their overlap.")
@@ -528,7 +528,7 @@ chisq.test(Ap.type.table)
 ```
 
 
-Table 4 shows the number of transcripts that fall into each expression type for each each colony. The totals for each colony include the `r nrow(temperature.lms)` transcripts that have consistent temperature responses between the two colonies. 
+Table 4 shows the number of transcripts that fall into each expression type for each each colony. The totals for each colony include the `r length(temperature.lms)` transcripts that have consistent temperature responses between the two colonies. 
 
 
 
@@ -538,7 +538,7 @@ In this section, I compare the thermal reactionome between the *Ar* and *A22* co
 
 ### Plasticity versus constitutive expression
 
-Selection may have acted in response to thermal stress such that some genes are constitutively activated in one colony while plastically-expressed in the other. I evaluate this hypothesis by comparing expression levels at the at optimum (19.5C) temperature between the two colonies for genes in that are either in the 'High' or 'Low' expression group in the other colony. Specifically, I expect that genes upregulated at high temperatures in *A22* are more highly expressed at 19.5C in *Ar*? Conversely, I expect genes that are upregulated at low temps in *Ar* to have greater constitutive expression in *A22*? 
+Selection may have acted in response to thermal stress such that some genes are constitutively activated in one colony while plastically-expressed in the other. I evaluate this hypothesis by comparing expression levels at the at optimum (19.5C) temperature between the two colonies for genes in that are either in the 'High' or 'Low' expression group in the other colony. Specifically, I expect that genes upregulated at high temperatures in *A22* are more highly expressed at 19.5C in *Ar*? 
 
 ```{r optimum_expression_comparison, cache=TRUE, eval=FALSE}
 # list of transcripts that are 'high' expressed in A22
@@ -559,7 +559,7 @@ The `t.test` fails to account for the many orders of magnitude difference in exp
 (w1 <- wilcox.test(A22.high.transcripts$A22.opt, A22.high.transcripts$Ar.opt, alternative = "two.sided", paired = TRUE, conf.int = TRUE))
 ```
 
-Yes - transcripts that are up-regulated at high temperatures in *A22* are more highly-expressed at 19.25C in *Ar*. Note that A22 had the larger library size so if this was due to TPM not correctly accounting for differences in reads between samples, we would expect to see a positive instead of negative value here.
+Consistent with expectation, there is greater expression at 19.5C for *Ar* than *A22* transcripts for the set of transcripts that are transcripts that are up-regulated at high temperatures in *A22*. Note that A22 had the larger library size so if this was due to TPM not correctly accounting for differences in reads between samples, we would expect to see a positive instead of negative value here.
 
 Next I test the converse, that transcripts that are up-regulated at low temperatures in *Ar* are more highly-expressed at 19.25C temperatures in *A22*. 
 
@@ -657,7 +657,7 @@ length(Ar.bim.lm)
 Ar.bim.sd <- unlist(Map(transcriptSD, Ar.bim.lm, colony = "Ar"))
 
 # t-test to compare standard deviation of 'Bimodal' transcripts between colonies
-t2 <- t.test(Ar.bim.sd, A22.bim.sd)
+(t2 <- t.test(Ar.bim.sd, A22.bim.sd))
 ```
 
 No difference in the standard deviation of expression for bimodally-expressed transcripts between colonies.
@@ -705,7 +705,7 @@ for(i in 1:nrow(varshape.out)) {
 }
 
 # t-test
-t3 <- t.test(varshape.out$s.offset, alternative = "two.sided")
+(t3 <- t.test(varshape.out$s.offset, alternative = "two.sided"))
 
 # slope = slope1 - slope2
 varshape.out$slope <- varshape.out$A22.slope - varshape.out$Ar.slope
@@ -718,7 +718,7 @@ for(i in 1:nrow(varshape.out)) {
 varshape.out[which(varshape.out$Ar.slope == 0 & varshape.out$A22.slope == 0), "s.slope"] <- 0
 
 # t-test
-t4 <- t.test(varshape.out$s.slope, alternative = "two.sided")
+(t4 <- t.test(varshape.out$s.slope, alternative = "two.sided"))
 
 
 # curvature = curvature1 - curvature2
@@ -731,7 +731,7 @@ for(i in 1:nrow(varshape.out)) {
 # change 'Inf' values to 0
 varshape.out[which(varshape.out$Ar.curve == 0 & varshape.out$A22.curve == 0), "s.curvature"] <- 0
 # t-test
-tt.test(varshape.out$s.curvature, alternative = "two.sided")
+(t.test(varshape.out$s.curvature, alternative = "two.sided"))
 
 
 # wiggle
@@ -746,7 +746,7 @@ varshape.out[which(varshape.out$Ar.wiggle == 0 & varshape.out$A22.wiggle == 0), 
 length(which(varshape.out$s.wiggle != 0))
 
 # t-test
-t.test(varshape.out$s.wiggle, alternative = "two.sided")
+(t5 <- t.test(varshape.out$s.wiggle, alternative = "two.sided"))
 ```
 
 Next, I partition the differences in the reaction norms into the variation explained by differences in the trait means (offset), slope, curvature and wiggle.
@@ -762,7 +762,7 @@ mean(abs((varshape.out$s.wiggle)))
 # take absolute value of each value and sum to get total differences between reaction norms
 varshape.out$s.total <- abs(varshape.out$s.offset) + abs(varshape.out$s.slope) + abs(varshape.out$s.curvature) + abs(varshape.out$s.wiggle)
 
-t.test(varshape.out$s.total, alternative = "two.sided")
+(t6 <- t.test(varshape.out$s.total, alternative = "two.sided"))
 
 # variation in reaction norms due to differences in mean
 varshape.out$prop.mean <- abs(varshape.out$s.offset) / varshape.out$s.total
@@ -785,8 +785,7 @@ quantile(varshape.out$prop.wiggle, probs = c(0.05, 0.5, 0.95))
 ```
 
 
-
-## Functional annotation ##
+## Functional annotation
 
 In the previous section, I identified transcripts that show significant responses in expression. Next, I add gene annotation and ontology information to these transcripts.  
 
@@ -836,9 +835,7 @@ GO.stress.Xsq
 ```
 
 
-
-
-There are also 6 heat shock related genes in the responsive transcripts, out of 130 total.
+There are also 7 heat shock related genes in the responsive transcripts, out of 130 total.
 
 ```{r grep_shock}
 hsp_responsive <- responsive.lms.ann.type[grep("shock", responsive.lms.ann.type$best.hit.to.nr), list(Transcript, best.hit.to.nr, A22.type, Ar.type)]
@@ -903,7 +900,7 @@ Ap.BP.resultParentChild <- runTest(Ap.BP.GOdata, statistic = 'fisher', algorithm
 Ap.BP.resultParentChild
 
 # table results
-Ap.BP.ResTable <- GenTable(Ap.BP.GOdata, parentchild = Ap.BP.resultParentChild, topNodes = 113)
+Ap.BP.ResTable <- GenTable(Ap.BP.GOdata, parentchild = Ap.BP.resultParentChild, topNodes = 137)
 dim(Ap.BP.ResTable)
 #pandoc.table(Ap.BP.ResTable)
 
