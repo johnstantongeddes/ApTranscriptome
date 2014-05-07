@@ -3,7 +3,7 @@ Thermal reactionome of the common ant species *Aphaenogaster*
    
 **Author:** [John Stanton-Geddes](john.stantongeddes.research@gmail.com)
 
-**April 29, 2014**
+**May 6, 2014**
 
 **Technical Report No. 3**
 
@@ -32,7 +32,7 @@ library(MASS)
 #biocLite("topGO")
 #biocLite("Rgraphviz")
 library(topGO) 
-#suppressMessages(library(Rgraphviz))
+library(Rgraphviz)
 
 # load custom functions
 source("scripts/RxNseq.R")
@@ -157,9 +157,10 @@ wget http://johnstantongeddes.org/assets/files/Aphaenogaster_transcriptome.tar
 tar -xvf Aphaenogaster_transcriptome.tar
 # check md5sum
 md5sum Trinity_cap3_uclust_clean.fa
-# c604159ee944dddda7b4e2a556bf2f53
+# 0160a82ec62c6f371c84e4963fed09d1
 mkdir -p results/
 mkdir -p results/trinity-full/
+mv Trinity_cap3_uclust.fasta results/trinity-full/.
 mv Trinity_cap3_uclust_clean.fasta results/trinity-full/.
 ~~~
 
@@ -195,14 +196,13 @@ Note that I used the reduced assembly, prior to cleaning out contaminants. As I 
 
 ### Quantify gene expression ###
 
-I quantified gene expression using [sailfish](http://www.cs.cmu.edu/~ckingsf/software/sailfish/index.html). To run this program, first make sure that PATHs to the software libraries are set up correctly: 
+I quantified gene expression using [sailfish](http://www.cs.cmu.edu/~ckingsf/software/sailfish/index.html). To run this program, first make sure that PATHs to the software libraries are set up correctly as described on the sailfish website. 
                                                  
-    export LD_LIBRARY_PATH=/opt/software/Sailfish-0.6.2-Linux_x86-64/lib:$LD_LIBRARY_PATH
-    export PATH=/opt/software/Sailfish-0.6.2-Linux_x86-64/bin:$PATH
-
 Then build the index of the assembly:
 
-    sailfish index -t Trinity_cap3_uclust_clean.fasta -o sailfish-index-Trinity_cap3_uclust -k 20 -p 4
+```{r sailfish_index}
+system("sailfish index -t results/trinity-full/Trinity_cap3_uclust.fasta -o results/trinity-full/sailfish-index-Trinity-cap3-uclust -k 20 -p 4")
+```
 
 Once this is done, quantify expression for the Trimmomatic filtered reads from each colony-treatment sample separately. Note that for each sample, there are three four filtered read files:
 
@@ -213,11 +213,13 @@ Once this is done, quantify expression for the Trimmomatic filtered reads from e
                                                  
 Make a directory for the expression values
 
-    mkdir sailfish-expression-Trinity-cap3-uclust
+```{r}
+system("mkdir -p results/trinity-full/sailfish-expression-Trinity-cap3-uclust")
+```
 
-Then, for each sample, run the following command:
+Then, for each sample, run the following command in the `results/trinity-full/` directory:
                                                  
-    sailfish -i sailfish-index -o sailfish-expression/A22-0 --reads A22-0_ATCACG.paired.left.fastq A22-0_ATCACG.paired.right.fastq A22-0_ATCACG.unpaired.left.fastq A22-0_ATCACG.unpaired.right.fastq -p 4
+    sailfish -i sailfish-index-Trinity-cap3-uclust -o sailfish-expression-Trinity-cap3-uclust/A22-0 -l "T=PE:O=><:S=U" -r A22-0_ATCACG.unpaired.left.fastq A22-0_ATCACG.unpaired.right.fastq -1 A22-0_ATCACG.paired.left.fastq -2 A22-0_ATCACG.paired.right.fastq  -p 4
 
 Or, using a loop in R:                                                 
                                                  
@@ -225,7 +227,7 @@ Or, using a loop in R:
 # directory containing trimmed reads
 readdir <- "data/ind_files/" 
 # sailfish index directory
-sfindex <- "results/trinity-full/sailfish-index-Trinity_cap3_uclust"
+sfindex <- "results/trinity-full/sailfish-index-Trinity-cap3-uclust"
 # sailfish expression directory
 sfexpressionroot <- "results/trinity-full/sailfish-expression-Trinity-cap3-uclust/"
 
@@ -249,8 +251,8 @@ for (j in 1:length(samples)) {
     samp.paired.r <- paste(readdir, paired.right[samp.pos], sep="")
     samp.unpaired.l <- paste(readdir, unpaired.left[samp.pos], sep="")
     samp.unpaired.r <- paste(readdir, unpaired.right[samp.pos], sep="")
-    sailfishcmd <- paste("sailfish quant -i ", sfindex, " -o ", quantdir, " --reads ", samp.paired.l, " ", samp.paired.r, " ", samp.unpaired.l, " ", samp.unpaired.r, " -p 4", sep="")
-#   print(sailfishcmd)
+    sailfishcmd <- paste("sailfish quant -i ", sfindex, " -o ", quantdir, " -l 'T=SE:S=U' -r ", samp.paired.l, " ", samp.paired.r, " ", samp.unpaired.l, " ", samp.unpaired.r, " -p 4", sep="")
+    #print(sailfishcmd)
     system(sailfishcmd)
     message("Done with expression quantification for sample ", samples[j], ": ", Sys.time(), "\n")
 }
@@ -275,8 +277,6 @@ The TPM column for each sample was extracted and combined into a matrix for each
 
 ```{r load_expression_data, eval=TRUE, echo=FALSE, results='hide'}
 # read in each file using loop
-samples <- c("A22-0", "A22-3", "A22-7", "A22-10", "A22-14", "A22-17", "A22-21", "A22-24", "A22-28", "A22-31", "A22-35", "A22-38", "Ar-0", "Ar-3", "Ar-7", "Ar-10", "Ar-14", "Ar-17", "Ar-21", "Ar-24", "Ar-28", "Ar-31", "Ar-35", "Ar-38")
-
 for (j in 1:length(samples)) {
     samp <- samples[j]
     trtval <- as.numeric(str_split_fixed(samp, "-", 2)[2])
@@ -323,18 +323,21 @@ tables()
 
 Note that expression levels at each temperature treatment are highly correlated between the two colonies.
 
-```{r exp_correlations, echo=FALSE, results='asis'}
-# Make Rmarkdown pandoc table of correlations among expression levels between colonies at each temp
-
+```{r exp_correlations, echo=FALSE, results='hide'}
 temp <- c(0, 3.5, 7, 10.5, 14, 17.5, 21, 24.5, 28, 31.5, 35, 38.5)
 cors <- c(round(cor(Ar_0_quant$TPM, A22_0_quant$TPM), 2), round(cor(Ar_3_quant$TPM, A22_3_quant$TPM), 2), round(cor(Ar_7_quant$TPM, A22_7_quant$TPM), 2), round(cor(Ar_10_quant$TPM, A22_10_quant$TPM), 2), round(cor(Ar_14_quant$TPM, A22_14_quant$TPM), 2), round(cor(Ar_17_quant$TPM, A22_17_quant$TPM), 2), round(cor(Ar_21_quant$TPM, A22_21_quant$TPM), 2), round(cor(Ar_24_quant$TPM, A22_24_quant$TPM), 2), round(cor(Ar_28_quant$TPM, A22_28_quant$TPM), 2), round(cor(Ar_31_quant$TPM, A22_31_quant$TPM), 2), round(cor(Ar_35_quant$TPM, A22_35_quant$TPM), 2), round(cor(Ar_38_quant$TPM, A22_38_quant$TPM), 2))
 
 cortable <- cbind(temp, cors)
+```
 
+```{r exp_correlations_table, echo=FALSE, results='asis'}
 pandoc.table(cortable, style="rmarkdown", caption = "correlations between colonies at each temperature treatment")
 ```
 
-## Identification of thermally-responsive genes
+
+
+
+### Regression-model to identify thermally-responsive genes
 
 To identify transcripts (roughly equivalent to genes) that show thermal responsiveness, I fit the following linear model to each transcript:
 
