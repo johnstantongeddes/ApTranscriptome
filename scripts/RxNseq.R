@@ -25,6 +25,60 @@ read.sailfish.quant <- function(filein, outname, samp, trtval) {
 }
 
 
+
+############################################################################################
+## modpFunc
+############################################################################################
+
+modpFunc <- function(foo) {
+  # Function supplied to `ddply` to calculate overall model P value for a linear model
+  #
+  # Args:
+  #  foo: data.frame model is fit to
+  #
+  #  'model' must be specified in environment  
+  #
+  # Returns:
+  #  data.frame of Transcripts with pval
+
+  lmout <- eval(parse(text = paste("lm(", model, ", data = foo)", sep = "")))
+  
+  # calculate overall model significance
+  f <- summary(lmout)$fstatistic
+  pval <- unname(pf(f[1],f[2],f[3],lower.tail=F))
+  attributes(pval) <- NULL
+  
+  # return pvalue
+  c(pval = pval) 
+}
+
+
+############################################################################################
+## modpFunc
+############################################################################################
+
+lmFunc <- function(bar) {
+  # Function supplied to `dlply` to calculate overall model P value for a linear model
+  #
+  # Args:
+  #  bar: data.frame model model is fit to
+  #
+  #  'model' must be specified in environment  
+  #
+  # Returns:
+  #  list of class lm
+  
+  
+  lmout <- eval(parse(text = paste("lm(", model, ", data = bar)", sep = "")))  
+  # stepAIC to drop non-significant terms
+  f.lmout <- stepAIC(lmout)
+  # return final model
+  return(f.lmout) 
+}
+
+
+
+
 ############################################################################################
 ## RxNtype
 ############################################################################################

@@ -1,5 +1,5 @@
-Thermal reactionome of the common ant species *Aphaenogaster*
-================================================================
+Thermal reactionome of the common ant species *Aphaenogaster picea* and *A. carolinensis*
+========================================================================================
    
 **Author:** [John Stanton-Geddes](john.stantongeddes.research@gmail.com)
 
@@ -26,6 +26,8 @@ library(data.table)
 library(RCurl)
 library(plyr)
 library(MASS)
+library(xtable)
+library(methods)
 
 # Load Bioconductor libraries
 #source("http://bioconductor.org/biocLite.R")
@@ -39,6 +41,7 @@ source("scripts/RxNseq.R")
 
 # knitr options
 opts_chunk$set(cache=TRUE)
+options(width = 80)
 
 # directory to save results
 resultsdir <- "results/"
@@ -213,7 +216,7 @@ Once this is done, quantify expression for the Trimmomatic filtered reads from e
                                                  
 Make a directory for the expression values
 
-```{r}
+```{r mk_sailfish_dir}
 system("mkdir -p results/trinity-full/sailfish-expression-Trinity-cap3-uclust")
 ```
 
@@ -223,7 +226,7 @@ Then, for each sample, run the following command in the `results/trinity-full/` 
 
 Or, using a loop in R:                                                 
                                                  
-```{r sailfish, eval=TRUE, echo=TRUE, cache=TRUE}
+```{r sailfish_quant, eval=TRUE, echo=TRUE, cache=TRUE}
 # directory containing trimmed reads
 readdir <- "data/ind_files/" 
 # sailfish index directory
@@ -385,21 +388,8 @@ where TPM is transcripts per million.
 # define model for RxN function
 model <-  "log(TPM+1) ~ colony + val + I(val^2) + colony:val + colony:I(val^2)"
 
-# define function for `ddply` to calculate overall model P value
-modpFunc <- function(foo) {
-  # fit lm
-  lmout <- eval(parse(text = paste("lm(", model, ", data = foo)", sep = "")))
-  
-  # calculate overall model significance
-  f <- summary(lmout)$fstatistic
-  pval <- unname(pf(f[1],f[2],f[3],lower.tail=F))
-  attributes(pval) <- NULL
-  
-  # return pvalue
-  c(pval = pval) 
-}
-
-RxNpval <- ddply(TPM.dt.sub, .(Transcript), .progress="text", .inform="TRUE", modpFunc)
+# calculate overall P value for 'model' for each transcript
+RxNpval <- ddply(TPM.dt.sub, .(Transcript), .inform="TRUE", modpFunc)
 ```
 
 Of the `r nrow(RxNpval)` transcripts, `r length(which(RxNpval$pval < 0.05))` have models with P < 0.05.
@@ -409,11 +399,9 @@ Many of these are likely false positives, so I adjust P-values using false disco
 ```{r padjust}
 RxNpval$padj <- p.adjust(RxNpval$pval, method = "fdr")
 # Plot FDR values against initial pvalues
-png(file=paste(resultsdir, "pval_hist.png"))
 par(mfrow = c(2,1))
 hist(RxNpval$pval)
 hist(RxNpval$padj)
-dev.off()
 
 # subset to significant transcripts
 signif.transcripts <- RxNpval[which(RxNpval$padj < 0.05), ]
@@ -427,19 +415,9 @@ At the 5% FDR significance threshold, there are `r nrow(signif.transcripts)` tra
 
 (2) Fit linear model to overall significant transcripts; perform stepAIC to retain only significant terms, and save `lm` output to list
 
-```{r lmFunc}
-# first, define function to use
-lmFunc <- function(bar) {
-  # fit lm
-  lmout <- eval(parse(text = paste("lm(", model, ", data = bar)", sep = "")))  
-  # stepAIC to drop non-significant terms
-  f.lmout <- stepAIC(lmout)
-  # return final model
-  return(f.lmout) 
-}
-
-# apply function to all responsive transcripts
-RxNlmAIC <- dlply(sig.TPM.dt.sub, .(Transcript), .progress="text", lmFunc)
+```{r RxNlmAIC, echo=TRUE, eval=TRUE, results='hide'}
+# perform model selection for responsive transcripts
+RxNlmAIC <- try(dlply(sig.TPM.dt.sub, .(Transcript), lmFunc))
 ```
 
 
@@ -472,7 +450,7 @@ siglist <- c(length(RxNlmAIC),
 
 sigtable <- data.frame(Coefficient = clist, "Number significant" = siglist)
 
-pandoc.table(sigtable, style="rmarkdown", caption = "Number of transcripts (of 105,536 total) at 5% FDR with expression that depends on colony, temperature or their interaction.")
+pandoc.table(sigtable, style="rmarkdown", caption = "Number of transcripts of 99,861 total with expression that depends on colony, temperature or their interaction at 5% FDR.")
 ```
 
 
@@ -491,11 +469,11 @@ I do this first for the thermally-responsive transcripts where there is no inter
 
 ```{r expression_shape, eval=TRUE, echo=TRUE}
 # calculate response type for responsive transcripts
-interaction.response.type <- ldply(interaction.lms, .progress = "text", .inform = TRUE, RxNtype)
+interaction.response.type <- ldply(interaction.lms, .progress = "none", .inform = TRUE, RxNtype)
 stopifnot(nrow(interaction.response.type) == length(interaction.lms))
 
 # calculate response types for transcripts without interactions
-temperature.response.type <- ldply(temperature.lms, .progress = "text", .inform = TRUE, RxNtype)
+temperature.response.type <- ldply(temperature.lms, .progress = "none", .inform = TRUE, RxNtype)
 stopifnot(nrow(temperature.response.type) == length(temperature.lms))
 
 # merge results
@@ -507,24 +485,35 @@ str(Ap.response.type)
 write.table(file = paste(resultsdir, "Ap_responsive_transcripts.txt", sep = ""), Ap.response.type, row.names = FALSE, col.names = TRUE, quote = FALSE, sep = "\t")
 ```
 
-Examine transcripts by temperature response. Compare between colonies.
+Next, I compare the number of thermally-responsive in each response category between the two colonies. 
 
-```{r temperature_response, eval=TRUE, echo=FALSE, results='asis'}
+```{r temperature_response}
 A22.type.table <- table(Ap.response.type[ , 'A22.type'])
 Ar.type.table <- table(Ap.response.type[ , 'Ar.type'])
 
-type.table <- table(Ap.response.type[ , 'A22.type'], Ap.response.type[ , 'Ar.type'])
-# reorder for plotting
-tt2 <- type.table[c(2,4,1,3,5), c(2,4,1,3,5)]
-
-png(file = paste(resultsdir, "responsive_transcripts_mosaicplot.png", sep = ""))
-mosaicplot(tt2, xlab = "ApVT", ylab = "AcNC", main = "Mosaic plot of responsive transcripts")
-dev.off()
-
-pandoc.table(tt2, style="rmarkdown", caption = "Number of transcripts with maximum expression at high, low, intermediate, both high and low (bimodal) temperatures or are not thermally-responsivefor each colony and their overlap.")
+# table
+Ap.type.table <- rbind(A22.type.table, Ar.type.table)
 
 # Pearson Chi-square test
 chisq.test(Ap.type.table)
+
+# Reorganize for plotting to show overlap among categories between colonies
+type.table <- table(Ap.response.type[ , 'A22.type'], Ap.response.type[ , 'Ar.type'])
+
+# reorder 
+tt2 <- type.table[c(2,4,1,3,5), c(2,4,1,3,5)]
+
+# plot
+mosaicplot(tt2, xlab = "AcNC", ylab = "ApVT", main = "Mosaic plot of responsive transcripts")
+```
+
+The number of thermally-responsive in each response category differs between the colonies, with the msot transcripts expressed at *Low* temperatures in both colonies. For *ApVT*, an equal number of transcripts are expressed at *High* and *Bimodal*, followed by *Intermediate* transcripts. For *AcNC*, transcripts expressed at *Intermediate* temperatures are next most common, followed by *High* and *Bimodal*. 
+
+Interestingly, nearly half of the *High* genes in *AcNC* are *Low* in *ApVT*, and vice versa. In contrast, most of the *Low* genes in one species are also *Low* in the other species.
+
+
+```{r temperature_response_table, echo=FALSE, results='asis'}
+pandoc.table(tt2, style="rmarkdown", caption = "Number of transcripts with maximum expression at high, low, intermediate, both high and low (bimodal) temperatures or are not thermally-responsivefor each colony and their overlap.", split.tables = "Inf")
 ```
 
 
@@ -540,7 +529,7 @@ In this section, I compare the thermal reactionome between the *Ar* and *A22* co
 
 Selection may have acted in response to thermal stress such that some genes are constitutively activated in one colony while plastically-expressed in the other. I evaluate this hypothesis by comparing expression levels at the at optimum (19.5C) temperature between the two colonies for genes in that are either in the 'High' or 'Low' expression group in the other colony. Specifically, I expect that genes upregulated at high temperatures in *A22* are more highly expressed at 19.5C in *Ar*? 
 
-```{r optimum_expression_comparison, cache=TRUE, eval=FALSE}
+```{r optimum_expression_comparison, cache=TRUE, eval=TRUE}
 # list of transcripts that are 'high' expressed in A22
 A22.high.transcripts <- Ap.response.type[which(Ap.response.type$A22.type == "High"), ]
 
@@ -553,7 +542,7 @@ t.test(log(A22.high.transcripts$A22.opt+1), log(A22.high.transcripts$Ar.opt+1))
 boxplot(log(A22.high.transcripts$A22.opt+1), log(A22.high.transcripts$Ar.opt+1))
 ```
 
-The `t.test` fails to account for the many orders of magnitude difference in expression among transcripts, e.g. non-equal variances. This problem is the key issue in the analysis of differential expression `r citep(c("10.1186/1471-2105-11-94", "10.1038/nprot.2013.099")`. As my goal is simply to determine if expression is typically greater at 19.25C in *Ar* than *A22* for genes that are up-regulated at high temperatures in *A22*, I use a non-parametric Wilcoxon signed rank-test
+The `t.test` fails to account for the many orders of magnitude difference in expression among transcripts, e.g. non-equal variances. This problem is the key issue in the analysis of differential expression `r citep(c("10.1186/1471-2105-11-94", "10.1038/nprot.2013.099"))`. As my goal is simply to determine if expression is typically greater at 19.25C in *Ar* than *A22* for genes that are up-regulated at high temperatures in *A22*, I use a non-parametric Wilcoxon signed rank-test
 
 ```{r A22_high_wilcoxon}
 (w1 <- wilcox.test(A22.high.transcripts$A22.opt, A22.high.transcripts$Ar.opt, alternative = "two.sided", paired = TRUE, conf.int = TRUE))
@@ -669,7 +658,7 @@ Probability density function of peak expression for transcripts that differ in e
 
 ```{r max_exp_PDF}
 # reshape data
-Ap.df <- data.frame(Transcript = rep(Ap.response.type$Transcript, times = 2), colony = rep(c("ApVT", "ApNC"), each = length(Ap.response.type$Transcript)), max.val = c(Ap.response.type$A22.max, Ap.response.type$Ar.max))
+Ap.df <- data.frame(Transcript = rep(Ap.response.type$Transcript, times = 2), colony = rep(c("ApVT", "AcNC"), each = length(Ap.response.type$Transcript)), max.val = c(Ap.response.type$A22.max, Ap.response.type$Ar.max))
 
 png(paste(resultsdir, "PDF_expression_all.png", sep=""))
 g3 <- ggplot(Ap.df, aes(x=max.val, fill=colony)) + 
@@ -689,7 +678,7 @@ For the transcripts that differed in thermal responsiveness due to temperature, 
 - *Wiggle, W*: variability in shape not captured by the previous three measures
 
 ```{r offset, echo=TRUE, eval=TRUE}
-varshape.out <- ldply(interaction.lms, .progress = "text", RxNvarshape)
+varshape.out <- ldply(interaction.lms, .progress = "none", RxNvarshape)
 
 # plot
 boxplot(varshape.out$A22.mean, varshape.out$Ar.mean)
@@ -784,6 +773,70 @@ mean(varshape.out$prop.wiggle)
 quantile(varshape.out$prop.wiggle, probs = c(0.05, 0.5, 0.95))
 ```
 
+## Temperature of gene activation
+
+Thermally-responsive genes could also differ in the temperatures at which they have increased or decreased expression in response to temperature changes. To examine this, I determine the temperature at which each responsive gene has the greated increase or decrease in expression.
+
+```{r responsive_TPM}
+# extract TPM data for thermally-responsive transcripts
+resp.TPM.dt.sub <- TPM.dt.sub[names(responsive.lms)]
+setkey(resp.TPM.dt.sub, Transcript)
+str(resp.TPM.dt.sub)
+length(unique(resp.TPM.dt.sub$Transcript))
+# scale transcripts so can compare
+resp.TPM.dt.sub[,TPM.scaled:=scale(TPM), by = Transcript]
+```
+
+Predict for responsive transcripts
+
+```{r responsive_pred}
+
+predFunc <- function(foo) {
+  # Function supplied to `ddply` to predict expression at each temperature
+  #
+  # Args:
+  #  foo: data.frame model is fit to
+  #
+  #  'model' must be specified in environment  
+  #
+  # Returns:
+  #  data.frame of Transcripts with pval
+
+  lmout <- eval(parse(text = paste("lm(", model, ", data = foo)", sep = "")))
+  
+  # predict values
+  pout <- predict(lmout)
+  # back-transform from log-scale
+  foo$pTPM <- exp(pout)
+  
+  # prediction can give values very close to zero or negative. biologically, these are meaningless so change to zero
+  foo$pTPM <- ifelse(foo$pTPM < 0, 0, round(foo$pTPM, 5))
+  # plot
+  #with(foo, qplot(val, TPM, colour = colony, geom = "smooth"))
+  #with(foo, qplot(val, pTPM, colour = colony, geom = "smooth"))  
+  
+  pred.out.df <- data.frame(Transcript = foo$Transcript, TPM = foo$TPM, val = foo$val, colony = foo$colony, pTPM = foo$pTPM)
+}
+
+
+# apply predFunc to responsive transcripts
+testpred <- ddply(resp.TPM.dt.sub[1:220], .(Transcript), .inform="TRUE", predFunc)
+
+# calculate temperature of greatest change
+T.on.df <- ddply(testpred, .(Transcript, colony), summarise, 
+              T_on <- diff(pTPM))
+
+
+testdiff[(which(diff(testdiff$pTPM) == max(diff(testdiff$pTPM)))+1), ]
+
+```
+
+
+
+
+
+
+### Identification of biological-functions associated with temperature responses
 
 ## Functional annotation
 
@@ -1005,7 +1058,7 @@ Ap.gsea <- rbind(Ap.high.gsea, Ap.low.gsea, Ap.bim.gsea, Ap.int.gsea)
 Ap.gsea1 <- Ap.gsea[,c("Type", "GO.ID", "Term", "Annotated", "Significant", "Expected", "parentchild")]
 colnames(Ap.gsea1)[7] <- "P"
 # display
-pandoc.table(Ap.gsea1, split.tables = "Inf")
+Ap.gsea1
 ```
 
 
@@ -1024,7 +1077,7 @@ table(A22.geneList.high)
 
 # Run GSEA
 A22.high.gsea <- gsea(genelist = A22.geneList.high, geneID2GO = geneID2GO)
-#pandoc.table(A22.high.gsea)
+#pandoc.table(A22.high.gsea, split.table = Inf)
 ```
 
 
@@ -1041,6 +1094,7 @@ table(Ar.geneList.high)
 
 # Run GSEA
 Ar.high.gsea <- gsea(genelist = Ar.geneList.high, geneID2GO = geneID2GO)
+#pandoc.table(Ar.high.gsea, split.table = Inf)
 ```
 
 
@@ -1057,6 +1111,7 @@ table(A22.geneList.low)
 
 # Run GSEA
 A22.low.gsea <- gsea(genelist = A22.geneList.low, geneID2GO = geneID2GO)
+#pandoc.table(A22.low.gsea, split.table = Inf)
 ```
 
 
@@ -1073,6 +1128,7 @@ table(Ar.geneList.low)
 
 # Run GSEA
 Ar.low.gsea <- gsea(genelist = Ar.geneList.low, geneID2GO = geneID2GO)
+#pandoc.table(Ar.low.gsea, split.table = Inf)
 ```
 
 
@@ -1090,6 +1146,7 @@ table(A22.geneList.bim)
 
 # Run GSEA
 A22.bim.gsea <- gsea(genelist = A22.geneList.bim, geneID2GO = geneID2GO)
+#pandoc.table(A22.bim.gsea, split.table = Inf)
 ```
 
 
@@ -1106,6 +1163,7 @@ table(Ar.geneList.bim)
 
 # Run GSEA
 Ar.bim.gsea <- gsea(genelist = Ar.geneList.bim, geneID2GO = geneID2GO)
+#pandoc.table(Ar.bim.gsea, split.table = Inf)
 ```
 
 
@@ -1123,6 +1181,7 @@ table(A22.geneList.int)
 
 # Run GSEA
 A22.int.gsea <- gsea(genelist = A22.geneList.int, geneID2GO = geneID2GO)
+#pandoc.table(A22.int.gsea, split.table = Inf)
 ```
 
 
@@ -1139,10 +1198,11 @@ table(Ar.geneList.int)
 
 # Run GSEA
 Ar.int.gsea <- gsea(genelist = Ar.geneList.int, geneID2GO = geneID2GO)
+#pandoc.table(Ar.int.gsea, split.table = Inf)
 ```
 
 
-Make a table with results.
+Table of overall GSEA results.
 
 ```{r gsea_table_2, echo=FALSE, eval=TRUE, results='asis'}
 A22.high.gsea$Type <- "High"
@@ -1157,7 +1217,7 @@ Ar.low.gsea$Type <- "Low"
 Ar.bim.gsea$Type <- "Bimodal"
 Ar.int.gsea$Type <- "Intermediate"
 Ar.gsea <- rbind(Ar.high.gsea, Ar.low.gsea, Ar.int.gsea, Ar.bim.gsea)
-Ar.gsea$Colony <- "ApNC"
+Ar.gsea$Colony <- "AcNC"
 
 # combine
 Ap.setdiff.gsea <- rbind(A22.gsea, Ar.gsea)
@@ -1165,30 +1225,17 @@ Ap.setdiff.gsea <- rbind(A22.gsea, Ar.gsea)
 Ap.setdiff.gsea <- Ap.setdiff.gsea[,c("Colony", "Type", "GO.ID", "Term", "Annotated", "Significant", "Expected", "parentchild")]
 colnames(Ap.setdiff.gsea)[8] <- "P"
 
-Ap.setdiff.gsea
+print(xtable(Ap.setdiff.gsea, comment = getOption("xtable.comment", FALSE)))
 ```
 
 
 
 ## Visualize responsive transcripts
 
-Organize data
-
-```{r plot_data}
-# extract TPM data for thermally-responsive transcripts
-resp.TPM.dt.sub <- TPM.dt.sub[names(responsive.lms)]
-setkey(resp.TPM.dt.sub, Transcript)
-str(resp.TPM.dt.sub)
-length(unique(resp.TPM.dt.sub$Transcript))
-# scale transcripts so can compare
-resp.TPM.dt.sub[,TPM.scaled:=scale(TPM), by = Transcript]
-```
-
 Make plots for all genes expressed at *High* temps in GO category "GO:0006950: response to stress"
 
-```{r plot_GOstress, echo=FALSE, eval=FALSE, cache=TRUE}
+```{r plot_GOstress, echo=FALSE, eval=TRUE}
 high.stress.terms <- GO0006950.responsive[intersect(with(GO0006950.responsive, grep("High", Ar.type)), with(GO0006950.responsive, grep("High", A22.type))), ]
-
 
 # in low category
 low.genes <- GO0006950.responsive[union(with(GO0006950.responsive, grep("Low", Ar.type)), with(GO0006950.responsive, grep("Low", A22.type))), ]
@@ -1196,7 +1243,6 @@ low.genes <- GO0006950.responsive[union(with(GO0006950.responsive, grep("Low", A
 bim.genes <- GO0006950.responsive[union(with(GO0006950.responsive, grep("Bimodal", Ar.type)), with(GO0006950.responsive, grep("Bimodal", A22.type))), ]
 # in intermediate category
 int.genes <- GO0006950.responsive[union(with(GO0006950.responsive, grep("Intermediate", Ar.type)), with(GO0006950.responsive, grep("Intermediate", A22.type))), ]
-
 
 
 # Line plot, expression against temp, faceted by colony
@@ -1208,19 +1254,17 @@ trp1 <- ggplot(resp.TPM.dt.sub[high.stress.terms$Transcript], aes(x=val, y=TPM.s
 print(trp1)
 
 # Smooth plot, expression against temp, faceted by colony
-png("results/GO_stress_High.png")
 trp2 <- ggplot(resp.TPM.dt.sub[high.stress.terms$Transcript], aes(x=val, y=TPM.scaled, group=Transcript)) + 
   geom_smooth(method = "lm", formula = y ~ poly(x, 2)) + 
   facet_grid(. ~ colony) + 
   scale_y_continuous(name="Expression (scaled)") +
   scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
 print(trp2)
-dev.off()
 ```
 
 Make plots for all genes expressed at *Low* temps in GO category "GO:0006950: response to stress"
 
-```{r plot_GOstress_low, echo=FALSE, eval=FALSE, cache=TRUE}
+```{r plot_GOstress_low, echo=FALSE, eval=TRUE, cache=TRUE}
 low.stress.terms <- GO0006950.responsive[intersect(with(GO0006950.responsive, grep("Low", Ar.type)), with(GO0006950.responsive, grep("Low", A22.type))), ]
 
 # Line plot, expression against temp, faceted by colony
@@ -1257,8 +1301,6 @@ write.csv(shiny.dt, file = "ApRxN-shinyapp/responsive.lms.TPM.csv", quote = TRUE
 ```
 
 
-
-
 ```{r rData, echo=FALSE}
 # save RData for manuscript file
 save(tt2, Ap.df, w1, w2, file = "ms.RData")
@@ -1274,6 +1316,6 @@ sessionInfo()
 
 ## References
 
-```{r references, results='asis'}
+```{r references, echo = FALSE, results='asis'}
 bibliography()
 ```
