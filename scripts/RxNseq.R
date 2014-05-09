@@ -49,7 +49,7 @@ modpFunc <- function(foo) {
   attributes(pval) <- NULL
   
   # return pvalue
-  c(pval = pval) 
+  data.frame(Transcript = unique(foo$Transcript), pval = pval, adj.r.squared = summary(lmout)$adj.r.squared) 
 }
 
 

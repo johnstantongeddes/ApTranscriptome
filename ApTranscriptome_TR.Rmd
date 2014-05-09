@@ -52,9 +52,10 @@ resultsdir <- "results/"
   
 In this technical report, which accompanies the manuscript **Thermal reactionome of a common ant species** (Stanton-Geddes et al., in press), we:
 
-1. describe the *de novo* assembly of the transcriptome for two ant colonies with in the *Aphaenogaster rudis-picea-fulva* species complex `r citep("10.1155/2012/752815")`
+1. describe the *de novo* assembly of the transcriptome for two ant species within the *Aphaenogaster rudis-picea-fulva* species complex `r citep("10.1155/2012/752815")`
 2. identify thermally-responsive genes
-3. perform gene set enrichment analysis
+3. evaluate differences in the expression patterns between the two species
+3. perform gene set enrichment analysis of thermally-responsive genes for the two species
 
 This script is completely reproducible assuming that R, `knitr` and the other required libraries (listed within the source document) are installed on a standard linux system using the following:
     
@@ -80,7 +81,7 @@ mv ind_files data/.
 
 ## Sample description ##
 
-Two ant colonies were used for the transcriptome sequencing. The first, designated A22, was collected at Molly Bog, Vermont in August 2012 by Nick Gotelli and Andrew Nguyen. This colony was putatively identifed as *A. picea*. The second colony, designated Ar, was collected by Lauren Nichols in Raleigh, North Carolina. These colonies were maintained in the lab for 6 months prior to sample collection. 
+Two ant colonies were used for the transcriptome sequencing. The first, designated *A22*, was collected at Molly Bog, Vermont in August 2012 by Nick Gotelli and Andrew Nguyen. The second colony, designated *Ar*, was collected by Lauren Nichols in Raleigh, North Carolina. These colonies were maintained in the lab for 6 months prior to sample collection. Bernice Bacon DeMarco (Michigan State University) identified colony *A22* as *A. picea* and *Ar* as *A. carolinensis*.
 
 For each colony, three ants were exposed to one of 12 temperature treatments, every 3.5C ranging from 0C to 38.5C, for one hour in glass tubes in a water bath. The ants were flash frozen and stored at -80C until RNA was extracted using a two step extraction; [RNAzol RT](http://www.mrcgene.com/rnazol.htm) (Molecular Research Center, Inc) followed by an [RNeasy Micro](http://www.qiagen.com/products/catalog/sample-technologies/rna-sample-technologies/total-rna/rneasy-micro-kit) column (Qiagen). Samples from each colony were pooled and sequenced in separate lanes on a 100bp paired-end run of an Illumina HiSeq at the University of Minnesota Genomics Center, yielding 20e6 and 16e6 reads for the A22 and Ar samples, respectively.
 
@@ -388,7 +389,7 @@ where TPM is transcripts per million.
 # define model for RxN function
 model <-  "log(TPM+1) ~ colony + val + I(val^2) + colony:val + colony:I(val^2)"
 
-# calculate overall P value for 'model' for each transcript
+# calculate overall P value and R^2 for each transcript
 RxNpval <- ddply(TPM.dt.sub, .(Transcript), .inform="TRUE", modpFunc)
 ```
 
@@ -616,11 +617,11 @@ Ar.int.sd <- data.frame(colony = "Ar", exp_sd = Ar.int.sd)
 
 Consistent with our hypothesis, 'Intermediate' transcripts in *Ar* are expressed over a significantly wider range of temperatures than in *A22*. 
 
-```{r plotthermalbreadth, echo=FALSE, eval=TRUE}
+```{r plot_thermal_breadth, echo=FALSE, eval=TRUE}
 # prep data for plotting
 Ap.int.sd <- rbind(A22.int.sd, Ar.int.sd)
 
-# ggplot
+# plot thermal breadth
 g1 <- ggplot(Ap.int.sd, aes(x=exp_sd, fill=colony)) + geom_density(alpha=0.2, position="identity")
 g1 + scale_y_continuous(name="Density") +
   scale_x_continuous(name=expression("Standard deviation of expression"))
@@ -660,14 +661,12 @@ Probability density function of peak expression for transcripts that differ in e
 # reshape data
 Ap.df <- data.frame(Transcript = rep(Ap.response.type$Transcript, times = 2), colony = rep(c("ApVT", "AcNC"), each = length(Ap.response.type$Transcript)), max.val = c(Ap.response.type$A22.max, Ap.response.type$Ar.max))
 
-png(paste(resultsdir, "PDF_expression_all.png", sep=""))
-g3 <- ggplot(Ap.df, aes(x=max.val, fill=colony)) + 
+maxexplot <- ggplot(Ap.df, aes(x=max.val, fill=colony)) + 
   geom_density(alpha=0.2, position="identity") + 
   #scale_fill_manual(name = "Colony", values = c("white", "black")) + 
   scale_y_continuous(name="Density") +
   scale_x_continuous(name="Temperature of maximum expression")
-suppressWarnings(print(g3))
-dev.off()
+suppressWarnings(print(maxexplot))
 ```
 
 For the transcripts that differed in thermal responsiveness due to temperature, was the difference primarily due to differences in the mean value of expression, slope, curvature of a higher order effect? To test this, I use the framework of `r citet("10.1086/675302")`:
@@ -818,18 +817,78 @@ predFunc <- function(foo) {
   pred.out.df <- data.frame(Transcript = foo$Transcript, TPM = foo$TPM, val = foo$val, colony = foo$colony, pTPM = foo$pTPM)
 }
 
+# apply predFunc to all responsive transcripts
+resp.TPM.dt.sub.pred <- ddply(resp.TPM.dt.sub, .(Transcript), .inform="TRUE", predFunc)
 
-# apply predFunc to responsive transcripts
-testpred <- ddply(resp.TPM.dt.sub[1:220], .(Transcript), .inform="TRUE", predFunc)
-
-# calculate temperature of greatest change
-T.on.df <- ddply(testpred, .(Transcript, colony), summarise, 
-              T_on <- diff(pTPM))
+# setkey to Transcript and colony 
+resp.TPM.dt.sub.pred <- data.table(resp.TPM.dt.sub.pred)
+setkey(resp.TPM.dt.sub.pred, Transcript, colony)
 
 
-testdiff[(which(diff(testdiff$pTPM) == max(diff(testdiff$pTPM)))+1), ]
 
+
+# transcripts expressed at *High* temperatures in A22
+A22.high.TPM.dt.sub <- resp.TPM.dt.sub.pred[J(A22.high, "A22")]
+str(A22.high.TPM.dt.sub)
+
+# make data.frame for results
+A22.high.T_on <- data.frame(Transcript = unique(A22.high.TPM.dt.sub$Transcript), colony = rep(A22.high.TPM.dt.sub$colony, length = length(unique(A22.high.TPM.dt.sub$Transcript))), T_on = NA, pT_on = NA)
+
+# loop across transcripts, calculating T_on
+
+for(i in unique(A22.high.TPM.dt.sub$Transcript)) {
+    subdf <- A22.high.TPM.dt.sub[i]
+    subdf <- subdf[which(subdf$val > 14), ]
+    T_on <- subdf[median(which(diff(subdf$TPM) == max(diff(subdf$TPM))))+1, val]
+    pT_on <- subdf[median(which(diff(subdf$pTPM) == max(diff(subdf$pTPM))))+1, val]
+    A22.high.T_on[which(A22.high.T_on$Transcript == i), "T_on"] <- T_on
+    A22.high.T_on[which(A22.high.T_on$Transcript == i), "pT_on"] <- pT_on
+}   
+
+# repeat for Ar
+Ar.high.TPM.dt.sub <- resp.TPM.dt.sub.pred[J(Ar.high, "Ar")]
+str(Ar.high.TPM.dt.sub)
+
+Ar.high.T_on <- data.frame(Transcript = unique(Ar.high.TPM.dt.sub$Transcript), colony = rep(Ar.high.TPM.dt.sub$colony, length = length(unique(Ar.high.TPM.dt.sub$Transcript))), T_on = NA, pT_on = NA)
+
+for(i in unique(Ar.high.TPM.dt.sub$Transcript)) {
+    subdf <- Ar.high.TPM.dt.sub[i]
+    subdf <- subdf[which(subdf$val > 14), ]
+    T_on <- subdf[median(which(diff(subdf$TPM) == max(diff(subdf$TPM))))+1, val]
+    pT_on <- subdf[median(which(diff(subdf$pTPM) == max(diff(subdf$pTPM))))+1, val]
+    Ar.high.T_on[which(Ar.high.T_on$Transcript == i), "T_on"] <- T_on
+    Ar.high.T_on[which(Ar.high.T_on$Transcript == i), "pT_on"] <- pT_on
+}   
+
+cor.test(Ar.high.T_on$T_on, Ar.high.T_on$pT_on)
+cor.test(A22.high.T_on$T_on, A22.high.T_on$pT_on)
+
+t.test(Ar.high.T_on$T_on, A22.high.T_on$T_on)
+t.test(Ar.high.T_on$pT_on, A22.high.T_on$pT_on)
 ```
+
+Genes with increased expression at *High* temperatures are turned on at higher temperatures in *ApVT* than *AcNC*.
+
+```{r plot_high_T_on, echo=FALSE, eval=TRUE}
+# prep data for plotting
+Ap.high.T_on <- rbind(A22.high.T_on, Ar.high.T_on)
+
+# plot
+png("T_on_high.png")
+T_on_plot <- ggplot(Ap.high.T_on, aes(x=T_on, fill=colony)) + geom_density(alpha=0.2, position="identity")
+T_on_plot + scale_y_continuous(name="Density") +
+  scale_x_continuous(name=expression("Temperature"))
+dev.off()
+
+
+# plot predicted
+png("pT_on_high.png")
+pT_on_plot <- ggplot(Ap.high.T_on, aes(x=pT_on, fill=colony)) + geom_density(alpha=0.2, position="identity")
+pT_on_plot + scale_y_continuous(name="Density") +
+  scale_x_continuous(name=expression("Temperature"))
+dev.off()
+```
+
 
 
 
@@ -853,7 +912,7 @@ setnames(signif.transcripts, "Sequence.Name", "Transcript")
 ```{r echo=FALSE, results='hide'}
 responsive.lms.ann.type <- signif.transcripts[names(responsive.lms)]
 # combine responsive.lms.ann with "type" information
-responsive.lms.ann.type <- merge(responsive.lms.ann.type, Ap.response.type[,c("Transcript", "A22.type", "Ar.type")], by = "Transcript", all = TRUE)
+responsive.lms.ann.type <- merge(responsive.lms.ann.type, Ap.response.type[,c("Transcript", "Ar.type", "Ar.type")], by = "Transcript", all = TRUE)
 str(responsive.lms.ann.type)
 write.csv(responsive.lms.ann.type, file = "results/Ap_responsive_genes_20140409.csv", row.names = FALSE)
 ```
