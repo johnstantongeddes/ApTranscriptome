@@ -26,3 +26,7 @@ planning
 *~
 *.tgz
 *.tar
+*.png
+*.tiff
+*.svg
+

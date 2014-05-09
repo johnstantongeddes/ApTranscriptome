@@ -261,6 +261,36 @@ RxNvarshape <- function(lmitem) {
 
 
 ############################################################################################
+## predFunc
+############################################################################################
+
+  predFunc <- function(foo) {
+  # Function supplied to `ddply` to predict expression at each temperature
+  #
+  # Args:
+  #  foo: data.frame model is fit to
+  #
+  #  'model' must be specified in environment  
+  #
+  # Returns:
+  #  data.frame of Transcripts with pval
+
+  lmout <- eval(parse(text = paste("lm(", model, ", data = foo)", sep = "")))
+  
+  # predict values
+  pout <- predict(lmout)
+  # back-transform from log-scale
+  foo$pTPM <- exp(pout)
+  
+  # prediction can give values very close to zero or negative. biologically, these are meaningless so change to zero
+  foo$pTPM <- ifelse(foo$pTPM < 0, 0, round(foo$pTPM, 5))
+
+  pred.out.df <- data.frame(Transcript = foo$Transcript, TPM = foo$TPM, val = foo$val, colony = foo$colony, pTPM = foo$pTPM)
+}
+
+
+
+############################################################################################
 ## geneid2GOmap
 ############################################################################################
 

@@ -786,47 +786,20 @@ length(unique(resp.TPM.dt.sub$Transcript))
 resp.TPM.dt.sub[,TPM.scaled:=scale(TPM), by = Transcript]
 ```
 
-Predict for responsive transcripts
+Predict expression for responsive transcripts.
 
 ```{r responsive_pred}
-
-predFunc <- function(foo) {
-  # Function supplied to `ddply` to predict expression at each temperature
-  #
-  # Args:
-  #  foo: data.frame model is fit to
-  #
-  #  'model' must be specified in environment  
-  #
-  # Returns:
-  #  data.frame of Transcripts with pval
-
-  lmout <- eval(parse(text = paste("lm(", model, ", data = foo)", sep = "")))
-  
-  # predict values
-  pout <- predict(lmout)
-  # back-transform from log-scale
-  foo$pTPM <- exp(pout)
-  
-  # prediction can give values very close to zero or negative. biologically, these are meaningless so change to zero
-  foo$pTPM <- ifelse(foo$pTPM < 0, 0, round(foo$pTPM, 5))
-  # plot
-  #with(foo, qplot(val, TPM, colour = colony, geom = "smooth"))
-  #with(foo, qplot(val, pTPM, colour = colony, geom = "smooth"))  
-  
-  pred.out.df <- data.frame(Transcript = foo$Transcript, TPM = foo$TPM, val = foo$val, colony = foo$colony, pTPM = foo$pTPM)
-}
-
 # apply predFunc to all responsive transcripts
 resp.TPM.dt.sub.pred <- ddply(resp.TPM.dt.sub, .(Transcript), .inform="TRUE", predFunc)
 
 # setkey to Transcript and colony 
 resp.TPM.dt.sub.pred <- data.table(resp.TPM.dt.sub.pred)
 setkey(resp.TPM.dt.sub.pred, Transcript, colony)
+```
 
+Calculate `T_on` for *High* genes in each colony.
 
-
-
+```{r T_on_high}
 # transcripts expressed at *High* temperatures in A22
 A22.high.TPM.dt.sub <- resp.TPM.dt.sub.pred[J(A22.high, "A22")]
 str(A22.high.TPM.dt.sub)
@@ -862,37 +835,97 @@ for(i in unique(Ar.high.TPM.dt.sub$Transcript)) {
 
 cor.test(Ar.high.T_on$T_on, Ar.high.T_on$pT_on)
 cor.test(A22.high.T_on$T_on, A22.high.T_on$pT_on)
+```
 
+Determine if `T_on` is greater in *A22* or *Ar* for *High* genes.
+
+```{r T_on_high_ttest}
 t.test(Ar.high.T_on$T_on, A22.high.T_on$T_on)
 t.test(Ar.high.T_on$pT_on, A22.high.T_on$pT_on)
 ```
-
 Genes with increased expression at *High* temperatures are turned on at higher temperatures in *ApVT* than *AcNC*.
+
+Plot `T_on` for *High* genes.
 
 ```{r plot_high_T_on, echo=FALSE, eval=TRUE}
 # prep data for plotting
 Ap.high.T_on <- rbind(A22.high.T_on, Ar.high.T_on)
 
 # plot
-png("T_on_high.png")
 T_on_plot <- ggplot(Ap.high.T_on, aes(x=T_on, fill=colony)) + geom_density(alpha=0.2, position="identity")
 T_on_plot + scale_y_continuous(name="Density") +
   scale_x_continuous(name=expression("Temperature"))
-dev.off()
-
 
 # plot predicted
-png("pT_on_high.png")
 pT_on_plot <- ggplot(Ap.high.T_on, aes(x=pT_on, fill=colony)) + geom_density(alpha=0.2, position="identity")
 pT_on_plot + scale_y_continuous(name="Density") +
   scale_x_continuous(name=expression("Temperature"))
-dev.off()
 ```
 
+Repeat analysis for *Low* genes.
 
+```{r T_on_low}
+# transcripts expressed at *Low* temperatures in A22
+A22.low.TPM.dt.sub <- resp.TPM.dt.sub.pred[J(A22.low, "A22")]
+str(A22.low.TPM.dt.sub)
 
+intersect(A22.low.TPM.dt.sub, A22.high.TPM.dt.sub)
+# Good - no overlap
 
+# make data.frame for results
+A22.low.T_on <- data.frame(Transcript = unique(A22.low.TPM.dt.sub$Transcript), colony = rep(A22.low.TPM.dt.sub$colony, length = length(unique(A22.low.TPM.dt.sub$Transcript))), T_on = NA, pT_on = NA)
 
+# loop across transcripts, calculating T_on
+
+for(i in unique(A22.low.TPM.dt.sub$Transcript)) {
+    subdf <- A22.low.TPM.dt.sub[i]
+    subdf <- subdf[which(subdf$val < 21), ]
+    T_on <- subdf[median(which(diff(subdf$TPM) == max(diff(subdf$TPM))))+1, val]
+    pT_on <- subdf[median(which(diff(subdf$pTPM) == max(diff(subdf$pTPM))))+1, val]
+    A22.low.T_on[which(A22.low.T_on$Transcript == i), "T_on"] <- T_on
+    A22.low.T_on[which(A22.low.T_on$Transcript == i), "pT_on"] <- pT_on
+}   
+
+# repeat for Ar
+Ar.low.TPM.dt.sub <- resp.TPM.dt.sub.pred[J(Ar.low, "Ar")]
+str(Ar.low.TPM.dt.sub)
+
+intersect(A22.low.TPM.dt.sub, A22.high.TPM.dt.sub)
+# Good - no overlap
+
+Ar.low.T_on <- data.frame(Transcript = unique(Ar.low.TPM.dt.sub$Transcript), colony = rep(Ar.low.TPM.dt.sub$colony, length = length(unique(Ar.low.TPM.dt.sub$Transcript))), T_on = NA, pT_on = NA)
+
+for(i in unique(Ar.low.TPM.dt.sub$Transcript)) {
+    subdf <- Ar.low.TPM.dt.sub[i]
+    subdf <- subdf[which(subdf$val < 21), ]
+    T_on <- subdf[median(which(diff(subdf$TPM) == max(diff(subdf$TPM))))+1, val]
+    pT_on <- subdf[median(which(diff(subdf$pTPM) == max(diff(subdf$pTPM))))+1, val]
+    Ar.low.T_on[which(Ar.low.T_on$Transcript == i), "T_on"] <- T_on
+    Ar.low.T_on[which(Ar.low.T_on$Transcript == i), "pT_on"] <- pT_on
+}   
+
+t.test(Ar.low.T_on$T_on, A22.low.T_on$T_on)
+t.test(Ar.low.T_on$pT_on, A22.low.T_on$pT_on)
+```
+
+Genes with increased expression at *Low* temperatures are turned on at lower temperatures in *AcNC* than *ApVT*.
+
+Plot `T_on` for *Low* genes.
+
+```{r plot_low_T_on, echo=FALSE, eval=TRUE}
+# prep data for plotting
+Ap.low.T_on <- rbind(A22.low.T_on, Ar.low.T_on)
+
+# plot
+T_on_plot_low <- ggplot(Ap.low.T_on, aes(x=T_on, fill=colony)) + geom_density(alpha=0.2, position="identity")
+T_on_plot_low + scale_y_continuous(name="Density") +
+  scale_x_continuous(name=expression("Temperature"))
+
+# plot predicted
+pT_on_plot_low <- ggplot(Ap.low.T_on, aes(x=pT_on, fill=colony)) + geom_density(alpha=0.2, position="identity")
+pT_on_plot_low + scale_y_continuous(name="Density") +
+  scale_x_continuous(name=expression("Temperature"))
+```
 
 
 ### Identification of biological-functions associated with temperature responses
