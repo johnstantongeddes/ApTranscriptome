@@ -852,14 +852,20 @@ Plot `T_on` for *High* genes.
 Ap.high.T_on <- rbind(A22.high.T_on, Ar.high.T_on)
 
 # plot
-T_on_plot <- ggplot(Ap.high.T_on, aes(x=T_on, fill=colony)) + geom_density(alpha=0.2, position="identity")
-T_on_plot + scale_y_continuous(name="Density") +
-  scale_x_continuous(name=expression("Temperature"))
+T_on_plot_high <- ggplot(Ap.high.T_on, aes(x = T_on, y = ..density.., colour = colony, group = colony, fill = colony)) +
+    geom_histogram(position = "dodge", binwidth = 3) +
+    geom_density(adjust = 3, fill = NA, size = 2) + 
+    scale_y_continuous(name="Density") +
+    scale_x_continuous(name=expression("Temperature"))
+print(T_on_plot_high)
 
 # plot predicted
-pT_on_plot <- ggplot(Ap.high.T_on, aes(x=pT_on, fill=colony)) + geom_density(alpha=0.2, position="identity")
-pT_on_plot + scale_y_continuous(name="Density") +
-  scale_x_continuous(name=expression("Temperature"))
+pT_on_plot_high <- ggplot(Ap.high.T_on, aes(x = pT_on, y = ..density.., colour = colony, group = colony, fill = colony)) +
+    geom_histogram(position = "dodge", binwidth = 3) +
+    geom_density(adjust = 3, fill = NA, size = 2) + 
+    scale_y_continuous(name="Density") +
+    scale_x_continuous(name=expression("Temperature"))
+print(pT_on_plot_high)
 ```
 
 Repeat analysis for *Low* genes.
@@ -915,16 +921,21 @@ Plot `T_on` for *Low* genes.
 ```{r plot_low_T_on, echo=FALSE, eval=TRUE}
 # prep data for plotting
 Ap.low.T_on <- rbind(A22.low.T_on, Ar.low.T_on)
+# plot
+T_on_plot_low <- ggplot(Ap.low.T_on, aes(x = T_on, y = ..density.., colour = colony, group = colony, fill = colony)) +
+    geom_histogram(position = "dodge", binwidth = 3) +
+    geom_density(adjust = 3, fill = NA, size = 2) + 
+    scale_y_continuous(name="Density") +
+    scale_x_continuous(name=expression("Temperature"))
+print(T_on_plot_low)
 
 # plot
-T_on_plot_low <- ggplot(Ap.low.T_on, aes(x=T_on, fill=colony)) + geom_density(alpha=0.2, position="identity")
-T_on_plot_low + scale_y_continuous(name="Density") +
-  scale_x_continuous(name=expression("Temperature"))
-
-# plot predicted
-pT_on_plot_low <- ggplot(Ap.low.T_on, aes(x=pT_on, fill=colony)) + geom_density(alpha=0.2, position="identity")
-pT_on_plot_low + scale_y_continuous(name="Density") +
-  scale_x_continuous(name=expression("Temperature"))
+pT_on_plot_low <- ggplot(Ap.low.T_on, aes(x = pT_on, y = ..density.., colour = colony, group = colony, fill = colony)) +
+    geom_histogram(position = "dodge", binwidth = 3) +
+    geom_density(adjust = 3, fill = NA, size = 2) + 
+    scale_y_continuous(name="Density") +
+    scale_x_continuous(name=expression("Temperature"))
+print(pT_on_plot_low)
 ```
 
 
