@@ -19,9 +19,10 @@ Thermal reactionome of the common ant species *Aphaenogaster picea* and *A. caro
   
 In this technical report, which accompanies the manuscript **Thermal reactionome of a common ant species** (Stanton-Geddes et al., in press), we:
 
-1. describe the *de novo* assembly of the transcriptome for two ant colonies with in the *Aphaenogaster rudis-picea-fulva* species complex (<a href="http://dx.doi.org/10.1155/2012/752815">Lubertazzi, 2012</a>)
+1. describe the *de novo* assembly of the transcriptome for two ant species within the *Aphaenogaster rudis-picea-fulva* species complex (<a href="http://dx.doi.org/10.1155/2012/752815">Lubertazzi, 2012</a>)
 2. identify thermally-responsive genes
-3. perform gene set enrichment analysis
+3. evaluate differences in the expression patterns between the two species
+3. perform gene set enrichment analysis of thermally-responsive genes for the two species
 
 This script is completely reproducible assuming that R, `knitr` and the other required libraries (listed within the source document) are installed on a standard linux system using the following:
     
@@ -47,7 +48,7 @@ mv ind_files data/.
 
 ## Sample description ##
 
-Two ant colonies were used for the transcriptome sequencing. The first, designated A22, was collected at Molly Bog, Vermont in August 2012 by Nick Gotelli and Andrew Nguyen. This colony was putatively identifed as *A. picea*. The second colony, designated Ar, was collected by Lauren Nichols in Raleigh, North Carolina. These colonies were maintained in the lab for 6 months prior to sample collection. 
+Two ant colonies were used for the transcriptome sequencing. The first, designated *A22*, was collected at Molly Bog, Vermont in August 2012 by Nick Gotelli and Andrew Nguyen. The second colony, designated *Ar*, was collected by Lauren Nichols in Raleigh, North Carolina. These colonies were maintained in the lab for 6 months prior to sample collection. Bernice Bacon DeMarco (Michigan State University) identified colony *A22* as *A. picea* and *Ar* as *A. carolinensis*.
 
 For each colony, three ants were exposed to one of 12 temperature treatments, every 3.5C ranging from 0C to 38.5C, for one hour in glass tubes in a water bath. The ants were flash frozen and stored at -80C until RNA was extracted using a two step extraction; [RNAzol RT](http://www.mrcgene.com/rnazol.htm) (Molecular Research Center, Inc) followed by an [RNeasy Micro](http://www.qiagen.com/products/catalog/sample-technologies/rna-sample-technologies/total-rna/rneasy-micro-kit) column (Qiagen). Samples from each colony were pooled and sequenced in separate lanes on a 100bp paired-end run of an Illumina HiSeq at the University of Minnesota Genomics Center, yielding 20e6 and 16e6 reads for the A22 and Ar samples, respectively.
 
@@ -699,20 +700,7 @@ where TPM is transcripts per million.
 # define model for RxN function
 model <- "log(TPM+1) ~ colony + val + I(val^2) + colony:val + colony:I(val^2)"
 
-# define function for `ddply` to calculate overall model P value
-modpFunc <- function(foo) {
-    # fit lm
-    lmout <- eval(parse(text = paste("lm(", model, ", data = foo)", sep = "")))
-    
-    # calculate overall model significance
-    f <- summary(lmout)$fstatistic
-    pval <- unname(pf(f[1], f[2], f[3], lower.tail = F))
-    attributes(pval) <- NULL
-    
-    # return pvalue
-    c(pval = pval)
-}
-
+# calculate overall P value and R^2 for each transcript
 RxNpval <- ddply(TPM.dt.sub, .(Transcript), .inform = "TRUE", modpFunc)
 ```
 
@@ -749,17 +737,7 @@ At the 5% FDR significance threshold, there are 10597 transcripts with an overal
 
 
 ```r
-# first, define function to use
-lmFunc <- function(bar) {
-    # fit lm
-    lmout <- eval(parse(text = paste("lm(", model, ", data = bar)", sep = "")))
-    # stepAIC to drop non-significant terms
-    f.lmout <- stepAIC(lmout)
-    # return final model
-    return(f.lmout)
-}
-
-# apply function to all responsive transcripts
+# perform model selection for responsive transcripts
 RxNlmAIC <- try(dlply(sig.TPM.dt.sub, .(Transcript), lmFunc))
 ```
 
@@ -1248,7 +1226,7 @@ Ar.int.sd <- data.frame(colony = "Ar", exp_sd = Ar.int.sd)
 
 Consistent with our hypothesis, 'Intermediate' transcripts in *Ar* are expressed over a significantly wider range of temperatures than in *A22*. 
 
-![plot of chunk plotthermalbreadth](figure/plotthermalbreadth.png) 
+![plot of chunk plot_thermal_breadth](figure/plot_thermal_breadth.png) 
 
 
 
@@ -1317,21 +1295,16 @@ Probability density function of peak expression for transcripts that differ in e
 ```r
 # reshape data
 Ap.df <- data.frame(Transcript = rep(Ap.response.type$Transcript, times = 2), colony = rep(c("ApVT", 
-    "ApNC"), each = length(Ap.response.type$Transcript)), max.val = c(Ap.response.type$A22.max, 
+    "AcNC"), each = length(Ap.response.type$Transcript)), max.val = c(Ap.response.type$A22.max, 
     Ap.response.type$Ar.max))
 
-png(paste(resultsdir, "PDF_expression_all.png", sep = ""))
-g3 <- ggplot(Ap.df, aes(x = max.val, fill = colony)) + geom_density(alpha = 0.2, 
+maxexplot <- ggplot(Ap.df, aes(x = max.val, fill = colony)) + geom_density(alpha = 0.2, 
     position = "identity") + # scale_fill_manual(name = 'Colony', values = c('white', 'black')) +
 scale_y_continuous(name = "Density") + scale_x_continuous(name = "Temperature of maximum expression")
-suppressWarnings(print(g3))
-dev.off()
+suppressWarnings(print(maxexplot))
 ```
 
-```
-## pdf 
-##   2
-```
+![plot of chunk max_exp_PDF](figure/max_exp_PDF.png) 
 
 
 For the transcripts that differed in thermal responsiveness due to temperature, was the difference primarily due to differences in the mean value of expression, slope, curvature of a higher order effect? To test this, I use the framework of <a href="http://dx.doi.org/10.1086/675302">Murren et al. (2014)</a>:
@@ -1637,12 +1610,402 @@ quantile(varshape.out$prop.wiggle, probs = c(0.05, 0.5, 0.95))
 
 ## Temperature of gene activation
 
-Thermally-responsive genes could also differ in the temperatures at which they have increased or decreased expression in response to temperature changes. To examine this, I 
+Thermally-responsive genes could also differ in the temperatures at which they have increased or decreased expression in response to temperature changes. To examine this, I determine the temperature at which each responsive gene has the greated increase or decrease in expression.
 
 
+```r
+# extract TPM data for thermally-responsive transcripts
+resp.TPM.dt.sub <- TPM.dt.sub[names(responsive.lms)]
+setkey(resp.TPM.dt.sub, Transcript)
+str(resp.TPM.dt.sub)
+```
+
+```
+## Classes 'data.table' and 'data.frame':	201432 obs. of  10 variables:
+##  $ Transcript       : chr  "100008|*|comp137625_c0_seq2" "100008|*|comp137625_c0_seq2" "100008|*|comp137625_c0_seq2" "100008|*|comp137625_c0_seq2" ...
+##  $ Length           : int  208 208 208 208 208 208 208 208 208 208 ...
+##  $ TPM              : num  0 0.3553 0 0.7353 0.0744 ...
+##  $ RPKM             : num  0 0.599 0 1.1229 0.0928 ...
+##  $ KPKM             : num  0 0.599 0 1.1229 0.0928 ...
+##  $ EstimatedNumReads: num  0 157.6 0 366.1 61.2 ...
+##  $ V7               : num  0 1.953 0 4.535 0.763 ...
+##  $ sample           : chr  "A22-0" "Ar-0" "A22-3" "Ar-3" ...
+##  $ val              : num  0 0 3.5 3.5 10.5 10.5 14 14 17.5 17.5 ...
+##  $ colony           : Factor w/ 2 levels "A22","Ar": 1 2 1 2 1 2 1 2 1 2 ...
+##  - attr(*, ".internal.selfref")=<externalptr> 
+##  - attr(*, "sorted")= chr "Transcript"
+```
+
+```r
+length(unique(resp.TPM.dt.sub$Transcript))
+```
+
+```
+## [1] 9156
+```
+
+```r
+# scale transcripts so can compare
+resp.TPM.dt.sub[, `:=`(TPM.scaled, scale(TPM)), by = Transcript]
+```
+
+```
+##                          Transcript Length    TPM   RPKM   KPKM
+##      1: 100008|*|comp137625_c0_seq2    208 0.0000 0.0000 0.0000
+##      2: 100008|*|comp137625_c0_seq2    208 0.3553 0.5990 0.5990
+##      3: 100008|*|comp137625_c0_seq2    208 0.0000 0.0000 0.0000
+##      4: 100008|*|comp137625_c0_seq2    208 0.7353 1.1229 1.1229
+##      5: 100008|*|comp137625_c0_seq2    208 0.0744 0.0928 0.0928
+##     ---                                                        
+## 201428:      9|*|comp147140_c0_seq1   9030 0.7167 1.2119 1.2119
+## 201429:      9|*|comp147140_c0_seq1   9030 0.7239 1.0022 1.0022
+## 201430:      9|*|comp147140_c0_seq1   9030 0.4328 0.7932 0.7932
+## 201431:      9|*|comp147140_c0_seq1   9030 0.5655 0.7745 0.7745
+## 201432:      9|*|comp147140_c0_seq1   9030 0.4626 0.8465 0.8465
+##         EstimatedNumReads      V7 sample  val colony TPM.scaled
+##      1:               0.0   0.000  A22-0  0.0    A22     -0.565
+##      2:             157.6   1.953   Ar-0  0.0     Ar      1.128
+##      3:               0.0   0.000  A22-3  3.5    A22     -0.565
+##      4:             366.1   4.535   Ar-3  3.5     Ar      2.938
+##      5:              61.2   0.763 A22-10 10.5    A22     -0.211
+##     ---                                                        
+## 201428:           17725.0 219.162  Ar-31 31.5     Ar     -0.274
+## 201429:           23921.0 298.840 A22-35 35.0    A22     -0.251
+## 201430:            8729.7 108.110  Ar-35 35.0     Ar     -1.184
+## 201431:           23814.1 297.384 A22-38 38.5    A22     -0.759
+## 201432:           12716.0 157.120  Ar-38 38.5     Ar     -1.089
+```
 
 
+Predict expression for responsive transcripts.
 
+
+```r
+# apply predFunc to all responsive transcripts
+resp.TPM.dt.sub.pred <- ddply(resp.TPM.dt.sub, .(Transcript), .inform = "TRUE", predFunc)
+
+# setkey to Transcript and colony
+resp.TPM.dt.sub.pred <- data.table(resp.TPM.dt.sub.pred)
+setkey(resp.TPM.dt.sub.pred, Transcript, colony)
+```
+
+
+Calculate `T_on` for *High* genes in each colony.
+
+
+```r
+# transcripts expressed at *High* temperatures in A22
+A22.high.TPM.dt.sub <- resp.TPM.dt.sub.pred[J(A22.high, "A22")]
+```
+
+```
+## Error: object 'A22.high' not found
+```
+
+```r
+str(A22.high.TPM.dt.sub)
+```
+
+```
+## Error: object 'A22.high.TPM.dt.sub' not found
+```
+
+```r
+
+# make data.frame for results
+A22.high.T_on <- data.frame(Transcript = unique(A22.high.TPM.dt.sub$Transcript), 
+    colony = rep(A22.high.TPM.dt.sub$colony, length = length(unique(A22.high.TPM.dt.sub$Transcript))), 
+    T_on = NA, pT_on = NA)
+```
+
+```
+## Error: error in evaluating the argument 'x' in selecting a method for function 'unique': Error: object 'A22.high.TPM.dt.sub' not found
+```
+
+```r
+
+# loop across transcripts, calculating T_on
+
+for (i in unique(A22.high.TPM.dt.sub$Transcript)) {
+    subdf <- A22.high.TPM.dt.sub[i]
+    subdf <- subdf[which(subdf$val > 14), ]
+    T_on <- subdf[median(which(diff(subdf$TPM) == max(diff(subdf$TPM)))) + 1, val]
+    pT_on <- subdf[median(which(diff(subdf$pTPM) == max(diff(subdf$pTPM)))) + 1, 
+        val]
+    A22.high.T_on[which(A22.high.T_on$Transcript == i), "T_on"] <- T_on
+    A22.high.T_on[which(A22.high.T_on$Transcript == i), "pT_on"] <- pT_on
+}
+```
+
+```
+## Error: error in evaluating the argument 'x' in selecting a method for function 'unique': Error: object 'A22.high.TPM.dt.sub' not found
+```
+
+```r
+
+# repeat for Ar
+Ar.high.TPM.dt.sub <- resp.TPM.dt.sub.pred[J(Ar.high, "Ar")]
+```
+
+```
+## Error: object 'Ar.high' not found
+```
+
+```r
+str(Ar.high.TPM.dt.sub)
+```
+
+```
+## Error: object 'Ar.high.TPM.dt.sub' not found
+```
+
+```r
+
+Ar.high.T_on <- data.frame(Transcript = unique(Ar.high.TPM.dt.sub$Transcript), colony = rep(Ar.high.TPM.dt.sub$colony, 
+    length = length(unique(Ar.high.TPM.dt.sub$Transcript))), T_on = NA, pT_on = NA)
+```
+
+```
+## Error: error in evaluating the argument 'x' in selecting a method for function 'unique': Error: object 'Ar.high.TPM.dt.sub' not found
+```
+
+```r
+
+for (i in unique(Ar.high.TPM.dt.sub$Transcript)) {
+    subdf <- Ar.high.TPM.dt.sub[i]
+    subdf <- subdf[which(subdf$val > 14), ]
+    T_on <- subdf[median(which(diff(subdf$TPM) == max(diff(subdf$TPM)))) + 1, val]
+    pT_on <- subdf[median(which(diff(subdf$pTPM) == max(diff(subdf$pTPM)))) + 1, 
+        val]
+    Ar.high.T_on[which(Ar.high.T_on$Transcript == i), "T_on"] <- T_on
+    Ar.high.T_on[which(Ar.high.T_on$Transcript == i), "pT_on"] <- pT_on
+}
+```
+
+```
+## Error: error in evaluating the argument 'x' in selecting a method for function 'unique': Error: object 'Ar.high.TPM.dt.sub' not found
+```
+
+```r
+
+cor.test(Ar.high.T_on$T_on, Ar.high.T_on$pT_on)
+```
+
+```
+## Error: object 'Ar.high.T_on' not found
+```
+
+```r
+cor.test(A22.high.T_on$T_on, A22.high.T_on$pT_on)
+```
+
+```
+## Error: object 'A22.high.T_on' not found
+```
+
+
+Determine if `T_on` is greater in *A22* or *Ar* for *High* genes.
+
+
+```r
+t.test(Ar.high.T_on$T_on, A22.high.T_on$T_on)
+```
+
+```
+## Error: object 'Ar.high.T_on' not found
+```
+
+```r
+t.test(Ar.high.T_on$pT_on, A22.high.T_on$pT_on)
+```
+
+```
+## Error: object 'Ar.high.T_on' not found
+```
+
+Genes with increased expression at *High* temperatures are turned on at higher temperatures in *ApVT* than *AcNC*.
+
+Plot `T_on` for *High* genes.
+
+
+```
+## Error: object 'A22.high.T_on' not found
+```
+
+```
+## Error: object 'Ap.high.T_on' not found
+```
+
+```
+## Error: object 'T_on_plot' not found
+```
+
+```
+## Error: object 'Ap.high.T_on' not found
+```
+
+```
+## Error: object 'pT_on_plot' not found
+```
+
+
+Repeat analysis for *Low* genes.
+
+
+```r
+# transcripts expressed at *Low* temperatures in A22
+A22.low.TPM.dt.sub <- resp.TPM.dt.sub.pred[J(A22.low, "A22")]
+```
+
+```
+## Error: object 'A22.low' not found
+```
+
+```r
+str(A22.low.TPM.dt.sub)
+```
+
+```
+## Error: object 'A22.low.TPM.dt.sub' not found
+```
+
+```r
+
+intersect(A22.low.TPM.dt.sub, A22.high.TPM.dt.sub)
+```
+
+```
+## Error: error in evaluating the argument 'x' in selecting a method for function 'intersect': Error: object 'A22.low.TPM.dt.sub' not found
+```
+
+```r
+# Good - no overlap
+
+# make data.frame for results
+A22.low.T_on <- data.frame(Transcript = unique(A22.low.TPM.dt.sub$Transcript), colony = rep(A22.low.TPM.dt.sub$colony, 
+    length = length(unique(A22.low.TPM.dt.sub$Transcript))), T_on = NA, pT_on = NA)
+```
+
+```
+## Error: error in evaluating the argument 'x' in selecting a method for function 'unique': Error: object 'A22.low.TPM.dt.sub' not found
+```
+
+```r
+
+# loop across transcripts, calculating T_on
+
+for (i in unique(A22.low.TPM.dt.sub$Transcript)) {
+    subdf <- A22.low.TPM.dt.sub[i]
+    subdf <- subdf[which(subdf$val < 21), ]
+    T_on <- subdf[median(which(diff(subdf$TPM) == max(diff(subdf$TPM)))) + 1, val]
+    pT_on <- subdf[median(which(diff(subdf$pTPM) == max(diff(subdf$pTPM)))) + 1, 
+        val]
+    A22.low.T_on[which(A22.low.T_on$Transcript == i), "T_on"] <- T_on
+    A22.low.T_on[which(A22.low.T_on$Transcript == i), "pT_on"] <- pT_on
+}
+```
+
+```
+## Error: error in evaluating the argument 'x' in selecting a method for function 'unique': Error: object 'A22.low.TPM.dt.sub' not found
+```
+
+```r
+
+# repeat for Ar
+Ar.low.TPM.dt.sub <- resp.TPM.dt.sub.pred[J(Ar.low, "Ar")]
+```
+
+```
+## Error: object 'Ar.low' not found
+```
+
+```r
+str(Ar.low.TPM.dt.sub)
+```
+
+```
+## Error: object 'Ar.low.TPM.dt.sub' not found
+```
+
+```r
+
+intersect(A22.low.TPM.dt.sub, A22.high.TPM.dt.sub)
+```
+
+```
+## Error: error in evaluating the argument 'x' in selecting a method for function 'intersect': Error: object 'A22.low.TPM.dt.sub' not found
+```
+
+```r
+# Good - no overlap
+
+Ar.low.T_on <- data.frame(Transcript = unique(Ar.low.TPM.dt.sub$Transcript), colony = rep(Ar.low.TPM.dt.sub$colony, 
+    length = length(unique(Ar.low.TPM.dt.sub$Transcript))), T_on = NA, pT_on = NA)
+```
+
+```
+## Error: error in evaluating the argument 'x' in selecting a method for function 'unique': Error: object 'Ar.low.TPM.dt.sub' not found
+```
+
+```r
+
+for (i in unique(Ar.low.TPM.dt.sub$Transcript)) {
+    subdf <- Ar.low.TPM.dt.sub[i]
+    subdf <- subdf[which(subdf$val < 21), ]
+    T_on <- subdf[median(which(diff(subdf$TPM) == max(diff(subdf$TPM)))) + 1, val]
+    pT_on <- subdf[median(which(diff(subdf$pTPM) == max(diff(subdf$pTPM)))) + 1, 
+        val]
+    Ar.low.T_on[which(Ar.low.T_on$Transcript == i), "T_on"] <- T_on
+    Ar.low.T_on[which(Ar.low.T_on$Transcript == i), "pT_on"] <- pT_on
+}
+```
+
+```
+## Error: error in evaluating the argument 'x' in selecting a method for function 'unique': Error: object 'Ar.low.TPM.dt.sub' not found
+```
+
+```r
+
+t.test(Ar.low.T_on$T_on, A22.low.T_on$T_on)
+```
+
+```
+## Error: object 'Ar.low.T_on' not found
+```
+
+```r
+t.test(Ar.low.T_on$pT_on, A22.low.T_on$pT_on)
+```
+
+```
+## Error: object 'Ar.low.T_on' not found
+```
+
+
+Genes with increased expression at *Low* temperatures are turned on at lower temperatures in *AcNC* than *ApVT*.
+
+Plot `T_on` for *Low* genes.
+
+
+```
+## Error: object 'A22.low.T_on' not found
+```
+
+```
+## Error: object 'Ap.low.T_on' not found
+```
+
+```
+## Error: object 'T_on_plot_low' not found
+```
+
+```
+## Error: object 'Ap.low.T_on' not found
+```
+
+```
+## Error: object 'pT_on_plot_low' not found
+```
 
 
 
@@ -3342,7 +3705,7 @@ Ar.int.gsea <- gsea(genelist = Ar.geneList.int, geneID2GO = geneID2GO)
 Table of overall GSEA results.
 
 % latex table generated in R 3.1.0 by xtable 1.7-3 package
-% Thu May  8 15:52:12 2014
+% Fri May  9 16:16:15 2014
 \begin{table}[ht]
 \centering
 \begin{tabular}{rllllrrrl}
@@ -3403,97 +3766,97 @@ Table of overall GSEA results.
   52 & ApVT & Bimodal & GO:0006468 & protein phosphorylation & 1158 &  21 & 11.00 & 0.00469 \\ 
   53 & ApVT & Bimodal & GO:0007215 & glutamate receptor signaling pathway &  88 &   4 & 0.84 & 0.00827 \\ 
   54 & ApVT & Bimodal & GO:0006886 & intracellular protein transport & 667 &  12 & 6.33 & 0.00914 \\ 
-  55 & ApNC & High & GO:0001503 & ossification &  37 &   3 & 0.23 & 0.00063 \\ 
-  56 & ApNC & High & GO:0090304 & nucleic acid metabolic process & 7050 &  60 & 43.87 & 0.00083 \\ 
-  57 & ApNC & High & GO:0006259 & DNA metabolic process & 2944 &  32 & 18.32 & 0.00181 \\ 
-  58 & ApNC & High & GO:0006457 & protein folding & 460 &   8 & 2.86 & 0.00199 \\ 
-  59 & ApNC & High & GO:0008217 & regulation of blood pressure &  10 &   2 & 0.06 & 0.00242 \\ 
-  60 & ApNC & High & GO:0071216 & cellular response to biotic stimulus &  19 &   2 & 0.12 & 0.00424 \\ 
-  61 & ApNC & High & GO:0002790 & peptide secretion &  19 &   2 & 0.12 & 0.00508 \\ 
-  62 & ApNC & High & GO:0009914 & hormone transport &  23 &   2 & 0.14 & 0.00515 \\ 
-  63 & ApNC & High & GO:0030099 & myeloid cell differentiation &  41 &   2 & 0.26 & 0.00623 \\ 
-  64 & ApNC & High & GO:0002831 & regulation of response to biotic stimulu... &  24 &   2 & 0.15 & 0.00684 \\ 
-  65 & ApNC & High & GO:0018193 & peptidyl-amino acid modification & 451 &   7 & 2.81 & 0.00687 \\ 
-  66 & ApNC & High & GO:0035967 & cellular response to topologically incor... &  25 &   2 & 0.16 & 0.00703 \\ 
-  67 & ApNC & High & GO:0007249 & I-kappaB kinase/NF-kappaB signaling &  25 &   2 & 0.16 & 0.00777 \\ 
-  68 & ApNC & High & GO:0034976 & response to endoplasmic reticulum stress &  30 &   2 & 0.19 & 0.00874 \\ 
-  69 & ApNC & High & GO:0001501 & skeletal system development &  60 &   2 & 0.37 & 0.00911 \\ 
-  70 & ApNC & Low & GO:0015074 & DNA integration & 852 &  30 & 8.20 & 3.9e-06 \\ 
-  71 & ApNC & Low & GO:0009164 & nucleoside catabolic process & 1733 &  24 & 16.68 & 0.00085 \\ 
-  72 & ApNC & Low & GO:0006259 & DNA metabolic process & 2944 &  50 & 28.34 & 0.00105 \\ 
-  73 & ApNC & Low & GO:1901658 & glycosyl compound catabolic process & 1734 &  24 & 16.69 & 0.00113 \\ 
-  74 & ApNC & Low & GO:0046434 & organophosphate catabolic process & 1998 &  26 & 19.23 & 0.00155 \\ 
-  75 & ApNC & Low & GO:0046483 & heterocycle metabolic process & 11355 & 141 & 109.30 & 0.00184 \\ 
-  76 & ApNC & Low & GO:0008152 & metabolic process & 24338 & 254 & 234.28 & 0.00218 \\ 
-  77 & ApNC & Low & GO:0007249 & I-kappaB kinase/NF-kappaB signaling &  25 &   3 & 0.24 & 0.00266 \\ 
-  78 & ApNC & Low & GO:0043122 & regulation of I-kappaB kinase/NF-kappaB ... &  21 &   3 & 0.20 & 0.00268 \\ 
-  79 & ApNC & Low & GO:0034641 & cellular nitrogen compound metabolic pro... & 11484 & 140 & 110.54 & 0.00325 \\ 
-  80 & ApNC & Low & GO:0009059 & macromolecule biosynthetic process & 7008 &  93 & 67.46 & 0.00369 \\ 
-  81 & ApNC & Low & GO:1901292 & nucleoside phosphate catabolic process & 1769 &  24 & 17.03 & 0.00385 \\ 
-  82 & ApNC & Low & GO:0051049 & regulation of transport & 269 &   6 & 2.59 & 0.00461 \\ 
-  83 & ApNC & Low & GO:0033002 & muscle cell proliferation &  12 &   2 & 0.12 & 0.00482 \\ 
-  84 & ApNC & Low & GO:0060548 & negative regulation of cell death & 151 &   5 & 1.45 & 0.00532 \\ 
-  85 & ApNC & Low & GO:0006760 & folic acid-containing compound metabolic... & 170 &   5 & 1.64 & 0.00580 \\ 
-  86 & ApNC & Low & GO:0033013 & tetrapyrrole metabolic process & 198 &   7 & 1.91 & 0.00644 \\ 
-  87 & ApNC & Low & GO:0034645 & cellular macromolecule biosynthetic proc... & 6965 &  93 & 67.04 & 0.00644 \\ 
-  88 & ApNC & Low & GO:0006424 & glutamyl-tRNA aminoacylation &  31 &   3 & 0.30 & 0.00663 \\ 
-  89 & ApNC & Low & GO:0006139 & nucleobase-containing compound metabolic... & 10066 & 126 & 96.90 & 0.00709 \\ 
-  90 & ApNC & Low & GO:0072330 & monocarboxylic acid biosynthetic process & 550 &   9 & 5.29 & 0.00830 \\ 
-  91 & ApNC & Low & GO:0042126 & nitrate metabolic process &  51 &   3 & 0.49 & 0.00916 \\ 
-  92 & ApNC & Low & GO:0051604 & protein maturation & 2323 &  37 & 22.36 & 0.00917 \\ 
-  93 & ApNC & Low & GO:0043069 & negative regulation of programmed cell d... & 142 &   5 & 1.37 & 0.00973 \\ 
-  94 & ApNC & Low & GO:0003012 & muscle system process &  42 &   3 & 0.40 & 0.00973 \\ 
-  95 & ApNC & Intermediate & GO:0044267 & cellular protein metabolic process & 5294 & 182 & 119.08 & 1.0e-08 \\ 
-  96 & ApNC & Intermediate & GO:0019538 & protein metabolic process & 7596 & 230 & 170.86 & 1.5e-08 \\ 
-  97 & ApNC & Intermediate & GO:0043170 & macromolecule metabolic process & 13944 & 350 & 313.64 & 3.1e-05 \\ 
-  98 & ApNC & Intermediate & GO:0006996 & organelle organization & 2042 &  75 & 45.93 & 5.0e-05 \\ 
-  99 & ApNC & Intermediate & GO:0071840 & cellular component organization or bioge... & 4430 & 137 & 99.64 & 5.4e-05 \\ 
-  100 & ApNC & Intermediate & GO:0006644 & phospholipid metabolic process & 500 &  24 & 11.25 & 8.4e-05 \\ 
-  101 & ApNC & Intermediate & GO:0016192 & vesicle-mediated transport & 744 &  31 & 16.73 & 9.5e-05 \\ 
-  102 & ApNC & Intermediate & GO:1902589 & single-organism organelle organization & 1407 &  52 & 31.65 & 0.00020 \\ 
-  103 & ApNC & Intermediate & GO:0007264 & small GTPase mediated signal transductio... & 659 &  28 & 14.82 & 0.00020 \\ 
-  104 & ApNC & Intermediate & GO:0006184 & GTP catabolic process & 864 &  26 & 19.43 & 0.00032 \\ 
-  105 & ApNC & Intermediate & GO:0070085 & glycosylation & 149 &   9 & 3.35 & 0.00038 \\ 
-  106 & ApNC & Intermediate & GO:0044260 & cellular macromolecule metabolic process & 12209 & 307 & 274.62 & 0.00044 \\ 
-  107 & ApNC & Intermediate & GO:0010033 & response to organic substance & 577 &  19 & 12.98 & 0.00045 \\ 
-  108 & ApNC & Intermediate & GO:1901069 & guanosine-containing compound catabolic ... & 865 &  26 & 19.46 & 0.00055 \\ 
-  109 & ApNC & Intermediate & GO:0061025 & membrane fusion &  44 &   4 & 0.99 & 0.00058 \\ 
-  110 & ApNC & Intermediate & GO:0046039 & GTP metabolic process & 919 &  26 & 20.67 & 0.00063 \\ 
-  111 & ApNC & Intermediate & GO:1900542 & regulation of purine nucleotide metaboli... & 514 &  18 & 11.56 & 0.00066 \\ 
-  112 & ApNC & Intermediate & GO:0051649 & establishment of localization in cell & 1323 &  44 & 29.76 & 0.00075 \\ 
-  113 & ApNC & Intermediate & GO:0022406 & membrane docking &  34 &   5 & 0.76 & 0.00079 \\ 
-  114 & ApNC & Intermediate & GO:0022904 & respiratory electron transport chain & 368 &  14 & 8.28 & 0.00081 \\ 
-  115 & ApNC & Intermediate & GO:0044801 & single-organism membrane fusion &  44 &   4 & 0.99 & 0.00101 \\ 
-  116 & ApNC & Intermediate & GO:0043412 & macromolecule modification & 3268 & 107 & 73.51 & 0.00116 \\ 
-  117 & ApNC & Intermediate & GO:0046907 & intracellular transport & 960 &  34 & 21.59 & 0.00122 \\ 
-  118 & ApNC & Intermediate & GO:0033121 & regulation of purine nucleotide cataboli... & 500 &  18 & 11.25 & 0.00137 \\ 
-  119 & ApNC & Intermediate & GO:1901068 & guanosine-containing compound metabolic ... & 953 &  27 & 21.44 & 0.00152 \\ 
-  120 & ApNC & Intermediate & GO:0051641 & cellular localization & 1501 &  47 & 33.76 & 0.00178 \\ 
-  121 & ApNC & Intermediate & GO:0030811 & regulation of nucleotide catabolic proce... & 500 &  18 & 11.25 & 0.00255 \\ 
-  122 & ApNC & Intermediate & GO:0051345 & positive regulation of hydrolase activit... & 221 &  12 & 4.97 & 0.00264 \\ 
-  123 & ApNC & Intermediate & GO:0006486 & protein glycosylation & 141 &   9 & 3.17 & 0.00419 \\ 
-  124 & ApNC & Intermediate & GO:0043547 & positive regulation of GTPase activity & 182 &  12 & 4.09 & 0.00485 \\ 
-  125 & ApNC & Intermediate & GO:0006412 & translation & 1886 &  66 & 42.42 & 0.00518 \\ 
-  126 & ApNC & Intermediate & GO:0006446 & regulation of translational initiation & 344 &  15 & 7.74 & 0.00523 \\ 
-  127 & ApNC & Intermediate & GO:0032970 & regulation of actin filament-based proce... &  88 &   7 & 1.98 & 0.00588 \\ 
-  128 & ApNC & Intermediate & GO:0042439 & ethanolamine-containing compound metabol... &  36 &   4 & 0.81 & 0.00755 \\ 
-  129 & ApNC & Intermediate & GO:0000725 & recombinational repair &  48 &   4 & 1.08 & 0.00799 \\ 
-  130 & ApNC & Intermediate & GO:0009118 & regulation of nucleoside metabolic proce... & 500 &  18 & 11.25 & 0.00804 \\ 
-  131 & ApNC & Intermediate & GO:0032956 & regulation of actin cytoskeleton organiz... &  87 &   7 & 1.96 & 0.00840 \\ 
-  132 & ApNC & Intermediate & GO:0006140 & regulation of nucleotide metabolic proce... & 521 &  18 & 11.72 & 0.00853 \\ 
-  133 & ApNC & Intermediate & GO:0050684 & regulation of mRNA processing &  59 &   5 & 1.33 & 0.00882 \\ 
-  134 & ApNC & Intermediate & GO:0006656 & phosphatidylcholine biosynthetic process &  12 &   2 & 0.27 & 0.00904 \\ 
-  135 & ApNC & Intermediate & GO:0031329 & regulation of cellular catabolic process & 572 &  21 & 12.87 & 0.00912 \\ 
-  136 & ApNC & Intermediate & GO:0008654 & phospholipid biosynthetic process & 213 &  11 & 4.79 & 0.00921 \\ 
-  137 & ApNC & Intermediate & GO:0048278 & vesicle docking &  33 &   5 & 0.74 & 0.00928 \\ 
-  138 & ApNC & Bimodal & GO:0006259 & DNA metabolic process & 2944 &  28 & 13.93 & 0.00022 \\ 
-  139 & ApNC & Bimodal & GO:0003151 & outflow tract morphogenesis &  10 &   2 & 0.05 & 0.00103 \\ 
-  140 & ApNC & Bimodal & GO:0071804 & cellular potassium ion transport &  50 &   3 & 0.24 & 0.00168 \\ 
-  141 & ApNC & Bimodal & GO:0071805 & potassium ion transmembrane transport &  50 &   3 & 0.24 & 0.00262 \\ 
-  142 & ApNC & Bimodal & GO:0031023 & microtubule organizing center organizati... & 108 &   3 & 0.51 & 0.00431 \\ 
-  143 & ApNC & Bimodal & GO:0006725 & cellular aromatic compound metabolic pro... & 11495 &  62 & 54.39 & 0.00521 \\ 
-  144 & ApNC & Bimodal & GO:0072528 & pyrimidine-containing compound biosynthe... & 214 &   4 & 1.01 & 0.00649 \\ 
-  145 & ApNC & Bimodal & GO:0034641 & cellular nitrogen compound metabolic pro... & 11484 &  61 & 54.34 & 0.00937 \\ 
+  55 & AcNC & High & GO:0001503 & ossification &  37 &   3 & 0.23 & 0.00063 \\ 
+  56 & AcNC & High & GO:0090304 & nucleic acid metabolic process & 7050 &  60 & 43.87 & 0.00083 \\ 
+  57 & AcNC & High & GO:0006259 & DNA metabolic process & 2944 &  32 & 18.32 & 0.00181 \\ 
+  58 & AcNC & High & GO:0006457 & protein folding & 460 &   8 & 2.86 & 0.00199 \\ 
+  59 & AcNC & High & GO:0008217 & regulation of blood pressure &  10 &   2 & 0.06 & 0.00242 \\ 
+  60 & AcNC & High & GO:0071216 & cellular response to biotic stimulus &  19 &   2 & 0.12 & 0.00424 \\ 
+  61 & AcNC & High & GO:0002790 & peptide secretion &  19 &   2 & 0.12 & 0.00508 \\ 
+  62 & AcNC & High & GO:0009914 & hormone transport &  23 &   2 & 0.14 & 0.00515 \\ 
+  63 & AcNC & High & GO:0030099 & myeloid cell differentiation &  41 &   2 & 0.26 & 0.00623 \\ 
+  64 & AcNC & High & GO:0002831 & regulation of response to biotic stimulu... &  24 &   2 & 0.15 & 0.00684 \\ 
+  65 & AcNC & High & GO:0018193 & peptidyl-amino acid modification & 451 &   7 & 2.81 & 0.00687 \\ 
+  66 & AcNC & High & GO:0035967 & cellular response to topologically incor... &  25 &   2 & 0.16 & 0.00703 \\ 
+  67 & AcNC & High & GO:0007249 & I-kappaB kinase/NF-kappaB signaling &  25 &   2 & 0.16 & 0.00777 \\ 
+  68 & AcNC & High & GO:0034976 & response to endoplasmic reticulum stress &  30 &   2 & 0.19 & 0.00874 \\ 
+  69 & AcNC & High & GO:0001501 & skeletal system development &  60 &   2 & 0.37 & 0.00911 \\ 
+  70 & AcNC & Low & GO:0015074 & DNA integration & 852 &  30 & 8.20 & 3.9e-06 \\ 
+  71 & AcNC & Low & GO:0009164 & nucleoside catabolic process & 1733 &  24 & 16.68 & 0.00085 \\ 
+  72 & AcNC & Low & GO:0006259 & DNA metabolic process & 2944 &  50 & 28.34 & 0.00105 \\ 
+  73 & AcNC & Low & GO:1901658 & glycosyl compound catabolic process & 1734 &  24 & 16.69 & 0.00113 \\ 
+  74 & AcNC & Low & GO:0046434 & organophosphate catabolic process & 1998 &  26 & 19.23 & 0.00155 \\ 
+  75 & AcNC & Low & GO:0046483 & heterocycle metabolic process & 11355 & 141 & 109.30 & 0.00184 \\ 
+  76 & AcNC & Low & GO:0008152 & metabolic process & 24338 & 254 & 234.28 & 0.00218 \\ 
+  77 & AcNC & Low & GO:0007249 & I-kappaB kinase/NF-kappaB signaling &  25 &   3 & 0.24 & 0.00266 \\ 
+  78 & AcNC & Low & GO:0043122 & regulation of I-kappaB kinase/NF-kappaB ... &  21 &   3 & 0.20 & 0.00268 \\ 
+  79 & AcNC & Low & GO:0034641 & cellular nitrogen compound metabolic pro... & 11484 & 140 & 110.54 & 0.00325 \\ 
+  80 & AcNC & Low & GO:0009059 & macromolecule biosynthetic process & 7008 &  93 & 67.46 & 0.00369 \\ 
+  81 & AcNC & Low & GO:1901292 & nucleoside phosphate catabolic process & 1769 &  24 & 17.03 & 0.00385 \\ 
+  82 & AcNC & Low & GO:0051049 & regulation of transport & 269 &   6 & 2.59 & 0.00461 \\ 
+  83 & AcNC & Low & GO:0033002 & muscle cell proliferation &  12 &   2 & 0.12 & 0.00482 \\ 
+  84 & AcNC & Low & GO:0060548 & negative regulation of cell death & 151 &   5 & 1.45 & 0.00532 \\ 
+  85 & AcNC & Low & GO:0006760 & folic acid-containing compound metabolic... & 170 &   5 & 1.64 & 0.00580 \\ 
+  86 & AcNC & Low & GO:0033013 & tetrapyrrole metabolic process & 198 &   7 & 1.91 & 0.00644 \\ 
+  87 & AcNC & Low & GO:0034645 & cellular macromolecule biosynthetic proc... & 6965 &  93 & 67.04 & 0.00644 \\ 
+  88 & AcNC & Low & GO:0006424 & glutamyl-tRNA aminoacylation &  31 &   3 & 0.30 & 0.00663 \\ 
+  89 & AcNC & Low & GO:0006139 & nucleobase-containing compound metabolic... & 10066 & 126 & 96.90 & 0.00709 \\ 
+  90 & AcNC & Low & GO:0072330 & monocarboxylic acid biosynthetic process & 550 &   9 & 5.29 & 0.00830 \\ 
+  91 & AcNC & Low & GO:0042126 & nitrate metabolic process &  51 &   3 & 0.49 & 0.00916 \\ 
+  92 & AcNC & Low & GO:0051604 & protein maturation & 2323 &  37 & 22.36 & 0.00917 \\ 
+  93 & AcNC & Low & GO:0043069 & negative regulation of programmed cell d... & 142 &   5 & 1.37 & 0.00973 \\ 
+  94 & AcNC & Low & GO:0003012 & muscle system process &  42 &   3 & 0.40 & 0.00973 \\ 
+  95 & AcNC & Intermediate & GO:0044267 & cellular protein metabolic process & 5294 & 182 & 119.08 & 1.0e-08 \\ 
+  96 & AcNC & Intermediate & GO:0019538 & protein metabolic process & 7596 & 230 & 170.86 & 1.5e-08 \\ 
+  97 & AcNC & Intermediate & GO:0043170 & macromolecule metabolic process & 13944 & 350 & 313.64 & 3.1e-05 \\ 
+  98 & AcNC & Intermediate & GO:0006996 & organelle organization & 2042 &  75 & 45.93 & 5.0e-05 \\ 
+  99 & AcNC & Intermediate & GO:0071840 & cellular component organization or bioge... & 4430 & 137 & 99.64 & 5.4e-05 \\ 
+  100 & AcNC & Intermediate & GO:0006644 & phospholipid metabolic process & 500 &  24 & 11.25 & 8.4e-05 \\ 
+  101 & AcNC & Intermediate & GO:0016192 & vesicle-mediated transport & 744 &  31 & 16.73 & 9.5e-05 \\ 
+  102 & AcNC & Intermediate & GO:1902589 & single-organism organelle organization & 1407 &  52 & 31.65 & 0.00020 \\ 
+  103 & AcNC & Intermediate & GO:0007264 & small GTPase mediated signal transductio... & 659 &  28 & 14.82 & 0.00020 \\ 
+  104 & AcNC & Intermediate & GO:0006184 & GTP catabolic process & 864 &  26 & 19.43 & 0.00032 \\ 
+  105 & AcNC & Intermediate & GO:0070085 & glycosylation & 149 &   9 & 3.35 & 0.00038 \\ 
+  106 & AcNC & Intermediate & GO:0044260 & cellular macromolecule metabolic process & 12209 & 307 & 274.62 & 0.00044 \\ 
+  107 & AcNC & Intermediate & GO:0010033 & response to organic substance & 577 &  19 & 12.98 & 0.00045 \\ 
+  108 & AcNC & Intermediate & GO:1901069 & guanosine-containing compound catabolic ... & 865 &  26 & 19.46 & 0.00055 \\ 
+  109 & AcNC & Intermediate & GO:0061025 & membrane fusion &  44 &   4 & 0.99 & 0.00058 \\ 
+  110 & AcNC & Intermediate & GO:0046039 & GTP metabolic process & 919 &  26 & 20.67 & 0.00063 \\ 
+  111 & AcNC & Intermediate & GO:1900542 & regulation of purine nucleotide metaboli... & 514 &  18 & 11.56 & 0.00066 \\ 
+  112 & AcNC & Intermediate & GO:0051649 & establishment of localization in cell & 1323 &  44 & 29.76 & 0.00075 \\ 
+  113 & AcNC & Intermediate & GO:0022406 & membrane docking &  34 &   5 & 0.76 & 0.00079 \\ 
+  114 & AcNC & Intermediate & GO:0022904 & respiratory electron transport chain & 368 &  14 & 8.28 & 0.00081 \\ 
+  115 & AcNC & Intermediate & GO:0044801 & single-organism membrane fusion &  44 &   4 & 0.99 & 0.00101 \\ 
+  116 & AcNC & Intermediate & GO:0043412 & macromolecule modification & 3268 & 107 & 73.51 & 0.00116 \\ 
+  117 & AcNC & Intermediate & GO:0046907 & intracellular transport & 960 &  34 & 21.59 & 0.00122 \\ 
+  118 & AcNC & Intermediate & GO:0033121 & regulation of purine nucleotide cataboli... & 500 &  18 & 11.25 & 0.00137 \\ 
+  119 & AcNC & Intermediate & GO:1901068 & guanosine-containing compound metabolic ... & 953 &  27 & 21.44 & 0.00152 \\ 
+  120 & AcNC & Intermediate & GO:0051641 & cellular localization & 1501 &  47 & 33.76 & 0.00178 \\ 
+  121 & AcNC & Intermediate & GO:0030811 & regulation of nucleotide catabolic proce... & 500 &  18 & 11.25 & 0.00255 \\ 
+  122 & AcNC & Intermediate & GO:0051345 & positive regulation of hydrolase activit... & 221 &  12 & 4.97 & 0.00264 \\ 
+  123 & AcNC & Intermediate & GO:0006486 & protein glycosylation & 141 &   9 & 3.17 & 0.00419 \\ 
+  124 & AcNC & Intermediate & GO:0043547 & positive regulation of GTPase activity & 182 &  12 & 4.09 & 0.00485 \\ 
+  125 & AcNC & Intermediate & GO:0006412 & translation & 1886 &  66 & 42.42 & 0.00518 \\ 
+  126 & AcNC & Intermediate & GO:0006446 & regulation of translational initiation & 344 &  15 & 7.74 & 0.00523 \\ 
+  127 & AcNC & Intermediate & GO:0032970 & regulation of actin filament-based proce... &  88 &   7 & 1.98 & 0.00588 \\ 
+  128 & AcNC & Intermediate & GO:0042439 & ethanolamine-containing compound metabol... &  36 &   4 & 0.81 & 0.00755 \\ 
+  129 & AcNC & Intermediate & GO:0000725 & recombinational repair &  48 &   4 & 1.08 & 0.00799 \\ 
+  130 & AcNC & Intermediate & GO:0009118 & regulation of nucleoside metabolic proce... & 500 &  18 & 11.25 & 0.00804 \\ 
+  131 & AcNC & Intermediate & GO:0032956 & regulation of actin cytoskeleton organiz... &  87 &   7 & 1.96 & 0.00840 \\ 
+  132 & AcNC & Intermediate & GO:0006140 & regulation of nucleotide metabolic proce... & 521 &  18 & 11.72 & 0.00853 \\ 
+  133 & AcNC & Intermediate & GO:0050684 & regulation of mRNA processing &  59 &   5 & 1.33 & 0.00882 \\ 
+  134 & AcNC & Intermediate & GO:0006656 & phosphatidylcholine biosynthetic process &  12 &   2 & 0.27 & 0.00904 \\ 
+  135 & AcNC & Intermediate & GO:0031329 & regulation of cellular catabolic process & 572 &  21 & 12.87 & 0.00912 \\ 
+  136 & AcNC & Intermediate & GO:0008654 & phospholipid biosynthetic process & 213 &  11 & 4.79 & 0.00921 \\ 
+  137 & AcNC & Intermediate & GO:0048278 & vesicle docking &  33 &   5 & 0.74 & 0.00928 \\ 
+  138 & AcNC & Bimodal & GO:0006259 & DNA metabolic process & 2944 &  28 & 13.93 & 0.00022 \\ 
+  139 & AcNC & Bimodal & GO:0003151 & outflow tract morphogenesis &  10 &   2 & 0.05 & 0.00103 \\ 
+  140 & AcNC & Bimodal & GO:0071804 & cellular potassium ion transport &  50 &   3 & 0.24 & 0.00168 \\ 
+  141 & AcNC & Bimodal & GO:0071805 & potassium ion transmembrane transport &  50 &   3 & 0.24 & 0.00262 \\ 
+  142 & AcNC & Bimodal & GO:0031023 & microtubule organizing center organizati... & 108 &   3 & 0.51 & 0.00431 \\ 
+  143 & AcNC & Bimodal & GO:0006725 & cellular aromatic compound metabolic pro... & 11495 &  62 & 54.39 & 0.00521 \\ 
+  144 & AcNC & Bimodal & GO:0072528 & pyrimidine-containing compound biosynthe... & 214 &   4 & 1.01 & 0.00649 \\ 
+  145 & AcNC & Bimodal & GO:0034641 & cellular nitrogen compound metabolic pro... & 11484 &  61 & 54.34 & 0.00937 \\ 
    \hline
 \end{tabular}
 \end{table}
@@ -3502,73 +3865,6 @@ Table of overall GSEA results.
 
 
 ## Visualize responsive transcripts
-
-Organize data
-
-
-```r
-# extract TPM data for thermally-responsive transcripts
-resp.TPM.dt.sub <- TPM.dt.sub[names(responsive.lms)]
-setkey(resp.TPM.dt.sub, Transcript)
-str(resp.TPM.dt.sub)
-```
-
-```
-## Classes 'data.table' and 'data.frame':	201432 obs. of  10 variables:
-##  $ Transcript       : chr  "100008|*|comp137625_c0_seq2" "100008|*|comp137625_c0_seq2" "100008|*|comp137625_c0_seq2" "100008|*|comp137625_c0_seq2" ...
-##  $ Length           : int  208 208 208 208 208 208 208 208 208 208 ...
-##  $ TPM              : num  0 0.3553 0 0.7353 0.0744 ...
-##  $ RPKM             : num  0 0.599 0 1.1229 0.0928 ...
-##  $ KPKM             : num  0 0.599 0 1.1229 0.0928 ...
-##  $ EstimatedNumReads: num  0 157.6 0 366.1 61.2 ...
-##  $ V7               : num  0 1.953 0 4.535 0.763 ...
-##  $ sample           : chr  "A22-0" "Ar-0" "A22-3" "Ar-3" ...
-##  $ val              : num  0 0 3.5 3.5 10.5 10.5 14 14 17.5 17.5 ...
-##  $ colony           : Factor w/ 2 levels "A22","Ar": 1 2 1 2 1 2 1 2 1 2 ...
-##  - attr(*, ".internal.selfref")=<externalptr> 
-##  - attr(*, "sorted")= chr "Transcript"
-```
-
-```r
-length(unique(resp.TPM.dt.sub$Transcript))
-```
-
-```
-## [1] 9156
-```
-
-```r
-# scale transcripts so can compare
-resp.TPM.dt.sub[, `:=`(TPM.scaled, scale(TPM)), by = Transcript]
-```
-
-```
-##                          Transcript Length    TPM   RPKM   KPKM
-##      1: 100008|*|comp137625_c0_seq2    208 0.0000 0.0000 0.0000
-##      2: 100008|*|comp137625_c0_seq2    208 0.3553 0.5990 0.5990
-##      3: 100008|*|comp137625_c0_seq2    208 0.0000 0.0000 0.0000
-##      4: 100008|*|comp137625_c0_seq2    208 0.7353 1.1229 1.1229
-##      5: 100008|*|comp137625_c0_seq2    208 0.0744 0.0928 0.0928
-##     ---                                                        
-## 201428:      9|*|comp147140_c0_seq1   9030 0.7167 1.2119 1.2119
-## 201429:      9|*|comp147140_c0_seq1   9030 0.7239 1.0022 1.0022
-## 201430:      9|*|comp147140_c0_seq1   9030 0.4328 0.7932 0.7932
-## 201431:      9|*|comp147140_c0_seq1   9030 0.5655 0.7745 0.7745
-## 201432:      9|*|comp147140_c0_seq1   9030 0.4626 0.8465 0.8465
-##         EstimatedNumReads      V7 sample  val colony TPM.scaled
-##      1:               0.0   0.000  A22-0  0.0    A22     -0.565
-##      2:             157.6   1.953   Ar-0  0.0     Ar      1.128
-##      3:               0.0   0.000  A22-3  3.5    A22     -0.565
-##      4:             366.1   4.535   Ar-3  3.5     Ar      2.938
-##      5:              61.2   0.763 A22-10 10.5    A22     -0.211
-##     ---                                                        
-## 201428:           17725.0 219.162  Ar-31 31.5     Ar     -0.274
-## 201429:           23921.0 298.840 A22-35 35.0    A22     -0.251
-## 201430:            8729.7 108.110  Ar-35 35.0     Ar     -1.184
-## 201431:           23814.1 297.384 A22-38 38.5    A22     -0.759
-## 201432:           12716.0 157.120  Ar-38 38.5     Ar     -1.089
-```
-
 
 Make plots for all genes expressed at *High* temps in GO category "GO:0006950: response to stress"
 
