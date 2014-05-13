@@ -1,3 +1,9 @@
+---
+output:
+  pdf_document:
+    biblatex: yes
+biblio-files: ApTranscriptome.bib
+---
 Thermal reactionome of a temperate ant species
 ============================================
 
@@ -70,11 +76,11 @@ The raw Illumina reads are available at [...], the script for analysis and versi
 
 ## Results
 
-```{r load, echo=FALSE, results='hide'}
-options(scipen = 1, digits = 3, warn = -1)
+```{r load, echo=FALSE, results='hide', message=FALSE, warning=FALSE}
+options(scipen = 1, digits = 3)
 load("../ms.RData")
-suppressMessages(library(pander))
-suppressMessages(library(ggplot2))
+library(pander)
+library(ggplot2)
 ```
 
 The Trinity *de novo* transcriptome assembly included 126,172 genes with a total length of 100 million bp. Filtering to remove redundant or chimeric reads resulted in an assembly with 96,253 contigs and a total of 105,536 genes. For all genes, the total length was 63 million bp with an N~50~ length of 895 bp and a mean contig size of 593 bp. Of the 105,536 filtered genes, 55,432 had hits to the NCBI-nr database. Of these, 38,711 genes mapped to GO terms, 1,659 genes were identified to an enzyme and 18,935 genes mapped to a domain with >50% coverage. Of these, 5,787 genes have best hits to putative genes in the genome sequence of the ant species *Solenopsis invicta* and XXXX are annotated to genes previously identified from organisms within the class Insecta.
@@ -110,7 +116,7 @@ We tested for a transcriptome-wide pattern of thermal tolerance and sensitivity 
 
 We performed gene set enrichment analysis on the set difference of each expression category to reveal differences among the species response to thermal shock. For *High* genes, there were 4 enriched GO terms in *A. picea* and 12 in *A. carolinensis*. For *Low* genes, there were 40 enriched GO terms in *A. picea* and 23 in *A. carolinensis*. For *Intermediate* genes, there were 3 enriched GO terms in *A. picea* and 54 in *A. carolinensis*. For *Bimodal* genes, there were 12 enriched GO terms in *A. picea* and 10 in *A. carolinensis*. 
 
-![Expression (scaled to allow comparisons among genes) for genes in GO category "response to stress"](../results/GO_stress_High.png)
+#![Expression (scaled to allow comparisons among genes) for genes in GO category "response to stress"](../results/GO_stress_High.png)
 
 
 ## Discussion
@@ -135,8 +141,7 @@ Of the 8,492 genes that were thermally-responsive, 80% differed in their respons
 
 An important note is that we would have completely missed this pattern if we had performed a differential expression study using only a few temperatures. Only by measuring gene expression across a thermal gradient and fitting a function to each transcript were we able to characterize the shape of the reaction norm of expression... To our knowledge, this is the first time that a reaction norm approach has been applied to the study of global gene expression. 
 
-Given the large differences in number (Table 1) and responsiveness of genes between the two species, a striking pattern is that 3-4x more genes are upregulated at cold than high temperatures. Intriguingly, this
-result mirrors the observation in *Aphaenogaster* [@warren2013] and other ectotherms [@hoffmann2013] that critical maximum temperatures are more constrained than critical minimum temperatures. A plausible explanation is that organisms have fewer molecular mechanisms to tolerate heat than cold stress. Future studies ... implications for climate change as the evolutionary potential of ecototherms to climate change may be limited as suggested by ... [kingsolver?]
+Given the large differences in number (Table 1) and responsiveness of genes between the two species, a striking pattern is that 3-4x more genes are upregulated at cold than high temperatures. Intriguingly, this result mirrors the observation in *Aphaenogaster* [@warren2013] and other ectotherms [@hoffmann2013] that critical maximum temperatures are more constrained than critical minimum temperatures. A plausible explanation is that organisms have fewer molecular mechanisms to tolerate heat than cold stress. Future studies ... implications for climate change as the evolutionary potential of ecototherms to climate change may be limited as suggested by ... [kingsolver?]
 
 ### Conclusions 
 
