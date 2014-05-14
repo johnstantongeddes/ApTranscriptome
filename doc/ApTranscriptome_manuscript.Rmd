@@ -1,13 +1,19 @@
 ---
+title: "Thermal reactionome of a temperate ant species"
+author: "John Stanton-Geddes, Andrew Nguyen, Mahesh Vangala, Jim Vincent, Rob Dunn,
+  Aaron Ellison, Nate Sanders, Nick Gotelli, Sara Helms-Cahan"
+csl: ecology.csl
 output:
   pdf_document:
-    biblatex: yes
-biblio-files: ApTranscriptome.bib
+    fig_caption: yes
+    latex_engine: xelatex
+  html_document: null
+bibliography: ApTranscriptome.bib
 ---
-Thermal reactionome of a temperate ant species
-============================================
 
-**Authors**: John Stanton-Geddes, Andrew Nguyen, Mahesh Vangala, Jim Vincent, Rob Dunn, Aaron Ellison, Nate Sanders, Nick Gotelli, Sara Helms-Cahan  
+## Abstract
+
+When ants are exposed to different temperatures, lots of genes change expression.
 
 ## Introduction
 
@@ -93,16 +99,25 @@ The Trinity *de novo* transcriptome assembly included 126,172 genes with a total
 We identified 22,399 genes with overall model fits of P < 0.05, retaining 10,597 after correcting for FDR. Of these transcripts, 9,156 significantly change expression with temperature including 6,908 that have a species x temperature interaction. The number of transcripts that increased expression with temperature (*High*), decreased expression with temperature (*Low*), increased expression at both high and low (*Bimodal*) temperatures, decreased expression at high and low temperatures (*Intermediate*) or were not expressed differed significantly between the species ($\chi^2 = 170, P < 0.0001$; Table 1). For both species, the majority of responsive transcripts were in the *Low* category (Fig. 1). More transcripts had *Intermediate* expression in *A. carolinensis* than in *A. picea*, which had nearly twice as many bimodally-expressed transcripts  (Fig. 1, Table 1).  
 
 ```{r expression_type_table, echo=FALSE, results='asis'}
-pandoc.table(tt2, style="rmarkdown", caption = "Number of transcripts with maximum expression at high, low, intermediate, both high and low (bimodal) temperatures or are not thermally-responsivefor each species and their overlap.")
+pandoc.table(tt2, style="rmarkdown", split.tables = Inf, caption = "Number of thermally-responsive genes in each expression category for each species.")
 ```
 
-```{r expression_type_plot, echo=FALSE}
+**Table 1 and Figure 1 are redundant - which is preferable??**
+
+```{r expression_type_plot, echo=FALSE, fig.cap = "Mosaic plot that shows the proportion of thermally-responsive genes in each expression category for each species."}
 mosaicplot(tt2, shade = FALSE, xlab = "ApVT", ylab = "AcNC", main = "", cex = 0.5)
 ```
 
 As the molecular pathways involved in thermal response to cold and hot temperatures may differ, we performed gene set enrichment analysis on each expression category separately. Out of a total of 2,859 GO terms scored, we found 6 enriched (*P* < 0.01) for *High* transcripts, included categories implicated in stress response such as "gene expression" and "tissue regeneration" (Table S1). For *Low* genes, 60 GO terms were enriched including some implicated in stress response (e.g. detection of external stimulus; Table S1). For *Bimodal* genes, 11 GO terms were enriched including 10 "regulation" terms (e.g. regulation of primary metabolic process) indicating that these are general genes involved in activating responses to change (Table S1). Finally, for *Intermediate* genes 6 GO terms were enriched, all some type of metabolic or biosynthetic process (Table S1) consistent with the expectation that these are non-essential genes expressed in optimal conditions that are shut-down under thermal stress.
 
-![Probability density function of peak expression for all thermally-responsive in *A. carolinensis* (blue) and *A. picea* (red) species](../results/PDF_expression_all.png)
+```{r exp_plot, echo=FALSE, warning = FALSE, fig.cap = "Probability density function of peak expression for all thermally-responsive in *A. carolinensis* (blue) and *A. carolinensis* (red) species"}
+
+ggplot(Ap.df, aes(x=max.val, fill=colony)) +
+  geom_density(alpha = 0.2, position = "identity") +
+  scale_y_continuous(name = "Density") +
+  scale_x_continuous(name = "Temperature of maximum expression")
+
+```
 
 As these genes represent only a handful of the responsive genes, the expression patterns of all responsive genes can be searched and viewed interactively at [https://johnsg.shinyapps.io/ApRxN-shinyapp/].
 
@@ -121,9 +136,16 @@ We tested for a transcriptome-wide pattern of thermal tolerance and sensitivity 
 
 We also explored the extent to which the temperature at which thermally-responsive genes are activated differs between species. For genes that are upregulated at *High* temperatures, including both *High* and *Bimodal* genes, we found that ... In contrast, for genes that are upregulated at *Low* temperatures, including both *Low* and *Bimodal* genes, we found that...
 
-We performed gene set enrichment analysis on the set difference of each expression category to reveal differences among the species response to thermal shock. For *High* genes, there were 4 enriched GO terms in *A. picea* and 12 in *A. carolinensis*. For *Low* genes, there were 40 enriched GO terms in *A. picea* and 23 in *A. carolinensis*. For *Intermediate* genes, there were 3 enriched GO terms in *A. picea* and 54 in *A. carolinensis*. For *Bimodal* genes, there were 12 enriched GO terms in *A. picea* and 10 in *A. carolinensis*. 
+```{r T_on_plot, echo=FALSE, warning = FALSE, fig.cap = "Histogram with smooth density estimate of temperature of maximum change in expression for genes that have increased expression at *Low* and *High* temperatures. Bars are Probability density function of peak expression for all thermally-responsive in *A. carolinensis* (blue) and *A. carolinensis* (red) species"}
+T_on_plot <- ggplot(Ap.T_on, aes(x = T_on, y = ..density.., colour = colony, group = colony, fill = colony)) +
+    geom_histogram(position = "dodge", binwidth = 3) +
+    geom_density(adjust = 3, fill = NA, size = 2) + 
+    scale_y_continuous(name="Density") +
+    scale_x_continuous(name=expression("Temperature"))
+print(T_on_plot)
+```
 
-#![Expression (scaled to allow comparisons among genes) for genes in GO category "response to stress"](../results/GO_stress_High.png)
+We performed gene set enrichment analysis on the set difference of each expression category to reveal differences among the species response to thermal shock. For *High* genes, there were 4 enriched GO terms in *A. picea* and 12 in *A. carolinensis*. For *Low* genes, there were 40 enriched GO terms in *A. picea* and 23 in *A. carolinensis*. For *Intermediate* genes, there were 3 enriched GO terms in *A. picea* and 54 in *A. carolinensis*. For *Bimodal* genes, there were 12 enriched GO terms in *A. picea* and 10 in *A. carolinensis*. 
 
 
 ## Discussion
