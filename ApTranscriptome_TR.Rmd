@@ -41,7 +41,6 @@ source("scripts/RxNseq.R")
 
 # knitr options
 opts_chunk$set(cache=TRUE)
-options(width = 80)
 
 # directory to save results
 resultsdir <- "results/"
@@ -169,6 +168,14 @@ mv Trinity_cap3_uclust.fasta results/trinity-full/.
 mv Trinity_cap3_uclust_clean.fasta results/trinity-full/.
 ~~~
 
+To examine the species distribution of BLAST hits in the transcriptome assembly, I used the program [Krona](http://sourceforge.net/p/krona/home/krona/) `r citep("doi:10.1186/1471-2105-12-385")`. I ... 
+
+~~~
+KRONA code
+~~~
+
+The interactive visualization is available [here]().
+
 
 ## Transcriptome annotation ##
 
@@ -229,7 +236,7 @@ While it is possible to separately specify the paired-end and orphaned single-en
 
 Or, using a loop in R:                                                 
                                                  
-```{r sailfish_quant, eval=TRUE, echo=TRUE, cache=TRUE}
+```{r sailfish_quant, results = 'hide'}
 # directory containing trimmed reads
 readdir <- "data/ind_files/" 
 # sailfish index directory
@@ -239,10 +246,10 @@ sfexpressionroot <- "results/trinity-full/sailfish-expression-Trinity-cap3-uclus
 
 # list of reads in each of four trimmed classes
 readlist <- list.files(readdir)
-(paired.left <- readlist[grep(".\\.paired.left.fastq$", readlist)])
-(paired.right <- readlist[grep("\\.paired.right.fastq$", readlist)])
-(unpaired.left <- readlist[grep("unpaired.left.fastq$", readlist)])
-(unpaired.right <- readlist[grep("unpaired.right.fastq$", readlist)])
+paired.left <- readlist[grep(".\\.paired.left.fastq$", readlist)]
+paired.right <- readlist[grep("\\.paired.right.fastq$", readlist)]
+unpaired.left <- readlist[grep("unpaired.left.fastq$", readlist)]
+unpaired.right <- readlist[grep("unpaired.right.fastq$", readlist)]
 
 # Loop across each sample and quantify expression
 
@@ -307,7 +314,6 @@ A22.TPM[val==17,val:=17.5]
 A22.TPM[val==24,val:=24.5]
 A22.TPM[val==31,val:=31.5]
 A22.TPM[val==38,val:=38.5]
-head(A22.TPM)
 str(A22.TPM)
 
 
@@ -321,10 +327,7 @@ Ar.TPM[val==17,val:=17.5]
 Ar.TPM[val==24,val:=24.5]
 Ar.TPM[val==31,val:=31.5]
 Ar.TPM[val==38,val:=38.5]
-head(Ar.TPM)
 str(Ar.TPM)
-
-tables()
 ```
 
 Note that expression levels at each temperature treatment are highly correlated between the two colonies.
@@ -333,17 +336,16 @@ Note that expression levels at each temperature treatment are highly correlated 
 temp <- c(0, 3.5, 7, 10.5, 14, 17.5, 21, 24.5, 28, 31.5, 35, 38.5)
 cors <- c(round(cor(Ar_0_quant$TPM, A22_0_quant$TPM), 2), round(cor(Ar_3_quant$TPM, A22_3_quant$TPM), 2), round(cor(Ar_7_quant$TPM, A22_7_quant$TPM), 2), round(cor(Ar_10_quant$TPM, A22_10_quant$TPM), 2), round(cor(Ar_14_quant$TPM, A22_14_quant$TPM), 2), round(cor(Ar_17_quant$TPM, A22_17_quant$TPM), 2), round(cor(Ar_21_quant$TPM, A22_21_quant$TPM), 2), round(cor(Ar_24_quant$TPM, A22_24_quant$TPM), 2), round(cor(Ar_28_quant$TPM, A22_28_quant$TPM), 2), round(cor(Ar_31_quant$TPM, A22_31_quant$TPM), 2), round(cor(Ar_35_quant$TPM, A22_35_quant$TPM), 2), round(cor(Ar_38_quant$TPM, A22_38_quant$TPM), 2))
 
-cortable <- cbind(temp, cors)
+cortable <- cbind(Temperature = temp, Correlation = cors)
 ```
 
 ```{r exp_correlations_table, echo=FALSE, results='asis'}
-pandoc.table(cortable, style="rmarkdown", caption = "correlations between colonies at each temperature treatment")
+pandoc.table(cortable, style="rmarkdown", caption = "Correlations between species for gene expression at temperature treatment")
 ```
-
 
 **Preliminary [examination](https://minilims1.uvm.edu/BCProject-26-Cahan/methods.html#clustering-of-samples) of the data indicated that the A22_7 and Ar_7 samples may have been switched, so I remove these values from the combined expression data set for the two species.** 
 
-```{r combined_TPM, echo=TRUE, eval=TRUE, cache=TRUE}
+```{r combined_TPM, results = 'hide'}
 A22.TPM[,colony:="A22"]
 Ar.TPM[,colony:="Ar"]
 TPM.dt <- rbind(A22.TPM, Ar.TPM)
@@ -357,6 +359,8 @@ length(unique(TPM.dt.sub$Transcript))
 ```
 
 ### Remove *contaminant* transcripts
+
+DeconSeq identified contaminant genes. I remove this n
 
 ```{r remove_contaminants}
 # extract transcript names from fasta file rather than loading whole file
@@ -498,16 +502,16 @@ Ar.type.table <- table(Ap.response.type[ , 'Ar.type'])
 Ap.type.table <- rbind(A22.type.table, Ar.type.table)
 
 # Pearson Chi-square test
-chisq.test(Ap.type.table)
+chi1 <- chisq.test(Ap.type.table)
+chi1
 
 # Reorganize for plotting to show overlap among categories between colonies
-type.table <- table(Ap.response.type[ , 'A22.type'], Ap.response.type[ , 'Ar.type'])
-
+type.table <- table(Ap.response.type[ , 'Ar.type'], Ap.response.type[ , 'A22.type'])
 # reorder 
 tt2 <- type.table[c(2,4,1,3,5), c(2,4,1,3,5)]
 
 # plot
-mosaicplot(tt2, xlab = "AcNC", ylab = "ApVT", main = "Mosaic plot of responsive transcripts")
+mosaicplot(t(tt2), ylab = "AcNC", xlab = "ApVT", main = "Mosaic plot of responsive transcripts")
 ```
 
 The number of thermally-responsive in each response category differs between the colonies, with the msot transcripts expressed at *Low* temperatures in both colonies. For *ApVT*, an equal number of transcripts are expressed at *High* and *Bimodal*, followed by *Intermediate* transcripts. For *AcNC*, transcripts expressed at *Intermediate* temperatures are next most common, followed by *High* and *Bimodal*. 
@@ -516,7 +520,19 @@ Interestingly, nearly half of the *High* genes in *AcNC* are *Low* in *ApVT*, an
 
 
 ```{r temperature_response_table, echo=FALSE, results='asis'}
-pandoc.table(tt2, style="rmarkdown", caption = "Number of transcripts with maximum expression at high, low, intermediate, both high and low (bimodal) temperatures or are not thermally-responsivefor each colony and their overlap.", split.tables = "Inf")
+# add row and column totals
+tt3 <- rbind(tt2, colSums(tt2))
+tt3 <- cbind(tt3, rowSums(tt3))
+colnames(tt3)[6] <- "Total"
+rownames(tt3)[6] <- "Total"
+# move names into table
+tt3 <- rbind(rownames(tt3), tt3)
+tt3 <- cbind(rownames(tt3), tt3)
+# name col/row by species
+rownames(tt3) <- c("AcNC", "", "", "", "", "", "")
+colnames(tt3) <- c("ApVT", "", "", "", "", "", "")
+
+pandoc.table(tt3, style="rmarkdown", caption = "Number of transcripts with maximum expression at high, low, intermediate, both high and low (bimodal) temperatures or are not thermally-responsivefor each colony and their overlap.", split.tables = "Inf")
 ```
 
 
@@ -528,9 +544,9 @@ Table 4 shows the number of transcripts that fall into each expression type for 
 
 In this section, I compare the thermal reactionome between the *Ar* and *A22* colonies. 
 
-### Plasticity versus constitutive expression
+### Plasticity versus basal expression
 
-Selection may have acted in response to thermal stress such that some genes are constitutively activated in one colony while plastically-expressed in the other. I evaluate this hypothesis by comparing expression levels at the at optimum (19.5C) temperature between the two colonies for genes in that are either in the 'High' or 'Low' expression group in the other colony. Specifically, I expect that genes upregulated at high temperatures in *A22* are more highly expressed at 19.5C in *Ar*? 
+Selection may have acted in response to thermal stress such that some genes are basaly activated in one colony while plastically-expressed in the other. I evaluate this hypothesis by comparing expression levels at the at optimum (19.5C) temperature between the two colonies for genes in that are either in the 'High' or 'Low' expression group in the other colony. Specifically, I expect that genes upregulated at high temperatures in *A22* are more highly expressed at 19.5C in *Ar*? 
 
 ```{r optimum_expression_comparison}
 # list of transcripts that are 'high' expressed in A22
@@ -589,7 +605,7 @@ t.test(log(A22.int.transcripts$A22.opt+1), log(A22.int.transcripts$Ar.opt+1))
 wilcox.test(A22.int.transcripts$A22.opt, A22.int.transcripts$Ar.opt, alternative = "two.sided", paired = TRUE, conf.int = TRUE)
 ```
 
-The non-parametric test for both comparisions also finds greater constitutive expression in *Ar* than *A22*.
+The non-parametric test for both comparisions also finds greater expression in *Ar* than *A22* at the optimal temperature.
 
 
 ### Thermal tolerance indicated by region of constant gene expression ###
@@ -682,31 +698,20 @@ varshape.out <- ldply(interaction.lms, .progress = "none", RxNvarshape)
 boxplot(varshape.out$A22.mean, varshape.out$Ar.mean)
 boxplot(log(varshape.out$A22.mean), log(varshape.out$Ar.mean))
 
+t.mean <- t.test(log(varshape.out$A22.mean), log(varshape.out$Ar.mean))
+
 # calculate differences in mean, slope, curvature and wiggle between colonies for each transcript
 # offset = mean1 - mean2
 varshape.out$offset <- varshape.out$A22.mean - varshape.out$Ar.mean
-# to compare among transcripts that differ in scale of expression, standardize by overall mean for each transcript
-varshape.out$s.offset <- NA
-for(i in 1:nrow(varshape.out)) {
-  varshape.out[i, "s.offset"] <- (varshape.out[i, "offset"] / mean(c(varshape.out[i, "A22.mean"], varshape.out[i, "Ar.mean"])))
-}
 
 # t-test
-(t3 <- t.test(varshape.out$s.offset, alternative = "two.sided"))
+(t.offset <- t.test(varshape.out$s.offset, alternative = "two.sided"))
 
 # slope = slope1 - slope2
 varshape.out$slope <- varshape.out$A22.slope - varshape.out$Ar.slope
-# to compare among transcripts that differ in scale of expression, standardize by overall mean for each transcript
-varshape.out$s.slope <- NA
-for(i in 1:nrow(varshape.out)) {
-  varshape.out[i, "s.slope"] <- (varshape.out[i, "slope"] / mean(c(varshape.out[i, "A22.slope"], varshape.out[i, "Ar.slope"])))
-}
-# for transcripts where both samples had slope=0, change s.slope from Inf to 0 as there is truly no difference in slope
-varshape.out[which(varshape.out$Ar.slope == 0 & varshape.out$A22.slope == 0), "s.slope"] <- 0
 
 # t-test
-(t4 <- t.test(varshape.out$s.slope, alternative = "two.sided"))
-
+(t.slope <- t.test(varshape.out$s.slope, alternative = "two.sided"))
 
 # curvature = curvature1 - curvature2
 varshape.out$curvature <- varshape.out$A22.curve - varshape.out$Ar.curve
@@ -718,8 +723,7 @@ for(i in 1:nrow(varshape.out)) {
 # change 'Inf' values to 0
 varshape.out[which(varshape.out$Ar.curve == 0 & varshape.out$A22.curve == 0), "s.curvature"] <- 0
 # t-test
-(t.test(varshape.out$s.curvature, alternative = "two.sided"))
-
+(t.curvature <- t.test(varshape.out$s.curvature, alternative = "two.sided"))
 
 # wiggle
 varshape.out$wiggle <- varshape.out$A22.wiggle - varshape.out$Ar.wiggle
@@ -729,18 +733,33 @@ for(i in 1:nrow(varshape.out)) {
 }
 # change 'Inf' values to 0
 varshape.out[which(varshape.out$Ar.wiggle == 0 & varshape.out$A22.wiggle == 0), "s.wiggle"] <- 0
-# note that only 407 transcripts have any 'wiggle'
+# note small number of genes with 'wiggle'
 length(which(varshape.out$s.wiggle != 0))
 
 # t-test
-(t5 <- t.test(varshape.out$s.wiggle, alternative = "two.sided"))
+(t.wiggle <- t.test(varshape.out$s.wiggle, alternative = "two.sided"))
 ```
 
 Next, I partition the differences in the reaction norms into the variation explained by differences in the trait means (offset), slope, curvature and wiggle.
 
 
 ```{r partition_reaction_norm_variation}
-# weighted mean-standardized values of each measure
+# to compare among transcripts that differ in scale of expression, standardize by overall mean for each transcript
+varshape.out$s.offset <- NA
+for(i in 1:nrow(varshape.out)) {
+  varshape.out[i, "s.offset"] <- (varshape.out[i, "offset"] / mean(c(varshape.out[i, "A22.mean"], varshape.out[i, "Ar.mean"])))
+}
+# to compare among transcripts that differ in scale of expression, standardize by overall mean for each transcript
+varshape.out$s.slope <- NA
+for(i in 1:nrow(varshape.out)) {
+  varshape.out[i, "s.slope"] <- (varshape.out[i, "slope"] / mean(c(varshape.out[i, "A22.slope"], varshape.out[i, "Ar.slope"])))
+}
+# for transcripts where both samples had slope=0, change s.slope from Inf to 0 as there is truly no difference in slope
+varshape.out[which(varshape.out$Ar.slope == 0 & varshape.out$A22.slope == 0), "s.slope"] <- 0
+
+
+
+                                        # weighted mean-standardized values of each measure
 mean(abs((varshape.out$s.offset)))
 mean(abs((varshape.out$s.slope)))
 mean(abs((varshape.out$s.curvature)))
@@ -768,7 +787,7 @@ mean(varshape.out$prop.curve)
 quantile(varshape.out$prop.curve, probs = c(0.05, 0.5, 0.95))
 
 mean(varshape.out$prop.wiggle)
-quantile(varshape.out$prop.wiggle, probs = c(0.05, 0.5, 0.95))
+qwiggle <- quantile(varshape.out$prop.wiggle, probs = c(0.05, 0.5, 0.95))
 ```
 
 ## Temperature of gene activation
@@ -783,6 +802,8 @@ str(resp.TPM.dt.sub)
 length(unique(resp.TPM.dt.sub$Transcript))
 # scale transcripts so can compare
 resp.TPM.dt.sub[,TPM.scaled:=scale(TPM), by = Transcript]
+# rename colonies
+resp.TPM.dt.sub$colony2 <- ifelse(resp.TPM.dt.sub$colony == "A22", "ApVT", "AcNC")
 ```
 
 Predict expression for responsive transcripts.
@@ -865,9 +886,6 @@ Repeat analysis for *Low* genes.
 A22.low.TPM.dt.sub <- resp.TPM.dt.sub.pred[J(A22.low, "A22")]
 str(A22.low.TPM.dt.sub)
 
-intersect(A22.low.TPM.dt.sub, A22.high.TPM.dt.sub)
-# Good - no overlap
-
 # make data.frame for results
 l3 <- length(unique(A22.low.TPM.dt.sub$Transcript))
 A22.low.T_on <- data.frame(Transcript = unique(A22.low.TPM.dt.sub$Transcript), colony = rep("ApVT", length = l3), type = rep("Low", length = l3), T_on = NA)
@@ -885,9 +903,6 @@ for(i in unique(A22.low.TPM.dt.sub$Transcript)) {
 Ar.low.TPM.dt.sub <- resp.TPM.dt.sub.pred[J(Ar.low, "Ar")]
 str(Ar.low.TPM.dt.sub)
 
-intersect(A22.low.TPM.dt.sub, A22.high.TPM.dt.sub)
-# Good - no overlap
-
 l4 <- length(unique(Ar.low.TPM.dt.sub$Transcript))
 Ar.low.T_on <- data.frame(Transcript = unique(Ar.low.TPM.dt.sub$Transcript), colony = rep("AcNC", length = l4), type = rep("Low", length = length(unique(Ar.low.TPM.dt.sub$Transcript))), T_on = NA)
 
@@ -901,7 +916,7 @@ for(i in unique(Ar.low.TPM.dt.sub$Transcript)) {
 t.test(Ar.low.T_on$T_on, A22.low.T_on$T_on)
 ```
 
-Genes with increased expression at *Low* temperatures are turned on at lower temperatures in *AcNC* than *ApVT*.
+Genes with increased expression at *High* temperatures are turned on at, on average, 1°C higher in *ApVT* than *AcNC*.
 
 Visualize T~on~ for both *Low* and *High* genes on the same plot.
 
@@ -919,9 +934,9 @@ print(T_on_plot)
 ```
 
 
-### Identification of biological-functions associated with temperature responses
+## Gene set enrichment analysis for thermal-responsive genes
 
-## Functional annotation
+### Functional annotation
 
 In the previous section, I identified transcripts that show significant responses in expression. Next, I add gene annotation and ontology information to these transcripts.  
 
@@ -933,16 +948,13 @@ signif.transcripts <- annotationtable[signif.transcripts]
 setnames(signif.transcripts, "Sequence.Name", "Transcript")
 ```
 
-```{r echo=FALSE, results='hide'}
+```{r ann_responsive, echo=TRUE}
 responsive.lms.ann.type <- signif.transcripts[names(responsive.lms)]
 # combine responsive.lms.ann with "type" information
-responsive.lms.ann.type <- merge(responsive.lms.ann.type, Ap.response.type[,c("Transcript", "Ar.type", "Ar.type")], by = "Transcript", all = TRUE)
+responsive.lms.ann.type <- merge(responsive.lms.ann.type, Ap.response.type[,c("Transcript", "A22.type", "Ar.type")], by = "Transcript", all = TRUE)
 str(responsive.lms.ann.type)
 write.csv(responsive.lms.ann.type, file = paste(resultsdir, "Ap_responsive_genes_", Sys.Date(), ".csv", sep = ""), row.names = FALSE)
 ```
-
-
-## Gene set enrichment analysis ##
 
 I perform gene set enrichment analysis below, but a quick `grep` shows that there are 26 transcripts with GO term "response to stress", though this is not enriched compared to the frequency of this term in the full dataset.
   
@@ -970,7 +982,6 @@ GO.stress.Xsq <- chisq.test(GO.stress.table)
 GO.stress.Xsq
 ```
 
-
 There are also 7 heat shock related genes in the responsive transcripts, out of 130 total.
 
 ```{r grep_shock}
@@ -980,8 +991,6 @@ hsp_responsive
 hsp_all <- annotationtable[grep("shock", annotationtable$best.hit.to.nr), list(Sequence.Name, best.hit.to.nr)]
 nrow(hsp_all)
 ```
-
-
 
 I use [topGO](http://www.bioconductor.org/packages/2.12/bioc/html/topGO.html) to perform gene set enrichment analysis (GSEA) seperately for each expression type (bimodal, intermediate, high, low).
 
@@ -1029,22 +1038,15 @@ Ap.BP.GOdata <- new("topGOdata",
                  nodeSize = 10,
                  annot = annFUN.gene2GO, gene2GO = geneID2GO)
 
-Ap.BP.GOdata
+#Ap.BP.GOdata
 
 # perform enrichment analysis using parentchild method
 Ap.BP.resultParentChild <- runTest(Ap.BP.GOdata, statistic = 'fisher', algorithm = 'parentchild')
 Ap.BP.resultParentChild
 
 # table results
-Ap.BP.ResTable <- GenTable(Ap.BP.GOdata, parentchild = Ap.BP.resultParentChild, topNodes = 137)
-dim(Ap.BP.ResTable)
-#pandoc.table(Ap.BP.ResTable)
-
-# graph significant nodes
-
-#pdf(paste(resultsdir, "Ap.BP_topGO_sig_nodes.pdf", sep=""))
-#showSigOfNodes(Ap.BP.GOdata, score(Ap.BP.resultParentChild), firstSigNodes = 10, useInfo = 'all')
-#dev.off()
+Ap.BP.ResTable <- GenTable(Ap.BP.GOdata, parentchild = Ap.BP.resultParentChild, topNodes = 10)
+Ap.BP.ResTable
 ```
 
 **2) High**
@@ -1053,7 +1055,7 @@ Genes with *High* expression in both colonies
 
 Use `selectTranscript` function to select transcripts from 'Ap.response.type' for GSEA.
 
-```{r gsea_high}
+```{r gsea_high, results = 'hide'}
 # Select transcripts
 Ap.high <- Ap.response.type[which(Ap.response.type$Ar.type == "High" & Ap.response.type$A22.type == "High"), "Transcript"]
 Ap.geneList.high <- rep(0, length = length(Ap.geneList))
@@ -1074,7 +1076,7 @@ write.table(Ap.high.gsea[,"GO.ID"], file = "results/Ap_high_gsea.txt", row.names
 
 Genes with *Low* expression in both colonies
 
-```{r gsea_low}
+```{r gsea_low, results = 'hide'}
 # Select transcripts
 Ap.low <- Ap.response.type[which(Ap.response.type$Ar.type == "Low" & Ap.response.type$A22.type == "Low"), "Transcript"]
 Ap.geneList.low <- rep(0, length = length(Ap.geneList))
@@ -1094,7 +1096,7 @@ write.table(Ap.low.gsea[,"GO.ID"], file = "results/Ap_low_gsea.txt", row.names =
 
 Genes with *Bimodal* expression in both colonies
 
-```{r gsea_bimodal}
+```{r gsea_bimodal, results = 'hide'}
 Ap.bim <- Ap.response.type[which(Ap.response.type$A22.type == "Bimodal" & Ap.response.type$Ar.type == "Bimodal"), "Transcript"]
 # create gene list, setting value to 1 for "bim" transcripts
 Ap.geneList.bim <- rep(0, length = length(Ap.geneList))
@@ -1114,7 +1116,7 @@ write.table(Ap.bim.gsea[,"GO.ID"], file = "results/Ap_bim_gsea.txt", row.names =
 
 Genes with *Intermediate* expression in both colonies
 
-```{r gsea_intermediate}
+```{r gsea_intermediate, results = 'hide'}
 Ap.int <- Ap.response.type[which(Ap.response.type$A22.type == "Intermediate" & Ap.response.type$Ar.type == "Intermediate"), "Transcript"]
 # create gene list, setting value to 1 for "int" transcripts
 Ap.geneList.int <- rep(0, length = length(Ap.geneList))
@@ -1148,7 +1150,7 @@ Next, I perform GSEA for genes in each functional type in one colony but not the
 
 **A22 'High' genes not in Ar**
 
-```{r gsea_high_A22}
+```{r gsea_high_A22, results = 'hide'}
 # create gene list, setting value to 1 for "bim" transcripts
 A22.geneList.high <- rep(0, length = length(Ap.geneList))
 names(A22.geneList.high) <- names(Ap.geneList)
@@ -1161,10 +1163,9 @@ A22.high.gsea <- gsea(genelist = A22.geneList.high, geneID2GO = geneID2GO)
 #pandoc.table(A22.high.gsea, split.table = Inf)
 ```
 
-
 **Ar 'High' genes not in A22**
 
-```{r gsea_high_Ar}
+```{r gsea_high_Ar, results = 'hide'}
 # create gene list, setting value to 1 for "bim" transcripts
 Ar.geneList.high <- rep(0, length = length(Ap.geneList))
 names(Ar.geneList.high) <- names(Ap.geneList)
@@ -1180,7 +1181,7 @@ Ar.high.gsea <- gsea(genelist = Ar.geneList.high, geneID2GO = geneID2GO)
 
 **A22 'Low' genes not in Ar**
 
-```{r gsea_low_A22}
+```{r gsea_low_A22, results = 'hide'}
 # create gene list, setting value to 1 for "bim" transcripts
 A22.geneList.low <- rep(0, length = length(Ap.geneList))
 names(A22.geneList.low) <- names(Ap.geneList)
@@ -1196,7 +1197,7 @@ A22.low.gsea <- gsea(genelist = A22.geneList.low, geneID2GO = geneID2GO)
 
 **Ar 'Low' genes not in A22**
 
-```{r gsea_low_Ar}
+```{r gsea_low_Ar, results = 'hide'}
 # create gene list, setting value to 1 for "bim" transcripts
 Ar.geneList.low <- rep(0, length = length(Ap.geneList))
 names(Ar.geneList.low) <- names(Ap.geneList)
@@ -1209,11 +1210,9 @@ Ar.low.gsea <- gsea(genelist = Ar.geneList.low, geneID2GO = geneID2GO)
 #pandoc.table(Ar.low.gsea, split.table = Inf)
 ```
 
-
-
 **A22 'Bimodal' genes not in Ar**
 
-```{r gsea_bim_A22}
+```{r gsea_bim_A22, results = 'hide'}
 # create gene list, setting value to 1 for "bim" transcripts
 A22.geneList.bim <- rep(0, length = length(Ap.geneList))
 names(A22.geneList.bim) <- names(Ap.geneList)
@@ -1226,10 +1225,9 @@ A22.bim.gsea <- gsea(genelist = A22.geneList.bim, geneID2GO = geneID2GO)
 #pandoc.table(A22.bim.gsea, split.table = Inf)
 ```
 
-
 **Ar 'Bimodal' genes not in A22**
 
-```{r gsea_bim_Ar}
+```{r gsea_bim_Ar, results = 'hide'}
 # create gene list, setting value to 1 for "bim" transcripts
 Ar.geneList.bim <- rep(0, length = length(Ap.geneList))
 names(Ar.geneList.bim) <- names(Ap.geneList)
@@ -1242,11 +1240,9 @@ Ar.bim.gsea <- gsea(genelist = Ar.geneList.bim, geneID2GO = geneID2GO)
 #pandoc.table(Ar.bim.gsea, split.table = Inf)
 ```
 
-
-
 **A22 'Intermediate' genes not in Ar**
 
-```{r gsea_int_A22}
+```{r gsea_int_A22, results = 'hide'}
 # create gene list, setting value to 1 for "bim" transcripts
 A22.geneList.int <- rep(0, length = length(Ap.geneList))
 names(A22.geneList.int) <- names(Ap.geneList)
@@ -1259,10 +1255,9 @@ A22.int.gsea <- gsea(genelist = A22.geneList.int, geneID2GO = geneID2GO)
 #pandoc.table(A22.int.gsea, split.table = Inf)
 ```
 
-
 **Ar 'Intermediate' genes not in A22**
 
-```{r gsea_int_Ar}
+```{r gsea_int_Ar, results = 'hide'}
 # create gene list, setting value to 1 for "bim" transcripts
 Ar.geneList.int <- rep(0, length = length(Ap.geneList))
 names(Ar.geneList.int) <- names(Ap.geneList)
@@ -1274,7 +1269,6 @@ table(Ar.geneList.int)
 Ar.int.gsea <- gsea(genelist = Ar.geneList.int, geneID2GO = geneID2GO)
 #pandoc.table(Ar.int.gsea, split.table = Inf)
 ```
-
 
 Table of overall GSEA results.
 
@@ -1322,7 +1316,7 @@ int.genes <- GO0006950.responsive[union(with(GO0006950.responsive, grep("Interme
 # Line plot, expression against temp, faceted by colony
 trp1 <- ggplot(resp.TPM.dt.sub[high.stress.terms$Transcript], aes(x=val, y=TPM.scaled, group=Transcript)) + 
   geom_line() + 
-  facet_grid(. ~ colony) + 
+  facet_grid(. ~ colony2) + 
   scale_y_continuous(name="Expression (scaled)") +
   scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
 print(trp1)
@@ -1330,7 +1324,7 @@ print(trp1)
 # Smooth plot, expression against temp, faceted by colony
 trp2 <- ggplot(resp.TPM.dt.sub[high.stress.terms$Transcript], aes(x=val, y=TPM.scaled, group=Transcript)) + 
   geom_smooth(method = "lm", formula = y ~ poly(x, 2)) + 
-  facet_grid(. ~ colony) + 
+  facet_grid(. ~ colony2) + 
   scale_y_continuous(name="Expression (scaled)") +
   scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
 print(trp2)
@@ -1344,7 +1338,7 @@ low.stress.terms <- GO0006950.responsive[intersect(with(GO0006950.responsive, gr
 # Line plot, expression against temp, faceted by colony
 trp3 <- ggplot(resp.TPM.dt.sub[low.stress.terms$Transcript], aes(x=val, y=TPM.scaled, group=Transcript)) + 
   geom_line() + 
-  facet_grid(. ~ colony) + 
+  facet_grid(. ~ colony2) + 
   scale_y_continuous(name="Expression (scaled)") +
   scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
 print(trp3)
@@ -1352,12 +1346,22 @@ print(trp3)
 # Smooth plot, expression against temp, faceted by colony
 trp4 <- ggplot(resp.TPM.dt.sub[low.stress.terms$Transcript], aes(x=val, y=TPM.scaled, group=Transcript)) + 
   geom_smooth(method = "lm", formula = y ~ poly(x, 2)) + 
-  facet_grid(. ~ colony) + 
+  facet_grid(. ~ colony2) + 
   scale_y_continuous(name="Expression (scaled)") +
   scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
 print(trp4)
 ```
 
+
+```{r ggplot_high}
+trp_A22_high <- ggplot(resp.TPM.dt.sub[A22.high], aes(x=val, y=TPM.scaled, group=Transcript)) + 
+  geom_smooth(method = "lm", formula = y ~ poly(x, 2)) + 
+  facet_grid(. ~ colony2) + 
+  scale_y_continuous(name="Expression (scaled)") +
+  scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
+print(trp_A22_high)
+
+```
 
 ## Shiny interactive web-app
 
@@ -1377,7 +1381,7 @@ write.csv(shiny.dt, file = "ApRxN-shinyapp/responsive.lms.TPM.csv", quote = TRUE
 
 ```{r rData, echo=FALSE}
 # save RData for manuscript file
-save(tt2, Ap.df, w1, w2, Ap.T_on, file = "ms.RData")
+save(RxNpval, sigtable, chi1, resp.TPM.dt.sub, tt2, tt3, GO.stress.Xsq, GO0006950.responsive, Ap.df, w1, w2, Ap.T_on, Ap.BP.resultParentChild, Ap.gsea1, Ap.setdiff.gsea, resp.stress.responsive.count, t.offset, t.slope, t.curvature, t.wiggle, file = "ms.RData")
 ```
 
 
