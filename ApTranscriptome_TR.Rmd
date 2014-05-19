@@ -541,7 +541,7 @@ Table 4 shows the number of transcripts that fall into each expression type for 
 
 
 
-## Species comparison ##
+## Species comparison
 
 In this section, I perform a number of comparisons of the thermal reactionomes between the *Ar* and *A22* species. Specifically, I:
 
@@ -629,6 +629,14 @@ A22.int.transcripts <- Ap.response.type[which(Ap.response.type$A22.type == "Inte
 t.test(log(A22.int.transcripts$A22.opt+1), log(A22.int.transcripts$Ar.opt+1))
 # Wilcoxon signed rank-test
 wilcox.test(A22.int.transcripts$A22.opt, A22.int.transcripts$Ar.opt, alternative = "two.sided", paired = TRUE, conf.int = TRUE)
+
+# list of transcripts that are 'Intermediate' expressed in either colony
+Ap.int.transcripts <- Ap.response.type[which(Ap.response.type$Ar.type == "Intermediate" | Ap.response.type$A22.type == "Intermediate"), ]
+# T test
+t.test(log(Ap.int.transcripts$A22.opt+1), log(Ap.int.transcripts$Ar.opt+1))
+# Wilcoxon signed rank-test
+w3 <- wilcox.test(Ap.int.transcripts$A22.opt, Ap.int.transcripts$Ar.opt, alternative = "two.sided", paired = TRUE, conf.int = TRUE)
+w3
 ```
 
 The non-parametric test for both comparisions also finds greater expression in *Ar* than *A22* at the optimal temperature.
@@ -897,6 +905,74 @@ mean(varshape.out$prop.lslope)
 ```
 
 From this analysis, about 3/4 of the differences in reaction norms between species are due to changes in the mean, with the remainder being due to changes in slope.
+
+
+### Overlap between *Ar* Intermediate and *A22* Low genes
+
+```{r gene_overlap}
+# transcripts that are low in A22 and intermediate in Ar
+A22.low.Ar.int <- Ap.response.type[which(Ap.response.type$A22.type == "Low" & Ap.response.type$Ar.type == "Intermediate"), "Transcript"]
+A22.low.Ar.int.lms <- responsive.lms[A22.low.Ar.int]
+
+
+# transcripts that are low in both A22 and Ar
+A22.low.Ar.low <- Ap.response.type[which(Ap.response.type$A22.type == "Low" & Ap.response.type$Ar.type == "Low"), "Transcript"]
+A22.low.Ar.low.lms <- responsive.lms[A22.low.Ar.low]
+
+
+head(int.low.overlap)
+
+# compare linear and quadratic model terms
+
+
+# transcripts where TPM increases at low temps & decreases at high temps
+A22.low.Ar.int.TPM.dt.sub <- resp.TPM.dt.sub.pred[J(intersect(A22.low,Ar.int), "A22")]
+
+for(i in unique(A22.low.Ar.int.TPM.dt.sub$Transcript)[1:10]) {
+    s <- A22.low.Ar.int.TPM.dt.sub[i]
+    X11()
+    plot(s$val, s$pTPM, ylim = c(0, max(s$pTPM)+.1))
+    points(s$val, s$TPM, pch = 8, col = "red")
+    if(min(s[which(s$val < 30) , pTPM]) < s[which(s$val == 38.5), pTPM]) print("On low") else {
+        print("Off high")
+    }
+}   
+
+
+# A22 low Ar int
+A22.low.Ar.int.low.type <- ddply(A22.low.Ar.int.TPM.dt.sub, .(Transcript), summarise, lt = ifelse(pTPM[which(val == 38.5)] == min(pTPM), "OffHigh", "OnLow"))
+
+table(A22.low.Ar.int.low.type$lt)
+
+
+# A22 low Ar low
+A22.low.Ar.low.TPM.dt.sub <- resp.TPM.dt.sub.pred[J(intersect(A22.low, Ar.low), "A22")]
+
+
+# transcripts where TPM increases at low temps & decreases at high temps
+
+
+
+
+A22.low.Ar.int.TPM.dt.sub <- resp.TPM.dt.sub.pred[J(intersect(A22.low, Ar.int), "A22")]
+dim(A22.low.Ar.int.TPM.dt.sub)
+
+l5 <- length(unique(A22.low.Ar.int.TPM.dt.sub$Transcript))
+
+A22.low.Ar.int.T_on <- data.frame(Transcript = unique(A22.low.Ar.int.TPM.dt.sub$Transcript), colony = rep("ApVT", length = l5), type = rep("High", length = l5), T_on = NA)
+
+# of these, how many have greatest change in expression as a decrease at high temperatures?
+for(i in unique(A22.low.Ar.int.TPM.dt.sub$Transcript)) {
+    subdf <- A22.low.Ar.int.TPM.dt.sub[i]
+    T_on <- subdf[median(which(diff(subdf$TPM) == max(diff(subdf$TPM))))+1, val]
+    A22.low.Ar.int.T_on[which(A22.low.Ar.int.T_on$Transcript == i), "T_on"] <- T_on
+}   
+
+
+
+
+
+```
 
 
 
@@ -1246,7 +1322,7 @@ write.csv(shiny.dt, file = "ApRxN-shinyapp/responsive.lms.TPM.csv", quote = TRUE
 
 ```{r rData, echo=FALSE}
 # save RData for manuscript file
-save(RxNpval, sigtable, chi1, resp.TPM.dt.sub, tt2, tt3, GO.stress.Xsq, GO0006950.responsive, Ap.df, w1, w2, Ap.T_on, Ap.BP.resultParentChild, Ap.gsea1, Ap.setdiff.gsea, resp.stress.responsive.count, t.mean, t.slope, t.curvature, t.wiggle, t.themsens, t.thermbreadth, file = "ms.RData")
+save(RxNpval, sigtable, chi1, resp.TPM.dt.sub, tt2, tt3, GO.stress.Xsq, GO0006950.responsive, Ap.df, w1, w2, w3, Ap.T_on, Ap.BP.resultParentChild, Ap.gsea1, Ap.setdiff.gsea, resp.stress.responsive.count, t.mean, t.slope, t.curvature, t.wiggle, t.themsens, t.thermbreadth, file = "ms.RData")
 ```
 
 
