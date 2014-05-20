@@ -3,7 +3,7 @@ Thermal reactionome of the common ant species *Aphaenogaster picea* and *A. caro
    
 **Author:** [John Stanton-Geddes](john.stantongeddes.research@gmail.com)
 
-**May 16, 2014**
+**May 20, 2014**
 
 **Technical Report No. 3**
 
@@ -191,15 +191,15 @@ This annotation file can be read directly to R:
 ### Annotation file
 
 # from either AWS or GoogleDrive
-annotationURL <- getURL("http://johnstantongeddes.org/assets/files/ApTranscriptome_AnnotationTable_20140113.txt")
+annotation.URL <- getURL("http://johnstantongeddes.org/assets/files/ApTranscriptome_AnnotationTable_20140113.txt")
 #a2 <- getURL("https://googledrive.com/host/0B75IymziRJ_9Tlg1U1Vxbjk1bzg") # GoogleDrive link
 
-annotationfile <- read.csv(textConnection(annotationURL), header = TRUE, sep = "\t", stringsAsFactors = FALSE)
-str(annotationfile)
+annotation.file <- read.csv(textConnection(annotation.URL), header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+str(annotation.file)
 
 # Convert to data.table
-annotationtable <- data.table(annotationfile)
-head(annotationtable)
+annotation.table <- data.table(annotation.file)
+head(annotation.table)
 ```
 
 Note that I used the reduced assembly, prior to cleaning out contaminants. As I use the "clean" assembly for read mapping and identification of responsive genes, the contaminants are dis-regarded in downstream analyses. 
@@ -545,7 +545,7 @@ Table 4 shows the number of transcripts that fall into each expression type for 
 
 In this section, I perform a number of comparisons of the thermal reactionomes between the *Ar* and *A22* species. Specifically, I:
 
-- compare profiles of the temperature of maximum expression for thermally-responsive transcripts 
+- compare profiles of the temperature of maximum expression for thermally-responsive transcripts
 - compare basal expression at optimal temperature for thermally-responsive genes
 - compare thermal stability of *Intermediate* genes
 - compare thermal sensitivity of *Bimodal* genes
@@ -729,18 +729,18 @@ setkey(resp.TPM.dt.sub.pred, Transcript, colony)
 
 For next analyses, extract list of gene names by response type.
 
-```{r extractionTranscripts}
-A22.high <- Ap.response.type[which(Ap.response.type$A22.type == "High" & Ap.response.type$Ar.type != "High"), "Transcript"]
-Ar.high <- Ap.response.type[which(Ap.response.type$A22.type != "High" & Ap.response.type$Ar.type == "High"), "Transcript"]
+```{r extract_Transcripts}
+A22.high <- Ap.response.type[which(Ap.response.type$A22.type == "High"), "Transcript"]
+Ar.high <- Ap.response.type[which(Ap.response.type$Ar.type == "High"), "Transcript"]
 
-A22.low <- Ap.response.type[which(Ap.response.type$A22.type == "Low" & Ap.response.type$Ar.type != "Low"), "Transcript"]
-Ar.low <- Ap.response.type[which(Ap.response.type$A22.type != "Low" & Ap.response.type$Ar.type == "Low"), "Transcript"]
+A22.low <- Ap.response.type[which(Ap.response.type$A22.type == "Low"), "Transcript"]
+Ar.low <- Ap.response.type[which(Ap.response.type$Ar.type == "Low"), "Transcript"]
 
-A22.bim <- Ap.response.type[which(Ap.response.type$A22.type == "Bimodal" & Ap.response.type$Ar.type != "Bimodal"), "Transcript"]
-Ar.bim <- Ap.response.type[which(Ap.response.type$A22.type != "Bimodal" & Ap.response.type$Ar.type == "Bimodal"), "Transcript"]
+A22.bim <- Ap.response.type[which(Ap.response.type$A22.type == "Bimodal"), "Transcript"]
+Ar.bim <- Ap.response.type[which(Ap.response.type$Ar.type == "Bimodal"), "Transcript"]
 
-A22.int <- Ap.response.type[which(Ap.response.type$A22.type == "Intermediate" & Ap.response.type$Ar.type != "Intermediate"), "Transcript"]
-Ar.int <- Ap.response.type[which(Ap.response.type$A22.type != "Intermediate" & Ap.response.type$Ar.type == "Intermediate"), "Transcript"]
+A22.int <- Ap.response.type[which(Ap.response.type$A22.type == "Intermediate"), "Transcript"]
+Ar.int <- Ap.response.type[which(Ap.response.type$Ar.type == "Intermediate"), "Transcript"]
 ```
 
 
@@ -782,16 +782,17 @@ for(i in unique(Ar.high.TPM.dt.sub$Transcript)) {
 
 # determine if T~on~ is greater in *A22* or *Ar* for *High* genes.
 
-t.test(Ar.high.T_on$T_on, A22.high.T_on$T_on)
+(T_on.high.ttest <- t.test(Ar.high.T_on$T_on, A22.high.T_on$T_on))
 ```
 
-Genes with increased expression at *High* temperatures are on average turned on 1°C higher in *AcNC* than *ApVT*.
+Genes with increased expression at *High* temperatures are on average turned on 2.5°C higher in *ApVT* than *AcNC*.
 
 Repeat analysis for *Low* genes.
 
 ```{r T_on_low}
 # transcripts expressed at *Low* temperatures in A22
-A22.low.TPM.dt.sub <- resp.TPM.dt.sub.pred[J(A22.low, "A22")]
+A22.low.TPM.dt.sub <- resp.TPM.dt.sub.pred[J(union(A22.low, A22.bim), "A22")]
+setkey(A22.low.TPM.dt.sub, Transcript)
 str(A22.low.TPM.dt.sub)
 
 # make data.frame for results
@@ -799,7 +800,6 @@ l3 <- length(unique(A22.low.TPM.dt.sub$Transcript))
 A22.low.T_on <- data.frame(Transcript = unique(A22.low.TPM.dt.sub$Transcript), colony = rep("ApVT", length = l3), type = rep("Low", length = l3), T_on = NA)
 
 # loop across transcripts, calculating T_on
-
 for(i in unique(A22.low.TPM.dt.sub$Transcript)) {
     subdf <- A22.low.TPM.dt.sub[i]
     subdf <- subdf[which(subdf$val < 21), ]
@@ -808,7 +808,8 @@ for(i in unique(A22.low.TPM.dt.sub$Transcript)) {
 }   
 
 # repeat for Ar
-Ar.low.TPM.dt.sub <- resp.TPM.dt.sub.pred[J(Ar.low, "Ar")]
+Ar.low.TPM.dt.sub <- resp.TPM.dt.sub.pred[J(union(Ar.low, Ar.bim), "A22")]
+setkey(Ar.low.TPM.dt.sub, Transcript)
 str(Ar.low.TPM.dt.sub)
 
 l4 <- length(unique(Ar.low.TPM.dt.sub$Transcript))
@@ -821,7 +822,7 @@ for(i in unique(Ar.low.TPM.dt.sub$Transcript)) {
     Ar.low.T_on[which(Ar.low.T_on$Transcript == i), "T_on"] <- T_on
 }   
 
-t.test(Ar.low.T_on$T_on, A22.low.T_on$T_on)
+(T_on.low.ttest <- t.test(Ar.low.T_on$T_on, A22.low.T_on$T_on))
 ```
 
 Genes with increased expression at *Low* temperatures are on average turned on 1°C higher in *ApVT* than *AcNC*.
@@ -907,75 +908,6 @@ mean(varshape.out$prop.lslope)
 From this analysis, about 3/4 of the differences in reaction norms between species are due to changes in the mean, with the remainder being due to changes in slope.
 
 
-### Overlap between *Ar* Intermediate and *A22* Low genes
-
-```{r gene_overlap}
-# transcripts that are low in A22 and intermediate in Ar
-A22.low.Ar.int <- Ap.response.type[which(Ap.response.type$A22.type == "Low" & Ap.response.type$Ar.type == "Intermediate"), "Transcript"]
-A22.low.Ar.int.lms <- responsive.lms[A22.low.Ar.int]
-
-
-# transcripts that are low in both A22 and Ar
-A22.low.Ar.low <- Ap.response.type[which(Ap.response.type$A22.type == "Low" & Ap.response.type$Ar.type == "Low"), "Transcript"]
-A22.low.Ar.low.lms <- responsive.lms[A22.low.Ar.low]
-
-
-head(int.low.overlap)
-
-# compare linear and quadratic model terms
-
-
-# transcripts where TPM increases at low temps & decreases at high temps
-A22.low.Ar.int.TPM.dt.sub <- resp.TPM.dt.sub.pred[J(intersect(A22.low,Ar.int), "A22")]
-
-for(i in unique(A22.low.Ar.int.TPM.dt.sub$Transcript)[1:10]) {
-    s <- A22.low.Ar.int.TPM.dt.sub[i]
-    X11()
-    plot(s$val, s$pTPM, ylim = c(0, max(s$pTPM)+.1))
-    points(s$val, s$TPM, pch = 8, col = "red")
-    if(min(s[which(s$val < 30) , pTPM]) < s[which(s$val == 38.5), pTPM]) print("On low") else {
-        print("Off high")
-    }
-}   
-
-
-# A22 low Ar int
-A22.low.Ar.int.low.type <- ddply(A22.low.Ar.int.TPM.dt.sub, .(Transcript), summarise, lt = ifelse(pTPM[which(val == 38.5)] == min(pTPM), "OffHigh", "OnLow"))
-
-table(A22.low.Ar.int.low.type$lt)
-
-
-# A22 low Ar low
-A22.low.Ar.low.TPM.dt.sub <- resp.TPM.dt.sub.pred[J(intersect(A22.low, Ar.low), "A22")]
-
-
-# transcripts where TPM increases at low temps & decreases at high temps
-
-
-
-
-A22.low.Ar.int.TPM.dt.sub <- resp.TPM.dt.sub.pred[J(intersect(A22.low, Ar.int), "A22")]
-dim(A22.low.Ar.int.TPM.dt.sub)
-
-l5 <- length(unique(A22.low.Ar.int.TPM.dt.sub$Transcript))
-
-A22.low.Ar.int.T_on <- data.frame(Transcript = unique(A22.low.Ar.int.TPM.dt.sub$Transcript), colony = rep("ApVT", length = l5), type = rep("High", length = l5), T_on = NA)
-
-# of these, how many have greatest change in expression as a decrease at high temperatures?
-for(i in unique(A22.low.Ar.int.TPM.dt.sub$Transcript)) {
-    subdf <- A22.low.Ar.int.TPM.dt.sub[i]
-    T_on <- subdf[median(which(diff(subdf$TPM) == max(diff(subdf$TPM))))+1, val]
-    A22.low.Ar.int.T_on[which(A22.low.Ar.int.T_on$Transcript == i), "T_on"] <- T_on
-}   
-
-
-
-
-
-```
-
-
-
 
 ## Gene set enrichment analysis for thermal-responsive genes
 
@@ -984,10 +916,10 @@ for(i in unique(A22.low.Ar.int.TPM.dt.sub$Transcript)) {
 In the previous section, I identified transcripts that show significant responses in expression. Next, I add gene annotation and ontology information to these transcripts.  
 
 ```{r annotation}
-setkey(annotationtable, Sequence.Name)
+setkey(annotation.table, Sequence.Name)
 signif.transcripts <- data.table(signif.transcripts)
 setkey(signif.transcripts, Transcript)
-signif.transcripts <- annotationtable[signif.transcripts]
+signif.transcripts <- annotation.table[signif.transcripts]
 setnames(signif.transcripts, "Sequence.Name", "Transcript")
 ```
 
@@ -1017,9 +949,9 @@ GO0006950.responsive[union(with(GO0006950.responsive, grep("Intermediate", Ar.ty
 # Chi-square test to see if 'response to stress' related genes overrepresented in responsive.lms compared to full list
 resp.stress.responsive.count <- nrow(responsive.lms.ann.type[grep("GO:0006950", responsive.lms.ann.type$GO.Biological.Process), list(Transcript, best.hit.to.nr)])
 # GO 'response to stress' hits in all transcripts
-resp.stress.all.count <- nrow(annotationtable[grep("GO:0006950", annotationtable$GO.Biological.Process), list(Sequence.Name, best.hit.to.nr)])
+resp.stress.all.count <- nrow(annotation.table[grep("GO:0006950", annotation.table$GO.Biological.Process), list(Sequence.Name, best.hit.to.nr)])
 
-GO.stress.table <- matrix(rbind(resp.stress.responsive.count, nrow(responsive.lms.ann.type) - resp.stress.responsive.count, resp.stress.all.count, nrow(annotationtable) - resp.stress.all.count), nrow = 2)
+GO.stress.table <- matrix(rbind(resp.stress.responsive.count, nrow(responsive.lms.ann.type) - resp.stress.responsive.count, resp.stress.all.count, nrow(annotation.table) - resp.stress.all.count), nrow = 2)
 
 GO.stress.Xsq <- chisq.test(GO.stress.table)
 GO.stress.Xsq
@@ -1031,7 +963,7 @@ There are also 7 heat shock related genes in the responsive transcripts, out of 
 hsp_responsive <- responsive.lms.ann.type[grep("shock", responsive.lms.ann.type$best.hit.to.nr), list(Transcript, best.hit.to.nr, A22.type, Ar.type)]
 hsp_responsive
 
-hsp_all <- annotationtable[grep("shock", annotationtable$best.hit.to.nr), list(Sequence.Name, best.hit.to.nr)]
+hsp_all <- annotation.table[grep("shock", annotation.table$best.hit.to.nr), list(Sequence.Name, best.hit.to.nr)]
 nrow(hsp_all)
 ```
 
@@ -1040,8 +972,8 @@ I use [topGO](http://www.bioconductor.org/packages/2.12/bioc/html/topGO.html) to
 First need to create gene ID to GO term map file
 
 ```{r geneid2go, echo=TRUE, eval=TRUE, cache=TRUE}
-# create geneid2go.map file from FastAnnotator AnnotationTable.txt
-geneid2GOmap(annotationfile)
+# create geneid2go.map file from FastAnnotator annotationtable.txt
+geneid2GOmap(annotation.file)
 ```
 
 then read map file.
@@ -1160,54 +1092,68 @@ print(xtable(Ap.gsea1[ , 1:3], comment = getOption("xtable.comment", FALSE)))
 
 Next, I perform GSEA for genes in each functional type in one species but not the other (e.g. the set difference) to gain insight on differences between the colonies.
 
+```{r extract_Transcripts}
+A22.only.high <- Ap.response.type[which(Ap.response.type$A22.type == "High" & Ap.response.type$Ar.type != "High"), "Transcript"]
+Ar.only.high <- Ap.response.type[which(Ap.response.type$A22.type != "High" & Ap.response.type$Ar.type == "High"), "Transcript"]
+
+A22.only.low <- Ap.response.type[which(Ap.response.type$A22.type == "Low" & Ap.response.type$Ar.type != "Low"), "Transcript"]
+Ar.only.low <- Ap.response.type[which(Ap.response.type$A22.type != "Low" & Ap.response.type$Ar.type == "Low"), "Transcript"]
+
+A22.only.bim <- Ap.response.type[which(Ap.response.type$A22.type == "Bimodal" & Ap.response.type$Ar.type != "Bimodal"), "Transcript"]
+Ar.only.bim <- Ap.response.type[which(Ap.response.type$A22.type != "Bimodal" & Ap.response.type$Ar.type == "Bimodal"), "Transcript"]
+
+A22.only.int <- Ap.response.type[which(Ap.response.type$A22.type == "Intermediate" & Ap.response.type$Ar.type != "Intermediate"), "Transcript"]
+Ar.only.int <- Ap.response.type[which(Ap.response.type$A22.type != "Intermediate" & Ap.response.type$Ar.type == "Intermediate"), "Transcript"]
+```
+
 
 ```{r gsea_setdiff, results = 'hide'}
 # A22 'High' genes not in Ar**
 A22.geneList.high <- rep(0, length = length(Ap.geneList))
 names(A22.geneList.high) <- names(Ap.geneList)
-A22.geneList.high[(which(names(A22.geneList.high) %in% A22.high))] <- 1
+A22.geneList.high[(which(names(A22.geneList.high) %in% A22.only.high))] <- 1
 A22.high.gsea <- gsea(genelist = A22.geneList.high, geneID2GO = geneID2GO)
 
 # *Ar 'High' genes not in A22**
 Ar.geneList.high <- rep(0, length = length(Ap.geneList))
 names(Ar.geneList.high) <- names(Ap.geneList)
-Ar.geneList.high[(which(names(Ar.geneList.high) %in% Ar.high))] <- 1
+Ar.geneList.high[(which(names(Ar.geneList.high) %in% Ar.only.high))] <- 1
 Ar.high.gsea <- gsea(genelist = Ar.geneList.high, geneID2GO = geneID2GO)
 
 # A22 'Low' genes not in Ar**
 A22.geneList.low <- rep(0, length = length(Ap.geneList))
 names(A22.geneList.low) <- names(Ap.geneList)
-A22.geneList.low[(which(names(A22.geneList.low) %in% A22.low))] <- 1
+A22.geneList.low[(which(names(A22.geneList.low) %in% A22.only.low))] <- 1
 A22.low.gsea <- gsea(genelist = A22.geneList.low, geneID2GO = geneID2GO)
 # Ar 'Low' genes not in A22**
 Ar.geneList.low <- rep(0, length = length(Ap.geneList))
 names(Ar.geneList.low) <- names(Ap.geneList)
-Ar.geneList.low[(which(names(Ar.geneList.low) %in% Ar.low))] <- 1
+Ar.geneList.low[(which(names(Ar.geneList.low) %in% Ar.only.low))] <- 1
 Ar.low.gsea <- gsea(genelist = Ar.geneList.low, geneID2GO = geneID2GO)
 
 # A22 'Bimodal' genes not in Ar**
 A22.geneList.bim <- rep(0, length = length(Ap.geneList))
 names(A22.geneList.bim) <- names(Ap.geneList)
-A22.geneList.bim[(which(names(A22.geneList.bim) %in% A22.bim))] <- 1
+A22.geneList.bim[(which(names(A22.geneList.bim) %in% A22.only.bim))] <- 1
 A22.bim.gsea <- gsea(genelist = A22.geneList.bim, geneID2GO = geneID2GO)
 
 # Ar 'Bimodal' genes not in A22**
 Ar.geneList.bim <- rep(0, length = length(Ap.geneList))
 names(Ar.geneList.bim) <- names(Ap.geneList)
-Ar.geneList.bim[(which(names(Ar.geneList.bim) %in% Ar.bim))] <- 1
+Ar.geneList.bim[(which(names(Ar.geneList.bim) %in% Ar.only.bim))] <- 1
 Ar.bim.gsea <- gsea(genelist = Ar.geneList.bim, geneID2GO = geneID2GO)
 
 # A22 'Intermediate' genes not in Ar**
 A22.geneList.int <- rep(0, length = length(Ap.geneList))
 names(A22.geneList.int) <- names(Ap.geneList)
-A22.geneList.int[(which(names(A22.geneList.int) %in% A22.int))] <- 1
+A22.geneList.int[(which(names(A22.geneList.int) %in% A22.only.int))] <- 1
 table(A22.geneList.int)
 A22.int.gsea <- gsea(genelist = A22.geneList.int, geneID2GO = geneID2GO)
 
 # Ar 'Intermediate' genes not in A22**
 Ar.geneList.int <- rep(0, length = length(Ap.geneList))
 names(Ar.geneList.int) <- names(Ap.geneList)
-Ar.geneList.int[(which(names(Ar.geneList.int) %in% Ar.int))] <- 1
+Ar.geneList.int[(which(names(Ar.geneList.int) %in% Ar.only.int))] <- 1
 Ar.int.gsea <- gsea(genelist = Ar.geneList.int, geneID2GO = geneID2GO)
 
 # combine into single table
@@ -1301,7 +1247,45 @@ trp_A22_high <- ggplot(resp.TPM.dt.sub[A22.high], aes(x=val, y=TPM.scaled, group
   scale_y_continuous(name="Expression (scaled)") +
   scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
 print(trp_A22_high)
+```
 
+### Overlap between *Ar* Intermediate and *A22* Low genes
+
+An observation from GO analysis is that there is an overlap between enriched terms in the *Low* group for *A22* and the *Intermediate* group for *Ar*. A potential explanation for this pattern is if the *Low* genes in *A22* shut down at high temperatures, but not low temperatures, rather than are up-regulated at low temperatures.
+
+```{r gene_overlap}
+# transcripts where TPM increases at low temps & decreases at high temps
+A22.low.Ar.int.TPM.dt.sub <- resp.TPM.dt.sub.pred[J(intersect(A22.low,Ar.int), "A22")]
+
+for(i in unique(A22.low.Ar.int.TPM.dt.sub$Transcript)[1:10]) {
+    s <- A22.low.Ar.int.TPM.dt.sub[i]
+    X11()
+    plot(s$val, s$pTPM, ylim = c(0, max(s$pTPM)+.1))
+    points(s$val, s$TPM, pch = 8, col = "red")
+    if(s[which(s$val == 38.5) , pTPM] == min(s$pTPM)) print("OffHigh") else {
+        print("OnLow")
+    }
+}
+
+
+#    if(min(s[which(s$val < 30) , pTPM]) < s[which(s$val == 38.5), pTPM] & s[which(s$val == 0), pTPM] < (s[which(s$val == 21), pTPM] + sd(s$pTPM))) print("On low") else {
+
+
+# tabulate the number of transcripts that have lowest expression at maximum temperature "OffHigh"
+A22.low.Ar.int.low.type <- ddply(A22.low.Ar.int.TPM.dt.sub, .(Transcript), summarise, lt = ifelse(pTPM[which(val == 38.5)] == min(pTPM), "OffHigh", "OnLow"))
+
+table(A22.low.Ar.int.low.type$lt)
+
+
+# A22 low Ar low
+A22.low.Ar.low.TPM.dt.sub <- resp.TPM.dt.sub.pred[J(intersect(A22.low, Ar.low), "A22")]
+
+A22.low.Ar.low.low.type <- ddply(A22.low.Ar.low.TPM.dt.sub, .(Transcript), summarise, lt = ifelse(pTPM[which(val == 38.5)] == min(pTPM), "OffHigh", "OnLow"))
+
+# table results and perform chi-square test
+low.table <- rbind(LowInt = table(A22.low.Ar.int.low.type$lt), LowLow = table(A22.low.Ar.low.low.type$lt))
+low.table
+chisq.test(low.table)
 ```
 
 ## Shiny interactive web-app
