@@ -785,7 +785,7 @@ for(i in unique(Ar.high.TPM.dt.sub$Transcript)) {
 (T_on.high.ttest <- t.test(Ar.high.T_on$T_on, A22.high.T_on$T_on))
 ```
 
-Genes with increased expression at *High* temperatures are on average turned on 2.5°C higher in *ApVT* than *AcNC*.
+Genes with increased expression at *High* temperatures are on average turned on 1°C higher in *AcNC* than *ApVT*.
 
 Repeat analysis for *Low* genes.
 
@@ -825,11 +825,11 @@ for(i in unique(Ar.low.TPM.dt.sub$Transcript)) {
 (T_on.low.ttest <- t.test(Ar.low.T_on$T_on, A22.low.T_on$T_on))
 ```
 
-Genes with increased expression at *Low* temperatures are on average turned on 1°C higher in *ApVT* than *AcNC*.
+Genes with increased expression at *Low* temperatures are on average turned on 0.2°C higher in *ApVT* than *AcNC*.
 
 Visualize T~on~ for both *Low* and *High* genes on the same plot.
 
-```{r plot_low_T_on, echo=FALSE, eval=TRUE}
+```{r plot_T_on, echo=FALSE, eval=TRUE}
 # merge data for plotting
 Ap.T_on <- rbind(A22.high.T_on, Ar.high.T_on, A22.low.T_on, Ar.low.T_on)
 
@@ -879,7 +879,7 @@ t.wiggle
 
 Reaction norms differ between species by mean and slope, but not by curvature or wiggle.
 
-Next, I partition the differences in the reaction norms into the variation explained by differences in the trait means and slope, as curvature and wiggle did not differ between species. To do this, I first standardize each of these parameters so they are directly comparable. 
+Next, I partition the differences in the reaction norms into the variation explained by differences in the trait means and slope, as curvature and wiggle did not differ between species.
 
 ```{r partition_reaction_norm_variation}
 # calculate differences in mean, slope, curvature and wiggle between colonies for each transcript
@@ -1092,7 +1092,7 @@ print(xtable(Ap.gsea1[ , 1:3], comment = getOption("xtable.comment", FALSE)))
 
 Next, I perform GSEA for genes in each functional type in one species but not the other (e.g. the set difference) to gain insight on differences between the colonies.
 
-```{r extract_Transcripts}
+```{r extract_Transcripts_only}
 A22.only.high <- Ap.response.type[which(Ap.response.type$A22.type == "High" & Ap.response.type$Ar.type != "High"), "Transcript"]
 Ar.only.high <- Ap.response.type[which(Ap.response.type$A22.type != "High" & Ap.response.type$Ar.type == "High"), "Transcript"]
 
@@ -1257,19 +1257,15 @@ An observation from GO analysis is that there is an overlap between enriched ter
 # transcripts where TPM increases at low temps & decreases at high temps
 A22.low.Ar.int.TPM.dt.sub <- resp.TPM.dt.sub.pred[J(intersect(A22.low,Ar.int), "A22")]
 
-for(i in unique(A22.low.Ar.int.TPM.dt.sub$Transcript)[1:10]) {
-    s <- A22.low.Ar.int.TPM.dt.sub[i]
-    X11()
-    plot(s$val, s$pTPM, ylim = c(0, max(s$pTPM)+.1))
-    points(s$val, s$TPM, pch = 8, col = "red")
-    if(s[which(s$val == 38.5) , pTPM] == min(s$pTPM)) print("OffHigh") else {
-        print("OnLow")
-    }
-}
-
-
-#    if(min(s[which(s$val < 30) , pTPM]) < s[which(s$val == 38.5), pTPM] & s[which(s$val == 0), pTPM] < (s[which(s$val == 21), pTPM] + sd(s$pTPM))) print("On low") else {
-
+#for(i in unique(A22.low.Ar.int.TPM.dt.sub$Transcript)[1:10]) {
+#    s <- A22.low.Ar.int.TPM.dt.sub[i]
+#    X11()
+#    plot(s$val, s$pTPM, ylim = c(0, max(s$pTPM)+.1))
+#    points(s$val, s$TPM, pch = 8, col = "red")
+#    if(s[which(s$val == 38.5) , pTPM] == min(s$pTPM)) print("OffHigh"#) else {
+#        print("OnLow")
+#    }
+#}
 
 # tabulate the number of transcripts that have lowest expression at maximum temperature "OffHigh"
 A22.low.Ar.int.low.type <- ddply(A22.low.Ar.int.TPM.dt.sub, .(Transcript), summarise, lt = ifelse(pTPM[which(val == 38.5)] == min(pTPM), "OffHigh", "OnLow"))
@@ -1306,7 +1302,7 @@ write.csv(shiny.dt, file = "ApRxN-shinyapp/responsive.lms.TPM.csv", quote = TRUE
 
 ```{r rData, echo=FALSE}
 # save RData for manuscript file
-save(RxNpval, sigtable, chi1, resp.TPM.dt.sub, tt2, tt3, GO.stress.Xsq, GO0006950.responsive, Ap.df, w1, w2, w3, Ap.T_on, Ap.BP.resultParentChild, Ap.gsea1, Ap.setdiff.gsea, resp.stress.responsive.count, t.mean, t.slope, t.curvature, t.wiggle, t.themsens, t.thermbreadth, file = "ms.RData")
+save(RxNpval, sigtable, chi1, resp.TPM.dt.sub, Ap.type.table, tt2, tt3, qlslope, qlmean, GO.stress.Xsq, GO0006950.responsive, Ap.df, w1, w2, w3, Ap.T_on, Ap.BP.resultParentChild, Ap.gsea1, Ap.setdiff.gsea, resp.stress.responsive.count, t.mean, t.slope, t.curvature, t.wiggle, t.themsens, t.thermbreadth, file = "ms.RData")
 ```
 
 
