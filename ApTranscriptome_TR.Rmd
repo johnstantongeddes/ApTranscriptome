@@ -1225,7 +1225,7 @@ refseq.id <- unlist(refseq.col)[2*1:length(refseq.col)-1]
 str(refseq.id)
 
 # add background list to DAVID
-david.list <- addList(david.connect, refseq.id,
+david.background <- addList(david.connect, refseq.id,
                       idType = "REFSEQ_PROTEIN",
                       listName = "ApTranscriptome_Amellifera_Drosophila_refseq_protein",
                       listType = "Background")
@@ -1245,7 +1245,7 @@ A22.high.geneList.refseq.id <- unlist(A22.high.geneList.refseq.col)[2*1:length(A
 tail(A22.high.geneList.refseq.id)
 
 # add genelist to DAVID
-david.list <- addList(david.connect, A22.high.geneList.refseq.id,
+david.geneList <- addList(david.connect, A22.high.geneList.refseq.id,
                       idType = "REFSEQ_PROTEIN",
                       listName = "ApTranscriptome_A22_high",
                       listType = "Gene")
@@ -1257,11 +1257,14 @@ getBackgroundListNames(david.connect)
 setCurrentBackgroundPosition(david.connect, 1)
 getCurrentBackgroundListPosition(david.connect)
 
-# gbtain Functional Annotation Cluster
+# obtain Functional Annotation Cluster
 A22.high.termCluster <- getClusterReport(david.connect, type = "Term")
 head(summary(A22.high.termCluster))
-members(A22.high.termCluster)
-plot2D(A22.high.termCluster, 1)
+members(A22.high.termCluster)[[1]]$Term
+members(A22.high.termCluster)[[2]]$Term
+members(A22.high.termCluster)[[3]]$Term
+
+plot2D(A22.high.termCluster, 3)
 ```
 
 
