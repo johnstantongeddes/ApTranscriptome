@@ -1,6 +1,6 @@
 ## .gitignore
 ## John Stanton-Geddes
-## 2014-02-12
+## 2014-06-04
 
 # Ignore these directories
 data
@@ -8,6 +8,7 @@ results
 cache
 figure
 planning
+comments
 
 # Ignore these file types
 *.Rproj
@@ -29,4 +30,6 @@ planning
 *.png
 *.tiff
 *.svg
-
+*.doc
+*.docx
+*.tmp
