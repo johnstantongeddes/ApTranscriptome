@@ -29,7 +29,6 @@ library(MASS)
 library(xtable)
 library(methods) # required by `knitcitations` when file is `knit` from command-line
 library(reshape2)
-library(psych)
 
 # Load Bioconductor libraries
 #source("http://bioconductor.org/biocLite.R")
@@ -1203,11 +1202,14 @@ For many of the responsive categories, it appears that there is considerable red
 
 ```{r GOSemSim}
 # similarity among enriched GO terms
-A22.GO.term.sim <- termSim(A22.low.gsea$GO.ID, A22.low.gsea$GO.ID, ont = "BP", organism = "fly")
+A22.low.GO.term.sim <- termSim(A22.low.gsea$GO.ID, A22.low.gsea$GO.ID, ont = "BP", organism = "fly")
 # distance matrix
-dist.A22.GO.term.sim <- dist(A22.GO.term.sim)
-plot(hclust(dist(A22.GO.term.sim)))
+dist.A22.low.GO.term.sim <- dist(A22.low.GO.term.sim)
+plot(hclust(dist(A22.low.GO.term.sim)))
 
+A22.high.GO.term.sim <- termSim(A22.high.gsea$GO.ID, A22.high.gsea$GO.ID, ont = "BP", organism = "fly")
+# distance matrix
+plot(hclust(dist(A22.high.GO.term.sim)))
 ```
 
 
@@ -1283,25 +1285,6 @@ david.connect
 # Note that the current display for "species" shows only the first in list, but I confirmed in email with the programmer, Cristobal Fresno Rodriguez, that this is a bug and all species are being used, as shown in this code
 
 getCurrentSpeciesPosition2<-function(object){
-    ans <- NA
-    if(length(getSpecieNames(object)) != 0){
-        stub<-getStub(object)
-        ans<-as.integer(strsplit(stub$getCurrentSpecies(), split = ",")[[1]]) + 1
-    }
-    return(ans)
-}
-
-getCurrentSpeciesPosition2(david.connect)
-
-
-# obtain Functional Annotation Cluster
-A22.high.termCluster <- getClusterReport(david.connect, type = "Term")
-summary(A22.high.termCluster)
-members(A22.high.termCluster)[[1]]$Term
-members(A22.high.termCluster)[[2]]$Term
-members(A22.high.termCluster)[[3]]$Term
-
-# calculate Enrichment
 geometric_mean <- function(x) exp(mean(log(x)))
 -log10(geometric_mean(members(A22.high.termCluster)[[1]]$PValue))
 -log10(geometric_mean(members(A22.high.termCluster)[[2]]$PValue))
