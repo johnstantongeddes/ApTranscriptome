@@ -3,7 +3,7 @@ Thermal reactionome of the common ant species *Aphaenogaster picea* and *A. caro
    
 **Author:** [John Stanton-Geddes](john.stantongeddes.research@gmail.com)
 
-**May 20, 2014**
+**June 2, 2014**
 
 **Technical Report No. 3**
 
@@ -27,17 +27,20 @@ library(RCurl)
 library(plyr)
 library(MASS)
 library(xtable)
-library(methods) # required by `knitcitations` when file is `knit` file from command-line
+library(methods) # required by `knitcitations` when file is `knit` from command-line
 library(reshape2)
+library(psych)
 
 # Load Bioconductor libraries
 #source("http://bioconductor.org/biocLite.R")
 #biocLite("topGO")
 #biocLite("Rgraphviz")
 #biocLite("RDAVIDWebService")
+#biocLite("GOSemSim")
 library(topGO) 
 library(Rgraphviz)
 library(RDAVIDWebService)
+library(GOSemSim)
 
 # load custom functions
 source("scripts/RxNseq.R")
@@ -1109,13 +1112,20 @@ A22.only.int <- Ap.response.type[which(Ap.response.type$A22.type == "Intermediat
 Ar.only.int <- Ap.response.type[which(Ap.response.type$A22.type != "Intermediate" & Ap.response.type$Ar.type == "Intermediate"), "Transcript"]
 ```
 
+```{r gsea_by_category}
+# A22 'High' genes
+A22.geneList.high <- rep(0, length = length(Ap.geneList))
+names(A22.geneList.high) <- names(Ap.geneList)
+A22.geneList.high[(which(names(A22.geneList.high) %in% A22.high))] <- 1
+A22.high.gsea <- gsea(genelist = A22.geneList.high, geneID2GO = geneID2GO)
+```
 
 ```{r gsea_setdiff, results = 'hide'}
 # A22 'High' genes not in Ar**
-A22.geneList.high <- rep(0, length = length(Ap.geneList))
-names(A22.geneList.high) <- names(Ap.geneList)
-A22.geneList.high[(which(names(A22.geneList.high) %in% A22.only.high))] <- 1
-A22.high.gsea <- gsea(genelist = A22.geneList.high, geneID2GO = geneID2GO)
+A22.geneList.high.only <- rep(0, length = length(Ap.geneList))
+names(A22.geneList.high.only) <- names(Ap.geneList)
+A22.geneList.high.only[(which(names(A22.geneList.high.only) %in% A22.only.high))] <- 1
+A22.high.only.gsea <- gsea(genelist = A22.geneList.high.only, geneID2GO = geneID2GO)
 
 # *Ar 'High' genes not in A22**
 Ar.geneList.high <- rep(0, length = length(Ap.geneList))
@@ -1189,6 +1199,19 @@ print(xtable(Ap.setdiff.gsea[ , 1:4], comment = getOption("xtable.comment", FALS
 ```
 
 
+For many of the responsive categories, it appears that there is considerable redundancy in the enriched GO terms. I use the [GOSemSim](http://www.bioconductor.org/packages/release/bioc/html/GOSemSim.html) package to determine semantic similarity of enriched GO terms `r citep("10.1093/bioinformatics/btq064")` and then perform hierarhichal clustering based on this information distance.
+
+```{r GOSemSim}
+# similarity among enriched GO terms
+A22.GO.term.sim <- termSim(A22.low.gsea$GO.ID, A22.low.gsea$GO.ID, ont = "BP", organism = "fly")
+# distance matrix
+dist.A22.GO.term.sim <- dist(A22.GO.term.sim)
+plot(hclust(dist(A22.GO.term.sim)))
+
+```
+
+
+
 ## DAVID Gene Functional Annotation
 
 As an alternative to topGO, in this section I use the [DAVID Functional Annotation web resource](http://david.abcc.ncifcrf.gov/) throught the Bioconductor [RDAVIDWebService](http://www.bioconductor.org/packages/release/bioc/html/RDAVIDWebService.html) package. Installing this packages is troublesome at best and my notes on how to do so are here ....
@@ -1223,6 +1246,7 @@ split.refseq.df <- colsplit(string = ApTranscriptome.Amel.Dros.refseq.prot$gi, p
 refseq.col <- strsplit(split.refseq.df$XP, split = "\\.")
 refseq.id <- unlist(refseq.col)[2*1:length(refseq.col)-1]
 str(refseq.id)
+#write.table(refseq.id, "DAVID.background.txt", quote = FALSE, row.names = FALSE, col.names = FALSE)
 
 # add background list to DAVID
 david.background <- addList(david.connect, refseq.id,
@@ -1233,7 +1257,7 @@ david.background <- addList(david.connect, refseq.id,
 
 Next, I need to add candidate gene lists for each response type. Extract these from the full BLAST table.
 
-```{r DAVID_geneList}
+```{r DAVID_A22_high}
 A22.high.geneList <- ApTranscriptome.Amel.Dros.refseq.prot[A22.high]
 # most of these were were not BLASTed. extract those that did
 A22.high.geneList.blast <- A22.high.geneList[which(!is.na(A22.high.geneList$gi)), ]
@@ -1242,30 +1266,110 @@ A22.high.geneList.blast.XP <- colsplit(string = A22.high.geneList.blast$gi, patt
 # remove version information for each gene accession
 A22.high.geneList.refseq.col <- strsplit(A22.high.geneList.blast.XP$XP, split = "\\.")
 A22.high.geneList.refseq.id <- unlist(A22.high.geneList.refseq.col)[2*1:length(A22.high.geneList.refseq.col)-1]
-tail(A22.high.geneList.refseq.id)
 
 # add genelist to DAVID
-david.geneList <- addList(david.connect, A22.high.geneList.refseq.id,
+david.A22.high.geneList <- addList(david.connect, A22.high.geneList.refseq.id,
                       idType = "REFSEQ_PROTEIN",
                       listName = "ApTranscriptome_A22_high",
                       listType = "Gene")
 
-
 # set annotation category and background gene list
-setAnnotationCategories(david.connect, "GOTERM_BP_ALL")
+#setAnnotationCategories(david.connect, "GOTERM_BP_ALL")
 getBackgroundListNames(david.connect)
 setCurrentBackgroundPosition(david.connect, 1)
 getCurrentBackgroundListPosition(david.connect)
+david.connect
+
+# Note that the current display for "species" shows only the first in list, but I confirmed in email with the programmer, Cristobal Fresno Rodriguez, that this is a bug and all species are being used, as shown in this code
+
+getCurrentSpeciesPosition2<-function(object){
+    ans <- NA
+    if(length(getSpecieNames(object)) != 0){
+        stub<-getStub(object)
+        ans<-as.integer(strsplit(stub$getCurrentSpecies(), split = ",")[[1]]) + 1
+    }
+    return(ans)
+}
+
+getCurrentSpeciesPosition2(david.connect)
+
 
 # obtain Functional Annotation Cluster
 A22.high.termCluster <- getClusterReport(david.connect, type = "Term")
-head(summary(A22.high.termCluster))
+summary(A22.high.termCluster)
 members(A22.high.termCluster)[[1]]$Term
 members(A22.high.termCluster)[[2]]$Term
 members(A22.high.termCluster)[[3]]$Term
 
-plot2D(A22.high.termCluster, 3)
+# calculate Enrichment
+geometric_mean <- function(x) exp(mean(log(x)))
+-log10(geometric_mean(members(A22.high.termCluster)[[1]]$PValue))
+-log10(geometric_mean(members(A22.high.termCluster)[[2]]$PValue))
+-log10(geometric_mean(members(A22.high.termCluster)[[3]]$PValue))
+-log10(geometric_mean(members(A22.high.termCluster)[[4]]$PValue))
+-log10(geometric_mean(members(A22.high.termCluster)[[5]]$PValue))
+-log10(geometric_mean(members(A22.high.termCluster)[[6]]$PValue))
+-log10(geometric_mean(members(A22.high.termCluster)[[7]]$PValue))
 ```
+
+Three clusters identified for *A. picea* genes turned on at high temperatures.
+
+1: protein synthesis
+2: regulation
+3: metabolism  
+
+A22 low
+
+```{r DAVID_A22_low}
+A22.low.geneList <- ApTranscriptome.Amel.Dros.refseq.prot[A22.low]
+# most of these were were not BLASTed. extract those that did
+A22.low.geneList.blast <- A22.low.geneList[which(!is.na(A22.low.geneList$gi)), ]
+# extract RefSeq protein ID
+A22.low.geneList.blast.XP <- colsplit(string = A22.low.geneList.blast$gi, pattern="\\|", names = c("gi", "ID", "ref", "XP"))
+# remove version information for each gene accession
+A22.low.geneList.refseq.col <- strsplit(A22.low.geneList.blast.XP$XP, split = "\\.")
+A22.low.geneList.refseq.id <- unlist(A22.low.geneList.refseq.col)[2*1:length(A22.low.geneList.refseq.col)-1]
+str(A22.low.geneList.refseq.id)
+
+# add genelist to DAVID
+david.A22.low.geneList <- addList(david.connect, A22.low.geneList.refseq.id,
+                      idType = "REFSEQ_PROTEIN",
+                      listName = "ApTranscriptome_A22_low",
+                      listType = "Gene")
+david.A22.low.geneList
+
+# set annotation category and background gene list
+#setAnnotationCategories(david.connect, "GOTERM_BP_ALL")
+getBackgroundListNames(david.connect)
+setCurrentBackgroundPosition(david.connect, 1)
+getCurrentBackgroundListPosition(david.connect)
+david.connect
+getCurrentSpeciesPosition2(david.connect)
+
+
+# obtain Functional Annotation Cluster
+A22.low.termCluster <- getClusterReport(david.connect, type = "Term")
+summary(A22.low.termCluster)
+members(A22.low.termCluster)[[1]]$Term
+members(A22.low.termCluster)[[2]]$Term
+members(A22.low.termCluster)[[3]]$Term
+members(A22.low.termCluster)[[1]]$Term
+members(A22.low.termCluster)[[2]]$Term
+members(A22.low.termCluster)[[3]]$Term
+
+```
+
+7 clusters for *A. picea* low-temperature activated genes:
+
+1. 
+2.
+3. 
+4. membrane
+5. cytochrome P450
+6. zinc finger
+7. Ras/Rho protein signaling
+
+
 
 
 ## Visualize responsive transcripts
@@ -1340,15 +1444,15 @@ An observation from GO analysis is that there is an overlap between enriched ter
 # transcripts where TPM increases at low temps & decreases at high temps
 A22.low.Ar.int.TPM.dt.sub <- resp.TPM.dt.sub.pred[J(intersect(A22.low,Ar.int), "A22")]
 
-#for(i in unique(A22.low.Ar.int.TPM.dt.sub$Transcript)[1:10]) {
-#    s <- A22.low.Ar.int.TPM.dt.sub[i]
-#    X11()
-#    plot(s$val, s$pTPM, ylim = c(0, max(s$pTPM)+.1))
-#    points(s$val, s$TPM, pch = 8, col = "red")
-#    if(s[which(s$val == 38.5) , pTPM] == min(s$pTPM)) print("OffHigh"#) else {
-#        print("OnLow")
-#    }
-#}
+for(i in unique(A22.low.Ar.int.TPM.dt.sub$Transcript)[1:10]) {
+    s <- A22.low.Ar.int.TPM.dt.sub[i]
+    X11()
+    plot(s$val, s$pTPM, ylim = c(0, max(s$pTPM)+.1))
+    points(s$val, s$TPM, pch = 8, col = "red")
+    if(s[which(s$val == 38.5) , pTPM] == min(s$pTPM)) print("OffHigh") else {
+        print("OnLow")
+    }
+}
 
 # tabulate the number of transcripts that have lowest expression at maximum temperature "OffHigh"
 A22.low.Ar.int.low.type <- ddply(A22.low.Ar.int.TPM.dt.sub, .(Transcript), summarise, lt = ifelse(pTPM[which(val == 38.5)] == min(pTPM), "OffHigh", "OnLow"))
