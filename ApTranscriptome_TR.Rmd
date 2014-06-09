@@ -440,12 +440,6 @@ RxNlmAIC <- try(dlply(sig.TPM.dt.sub, .(Transcript), lmFunc))
 The set of transcripts with significant expression patterns include those with expression that differs by species, temperature and the interaction of species and temperature. In this section, I am specifically interested in the thermally-responsive transcripts (temperature and species x temperature) so I subset the significant transcripts to examine these. 
 
 ```{r responsive_transcripts}
-grepFunc <- function(lmitem, term = NA) {
-  coefs <- coefficients(lmitem)
-  coef.names <- names(coefs)
-  keep <- if(length(grep(term, coef.names)) > 0) TRUE else FALSE
-}
-
 interaction.lms <- RxNlmAIC[which(Map(grepFunc, RxNlmAIC, term = "colonyAr:") == TRUE)]
 other.lms <- RxNlmAIC[setdiff(names(RxNlmAIC), names(interaction.lms))]
 temperature.lms <- other.lms[which(Map(grepFunc, other.lms, term = "val") == TRUE)]
@@ -482,6 +476,7 @@ I do this first for the thermally-responsive transcripts where there is no inter
 
 
 ```{r expression_shape, eval=TRUE, echo=TRUE}
+
 # calculate response type for responsive transcripts
 interaction.response.type <- ldply(interaction.lms, .progress = "none", .inform = TRUE, RxNtype)
 stopifnot(nrow(interaction.response.type) == length(interaction.lms))
@@ -515,7 +510,7 @@ chi1
 # Reorganize for plotting to show overlap among categories between colonies
 type.table <- table(Ap.response.type[ , 'Ar.type'], Ap.response.type[ , 'A22.type'])
 # reorder 
-tt2 <- type.table[c(2,4,1,3,5), c(2,4,1,3,5)]
+tt2 <- type.table[c("Bimodal", "PositiveLinear", "HighOn", "Intermediate", "NegativeLinear", "LowOn"), c("Bimodal", "PositiveLinear", "HighOn", "Intermediate", "NegativeLinear", "LowOn")]
 
 # plot
 mosaicplot(t(tt2), ylab = "AcNC", xlab = "ApVT", main = "Mosaic plot of responsive transcripts")
@@ -978,7 +973,10 @@ First need to create gene ID to GO term map file
 
 ```{r geneid2go, echo=TRUE, eval=TRUE, cache=TRUE}
 # create geneid2go.map file from FastAnnotator annotationtable.txt
-geneid2GOmap(annotation.file)
+mapname = "geneid2go.map"
+if(file.exists(mapname)) print("Gene ID to GO term file exists") else{
+    geneid2GOmap(annotation.file, ontology = c("BP", "CC", "MF"), mapname = mapname)
+}
 ```
 
 then read map file.
@@ -1033,7 +1031,7 @@ Ap.BP.ResTable
 
 As the molecular processes involved in cold and hot temperature tolerance are different, I perform GSEA separately for each response type and compile results in a single table.
 
-```{r gsea_by_type, results = 'hide'}
+```{r gsea_Ap_high, results = 'hide'}
 ## Genes with *High* expression in both colonies
 Ap.high <- Ap.response.type[which(Ap.response.type$Ar.type == "High" & Ap.response.type$A22.type == "High"), "Transcript"]
 Ap.geneList.high <- rep(0, length = length(Ap.geneList))
@@ -1043,7 +1041,24 @@ Ap.geneList.high[(which(names(Ap.geneList.high) %in% Ap.high))] <- 1
 table(Ap.geneList.high)
 # run GSEA
 Ap.high.gsea <- gsea(genelist = Ap.geneList.high, geneID2GO = geneID2GO, plotpath = NA)
+```
 
+```{r gsea_Ap_high_cluster}
+# similarity among enriched GO terms
+Ap.high.GO.term.sim <- termSim(Ap.high.gsea$GO.ID, Ap.high.gsea$GO.ID, ont = "BP", organism = 'fly')
+# replace GO IDs with terms
+rownames(Ap.high.GO.term.sim) <- Ap.high.gsea$Term
+colnames(Ap.high.GO.term.sim) <- Ap.high.gsea$Term
+
+# distance matrix
+Ap.high.hclust <- hclust(dist(Ap.high.GO.term.sim))
+plot(Ap.high.hclust)
+
+# report items in each cluster at height 0.6 
+GSEAReportClusters(Ap.high.hclust, h = 0.6)
+```
+
+```{r gsea_Ap_low, results = "hide"}
 ## Genes with *Low* expression in both colonies
 Ap.low <- Ap.response.type[which(Ap.response.type$Ar.type == "Low" & Ap.response.type$A22.type == "Low"), "Transcript"]
 Ap.geneList.low <- rep(0, length = length(Ap.geneList))
@@ -1053,7 +1068,25 @@ Ap.geneList.low[(which(names(Ap.geneList.low) %in% Ap.low))] <- 1
 table(Ap.geneList.low)
 # Run GSEA
 Ap.low.gsea <- gsea(genelist = Ap.geneList.low, geneID2GO = geneID2GO)
+```
 
+```{r gsea_Ap_low_cluster}
+# similarity among enriched GO terms
+Ap.low.GO.term.sim <- termSim(Ap.low.gsea$GO.ID, Ap.low.gsea$GO.ID, ont = "BP", organism = 'fly')
+# replace GO IDs with terms
+rownames(Ap.low.GO.term.sim) <- Ap.low.gsea$Term
+colnames(Ap.low.GO.term.sim) <- Ap.low.gsea$Term
+
+# distance matrix
+Ap.low.hclust <- hclust(dist(Ap.low.GO.term.sim))
+plot(Ap.low.hclust)
+
+# report items in each cluster at height 1.5
+GSEAReportClusters(Ap.low.hclust, h = 1.5)
+```
+
+
+```{r gsea_Ap_bim, resuts = 'hide'}
 ## Genes with *Bimodal* expression in both colonies
 Ap.bim <- Ap.response.type[which(Ap.response.type$A22.type == "Bimodal" & Ap.response.type$Ar.type == "Bimodal"), "Transcript"]
 # create gene list, setting value to 1 for "bim" transcripts
@@ -1064,7 +1097,25 @@ Ap.geneList.bim[(which(names(Ap.geneList.bim) %in% Ap.bim))] <- 1
 table(Ap.geneList.bim)
 # Run GSEA
 Ap.bim.gsea <- gsea(genelist = Ap.geneList.bim, geneID2GO = geneID2GO)
+```
 
+
+```{r gsea_Ap_bim_cluster}
+# similarity among enriched GO terms
+Ap.bim.GO.term.sim <- termSim(Ap.bim.gsea$GO.ID, Ap.bim.gsea$GO.ID, ont = "BP", organism = 'fly')
+# replace GO IDs with terms
+rownames(Ap.bim.GO.term.sim) <- Ap.bim.gsea$Term
+colnames(Ap.bim.GO.term.sim) <- Ap.bim.gsea$Term
+
+# distance matrix
+Ap.bim.hclust <- hclust(dist(Ap.bim.GO.term.sim))
+plot(Ap.bim.hclust)
+
+# report items in each cluster at height 1.5
+GSEAReportClusters(Ap.bim.hclust, h = 1.5)
+```
+
+```{r gsea_Ap_int, results = 'hide'}
 ## Genes with *Intermediate* expression in both colonies
 Ap.int <- Ap.response.type[which(Ap.response.type$A22.type == "Intermediate" & Ap.response.type$Ar.type == "Intermediate"), "Transcript"]
 # create gene list, setting value to 1 for "int" transcripts
@@ -1075,6 +1126,23 @@ Ap.geneList.int[(which(names(Ap.geneList.int) %in% Ap.int))] <- 1
 table(Ap.geneList.int)
 # Run GSEA
 Ap.int.gsea <- gsea(genelist = Ap.geneList.int, geneID2GO = geneID2GO)
+```
+
+
+```{r gsea_Ap_int_cluster}
+# similarity among enriched GO terms
+Ap.int.GO.term.sim <- termSim(Ap.int.gsea$GO.ID, Ap.int.gsea$GO.ID, ont = "BP", organism = 'fly')
+# replace GO IDs with terms
+rownames(Ap.int.GO.term.sim) <- Ap.int.gsea$Term
+colnames(Ap.int.GO.term.sim) <- Ap.int.gsea$Term
+
+# distance matrix
+Ap.int.hclust <- hclust(dist(Ap.int.GO.term.sim))
+plot(Ap.int.hclust)
+
+# report items in each cluster at height 1.5
+GSEAReportClusters(Ap.int.hclust, h = 1.5)
+```
 
 ## merge results into single table
 Ap.high.gsea$Type <- "High"
