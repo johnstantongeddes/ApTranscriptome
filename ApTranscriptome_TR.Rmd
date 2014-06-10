@@ -38,7 +38,6 @@ library(reshape2)
 #biocLite("GOSemSim")
 library(topGO) 
 library(Rgraphviz)
-library(RDAVIDWebService)
 library(GOSemSim)
 
 # load custom functions
@@ -467,16 +466,17 @@ pandoc.table(sigtable, style="rmarkdown", caption = "Number of transcripts of 99
 The previous section identified the transcripts with thermally-responsive expression. In this section, I determine the shape of the expression response to temperature for each transcript. Catego
 ries of expression response are:
 
-* High - increase expression with temperature
-* Low - decrease expression with temperature
+* HighOn - expression activated at high temperatures
+* PositiveLinear - expression positive linear across thermal gradient (0 - 38°C)
+* LowOn - expression activated at low temperatures
+* NegativeLinear - expression negative linear across thermal gradient (0 - 38°C)
 * Intermediate - maximum expression at intermediate temperatures (14 - 28C)
-* Bimodal - expressed greater than two standard deviations of expression at both low and high temperatures
+* Bimodal - expressed greater than one standard deviation of expression at both low and high temperatures
 
 I do this first for the thermally-responsive transcripts where there is no interaction with species. For the transcripts where thermal-responsive expression depends on species, I determine the functional type of the expression response separately for each species. 
 
 
 ```{r expression_shape, eval=TRUE, echo=TRUE}
-
 # calculate response type for responsive transcripts
 interaction.response.type <- ldply(interaction.lms, .progress = "none", .inform = TRUE, RxNtype)
 stopifnot(nrow(interaction.response.type) == length(interaction.lms))
@@ -501,7 +501,7 @@ A22.type.table <- table(Ap.response.type[ , 'A22.type'])
 Ar.type.table <- table(Ap.response.type[ , 'Ar.type'])
 
 # table
-Ap.type.table <- rbind(A22.type.table, Ar.type.table)
+(Ap.type.table <- rbind(A22.type.table, Ar.type.table))
 
 # Pearson Chi-square test
 chi1 <- chisq.test(Ap.type.table)
@@ -510,7 +510,7 @@ chi1
 # Reorganize for plotting to show overlap among categories between colonies
 type.table <- table(Ap.response.type[ , 'Ar.type'], Ap.response.type[ , 'A22.type'])
 # reorder 
-tt2 <- type.table[c("Bimodal", "PositiveLinear", "HighOn", "Intermediate", "NegativeLinear", "LowOn"), c("Bimodal", "PositiveLinear", "HighOn", "Intermediate", "NegativeLinear", "LowOn")]
+tt2 <- type.table[c("Bimodal", "PositiveLinear", "HighOn", "Intermediate", "NegativeLinear", "LowOn", "NotResp"), c("Bimodal", "PositiveLinear", "HighOn", "Intermediate", "NegativeLinear", "LowOn", "NotResp")]
 
 # plot
 mosaicplot(t(tt2), ylab = "AcNC", xlab = "ApVT", main = "Mosaic plot of responsive transcripts")
@@ -525,14 +525,14 @@ Interestingly, nearly half of the *High* genes in *AcNC* are *Low* in *ApVT*, an
 # add row and column totals
 tt3 <- rbind(tt2, colSums(tt2))
 tt3 <- cbind(tt3, rowSums(tt3))
-colnames(tt3)[6] <- "Total"
-rownames(tt3)[6] <- "Total"
+colnames(tt3)[8] <- "Total"
+rownames(tt3)[8] <- "Total"
 # move names into table
 tt3 <- rbind(rownames(tt3), tt3)
 tt3 <- cbind(rownames(tt3), tt3)
 # name col/row by species
-rownames(tt3) <- c("AcNC", "", "", "", "", "", "")
-colnames(tt3) <- c("ApVT", "", "", "", "", "", "")
+rownames(tt3) <- c("AcNC", "", "", "", "", "", "", "", "")
+colnames(tt3) <- c("ApVT", "", "", "", "", "", "", "", "")
 
 pandoc.table(tt3, style="rmarkdown", caption = "Number of transcripts with maximum expression at high, low, intermediate, both high and low (bimodal) temperatures or are not thermally-responsivefor each species and their overlap.", split.tables = "Inf")
 ```
@@ -576,7 +576,7 @@ Genes upregulated in response to thermal stress in one species may have greater 
 
 ```{r optimum_expression_comparison}
 # list of transcripts that are 'high' expressed in A22
-A22.high.transcripts <- Ap.response.type[which(Ap.response.type$A22.type == "High"), ]
+A22.high.transcripts <- Ap.response.type[which(Ap.response.type$A22.type == "HighOn" | Ap.response.type$A22.type == "PositiveLinear"), ]
 
 # Compare expression at optimum temp (A22.opt) between colonies using t-test
 t.test(A22.high.transcripts$A22.opt, A22.high.transcripts$Ar.opt)
@@ -600,7 +600,7 @@ Next I test the converse: do genes up-regulated at low temperatures in *Ar* have
 
 ```{r Ar_low_wilcoxon}
 # list of transcripts that are 'high' expressed in Ar
-Ar.low.transcripts <- Ap.response.type[which(Ap.response.type$Ar.type == "Low"), ]
+Ar.low.transcripts <- Ap.response.type[which(Ap.response.type$Ar.type == "LowOn" | Ap.response.type$A22.type == "NegativeLinear"), ]
 
 # t-test with log values
 t.test(log(Ar.low.transcripts$A22.opt+1), log(Ar.low.transcripts$Ar.opt+1))
@@ -613,23 +613,9 @@ w2
 
 Counter to expectations, expression at optimal temperatures is also greater in *Ar* than *A22* for transcripts upregulated at low temperatures in *Ar*. 
 
-To confirm that there are not sample-level issues, I performed the same comparison using transcripts where I do *not* expect to see a difference in expression.
+To confirm that there are not sample-level issues, I performed the same comparison using *Intermediate* expressed-genes where I do not expect to see a difference in expression.
 
 ```{r intermediate_transcripts}
-# list of transcripts that are 'Intermediate' expressed in Ar
-Ar.int.transcripts <- Ap.response.type[which(Ap.response.type$Ar.type == "Intermediate"), ]
-# T test
-t.test(log(Ar.int.transcripts$A22.opt+1), log(Ar.int.transcripts$Ar.opt+1))
-# Wilcoxon signed rank-test
-wilcox.test(Ar.int.transcripts$A22.opt, Ar.int.transcripts$Ar.opt, alternative = "two.sided", paired = TRUE, conf.int = TRUE)
-
-# list of transcripts that are 'Intermediate' expressed in A22
-A22.int.transcripts <- Ap.response.type[which(Ap.response.type$A22.type == "Intermediate"), ]
-# T test
-t.test(log(A22.int.transcripts$A22.opt+1), log(A22.int.transcripts$Ar.opt+1))
-# Wilcoxon signed rank-test
-wilcox.test(A22.int.transcripts$A22.opt, A22.int.transcripts$Ar.opt, alternative = "two.sided", paired = TRUE, conf.int = TRUE)
-
 # list of transcripts that are 'Intermediate' expressed in either colony
 Ap.int.transcripts <- Ap.response.type[which(Ap.response.type$Ar.type == "Intermediate" | Ap.response.type$A22.type == "Intermediate"), ]
 # T test
@@ -730,17 +716,23 @@ setkey(resp.TPM.dt.sub.pred, Transcript, colony)
 For next analyses, extract list of gene names by response type.
 
 ```{r extract_Transcripts}
-A22.high <- Ap.response.type[which(Ap.response.type$A22.type == "High"), "Transcript"]
-Ar.high <- Ap.response.type[which(Ap.response.type$Ar.type == "High"), "Transcript"]
+A22.high.transcripts <- Ap.response.type[which(Ap.response.type$A22.type == "HighOn"), "Transcript"]
+Ar.high.transcripts <- Ap.response.type[which(Ap.response.type$Ar.type == "HighOn"), "Transcript"]
 
-A22.low <- Ap.response.type[which(Ap.response.type$A22.type == "Low"), "Transcript"]
-Ar.low <- Ap.response.type[which(Ap.response.type$Ar.type == "Low"), "Transcript"]
+A22.poslinear.transcripts <- Ap.response.type[which(Ap.response.type$A22.type == "PositiveLinear"), "Transcript"]
+Ar.poslinear.transcripts <- Ap.response.type[which(Ap.response.type$Ar.type == "POsitiveLinear"), "Transcript"]
 
-A22.bim <- Ap.response.type[which(Ap.response.type$A22.type == "Bimodal"), "Transcript"]
-Ar.bim <- Ap.response.type[which(Ap.response.type$Ar.type == "Bimodal"), "Transcript"]
+A22.low.transcripts <- Ap.response.type[which(Ap.response.type$A22.type == "LowOn"), "Transcript"]
+Ar.low.transcripts <- Ap.response.type[which(Ap.response.type$Ar.type == "LowOn"), "Transcript"]
 
-A22.int <- Ap.response.type[which(Ap.response.type$A22.type == "Intermediate"), "Transcript"]
-Ar.int <- Ap.response.type[which(Ap.response.type$Ar.type == "Intermediate"), "Transcript"]
+A22.neglinear.transcripts <- Ap.response.type[which(Ap.response.type$A22.type == "NegativeLinear"), "Transcript"]
+Ar.neglinear.transcripts <- Ap.response.type[which(Ap.response.type$Ar.type == "NegativeLinear"), "Transcript"]
+
+A22.bim.transcripts <- Ap.response.type[which(Ap.response.type$A22.type == "Bimodal"), "Transcript"]
+Ar.bim.transcripts <- Ap.response.type[which(Ap.response.type$Ar.type == "Bimodal"), "Transcript"]
+
+A22.int.transcripts <- Ap.response.type[which(Ap.response.type$A22.type == "Intermediate"), "Transcript"]
+Ar.int.transcripts <- Ap.response.type[which(Ap.response.type$Ar.type == "Intermediate"), "Transcript"]
 ```
 
 
@@ -1183,7 +1175,7 @@ Ar.only.int <- Ap.response.type[which(Ap.response.type$A22.type != "Intermediate
 # A22 'High' genes
 A22.geneList.high <- rep(0, length = length(Ap.geneList))
 names(A22.geneList.high) <- names(Ap.geneList)
-A22.geneList.high[(which(names(A22.geneList.high) %in% A22.high))] <- 1
+A22.geneList.high[(which(names(A22.geneList.high) %in% A22.high.transcripts))] <- 1
 A22.high.gsea <- gsea(genelist = A22.geneList.high, geneID2GO = geneID2GO)
 ```
 
@@ -1337,12 +1329,43 @@ print(trp4)
 
 
 ```{r ggplot_high}
-trp_A22_high <- ggplot(resp.TPM.dt.sub[A22.high], aes(x=val, y=TPM.scaled, group=Transcript)) + 
+trp_A22_high <- ggplot(resp.TPM.dt.sub[A22.high.transcripts][1:220,], aes(x=val, y=TPM.scaled, group=Transcript)) +
   geom_smooth(method = "lm", formula = y ~ poly(x, 2)) + 
   facet_grid(. ~ colony2) + 
   scale_y_continuous(name="Expression (scaled)") +
   scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
 print(trp_A22_high)
+
+trp_A22_poslinear <- ggplot(resp.TPM.dt.sub[A22.poslinear.transcripts][1:220,], aes(x=val, y=TPM.scaled, group=Transcript)) +
+  geom_smooth(method = "lm", formula = y ~ poly(x, 2)) + 
+  facet_grid(. ~ colony2) + 
+  scale_y_continuous(name="Expression (scaled)") +
+  scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
+print(trp_A22_poslinear)
+
+### predicted values
+resp.TPM.dt.sub.pred[,pTPM.scaled:=scale(pTPM), by = Transcript]
+
+pred_A22_high <- ggplot(resp.TPM.dt.sub.pred[A22.high.transcripts][1:220,], aes(x=val, y=pTPM.scaled, group=Transcript)) +
+  geom_line() + 
+  facet_grid(. ~ colony) + 
+  scale_y_continuous(name="Expression (scaled)") +
+  scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
+print(pred_A22_high)
+
+pred_A22_poslinear <- ggplot(resp.TPM.dt.sub.pred[A22.poslinear.transcripts][1:220,], aes(x=val, y=pTPM.scaled, group=Transcript)) +
+  geom_line() + 
+  facet_grid(. ~ colony) + 
+  scale_y_continuous(name="Expression (scaled)") +
+  scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
+print(pred_A22_poslinear)
+
+ggplot(resp.TPM.dt.sub.pred["100348|*|comp3450455_c0_seq1"], aes(x=val, y=pTPM.scaled, group=Transcript)) +
+  geom_line() + 
+  facet_grid(. ~ colony) + 
+  scale_y_continuous(name="Expression (scaled)") +
+  scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
+
 ```
 
 ### Overlap between *Ar* Intermediate and *A22* Low genes
