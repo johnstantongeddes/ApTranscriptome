@@ -3,7 +3,7 @@ Thermal reactionome of the common ant species *Aphaenogaster picea* and *A. caro
    
 **Author:** [John Stanton-Geddes](john.stantongeddes.research@gmail.com)
 
-**June 2, 2014**
+**June 10, 2014**
 
 **Technical Report No. 3**
 
@@ -38,7 +38,6 @@ library(reshape2)
 #biocLite("GOSemSim")
 library(topGO) 
 library(Rgraphviz)
-library(RDAVIDWebService)
 library(GOSemSim)
 
 # load custom functions
@@ -562,7 +561,7 @@ In this section, I perform a number of comparisons of the thermal reactionomes b
 
 Probability density function of peak expression for transcripts that differ in expression between *A22* and *Ar*
 
-```{r max_exp_PDF}
+```{r max_exp_PDF, warning = FALSE, message = FALSE}
 # reshape data
 Ap.df <- data.frame(Transcript = rep(Ap.response.type$Transcript, times = 2), colony = rep(c("ApVT", "AcNC"), each = length(Ap.response.type$Transcript)), max.val = c(Ap.response.type$A22.max, Ap.response.type$Ar.max))
 
@@ -571,7 +570,7 @@ maxexplot <- ggplot(Ap.df, aes(x=max.val, fill=colony)) +
   #scale_fill_manual(name = "Colony", values = c("white", "black")) + 
   scale_y_continuous(name="Density") +
   scale_x_continuous(name="Temperature of maximum expression")
-suppressWarnings(print(maxexplot))
+print(maxexplot)
 ```
 
 
@@ -581,21 +580,21 @@ Genes upregulated in response to thermal stress in one species may have greater 
 
 ```{r optimum_expression_comparison}
 # list of transcripts that are 'high' expressed in A22
-A22.high.transcripts <- Ap.response.type[which(Ap.response.type$A22.type == "High"), ]
+A22.high <- Ap.response.type[which(Ap.response.type$A22.type == "High"), ]
 
 # Compare expression at optimum temp (A22.opt) between colonies using t-test
-t.test(A22.high.transcripts$A22.opt, A22.high.transcripts$Ar.opt)
-boxplot(A22.high.transcripts$A22.opt, A22.high.transcripts$Ar.opt)
+t.test(A22.high$A22.opt, A22.high$Ar.opt)
+boxplot(A22.high$A22.opt, A22.high$Ar.opt)
 
 # T test on log-transformed values to control for outliers
-t.test(log(A22.high.transcripts$A22.opt+1), log(A22.high.transcripts$Ar.opt+1))
-boxplot(log(A22.high.transcripts$A22.opt+1), log(A22.high.transcripts$Ar.opt+1))
+t.test(log(A22.high$A22.opt+1), log(A22.high$Ar.opt+1))
+boxplot(log(A22.high$A22.opt+1), log(A22.high$Ar.opt+1))
 ```
 
 The `t.test` fails to account for the many orders of magnitude difference in expression among transcripts, e.g. non-equal variances. This problem is the key issue in the analysis of differential expression `r citep(c("10.1186/1471-2105-11-94", "10.1038/nprot.2013.099"))`. As my goal is simply to determine if expression is typically greater at optimal temperatures (19.5 C) in *Ar* than *A22* for genes that are up-regulated at high temperatures in *A22*, I use a non-parametric Wilcoxon signed rank-test
 
 ```{r A22_high_wilcoxon}
-w1 <- wilcox.test(A22.high.transcripts$A22.opt, A22.high.transcripts$Ar.opt, alternative = "two.sided", paired = TRUE, conf.int = TRUE)
+w1 <- wilcox.test(A22.high$A22.opt, A22.high$Ar.opt, alternative = "two.sided", paired = TRUE, conf.int = TRUE)
 w1
 ```
 
@@ -605,14 +604,14 @@ Next I test the converse: do genes up-regulated at low temperatures in *Ar* have
 
 ```{r Ar_low_wilcoxon}
 # list of transcripts that are 'high' expressed in Ar
-Ar.low.transcripts <- Ap.response.type[which(Ap.response.type$Ar.type == "Low"), ]
+Ar.low <- Ap.response.type[which(Ap.response.type$Ar.type == "Low"), ]
 
 # t-test with log values
-t.test(log(Ar.low.transcripts$A22.opt+1), log(Ar.low.transcripts$Ar.opt+1))
-boxplot(log(Ar.low.transcripts$A22.opt+1), log(Ar.low.transcripts$Ar.opt+1))
+t.test(log(Ar.low$A22.opt+1), log(Ar.low$Ar.opt+1))
+boxplot(log(Ar.low$A22.opt+1), log(Ar.low$Ar.opt+1))
 
 # Wilcoxon signed rank-test
-w2 <- wilcox.test(Ar.low.transcripts$A22.opt, Ar.low.transcripts$Ar.opt, alternative = "two.sided", paired = TRUE, conf.int = TRUE)
+w2 <- wilcox.test(Ar.low$A22.opt, Ar.low$Ar.opt, alternative = "two.sided", paired = TRUE, conf.int = TRUE)
 w2
 ```
 
@@ -621,20 +620,6 @@ Counter to expectations, expression at optimal temperatures is also greater in *
 To confirm that there are not sample-level issues, I performed the same comparison using transcripts where I do *not* expect to see a difference in expression.
 
 ```{r intermediate_transcripts}
-# list of transcripts that are 'Intermediate' expressed in Ar
-Ar.int.transcripts <- Ap.response.type[which(Ap.response.type$Ar.type == "Intermediate"), ]
-# T test
-t.test(log(Ar.int.transcripts$A22.opt+1), log(Ar.int.transcripts$Ar.opt+1))
-# Wilcoxon signed rank-test
-wilcox.test(Ar.int.transcripts$A22.opt, Ar.int.transcripts$Ar.opt, alternative = "two.sided", paired = TRUE, conf.int = TRUE)
-
-# list of transcripts that are 'Intermediate' expressed in A22
-A22.int.transcripts <- Ap.response.type[which(Ap.response.type$A22.type == "Intermediate"), ]
-# T test
-t.test(log(A22.int.transcripts$A22.opt+1), log(A22.int.transcripts$Ar.opt+1))
-# Wilcoxon signed rank-test
-wilcox.test(A22.int.transcripts$A22.opt, A22.int.transcripts$Ar.opt, alternative = "two.sided", paired = TRUE, conf.int = TRUE)
-
 # list of transcripts that are 'Intermediate' expressed in either colony
 Ap.int.transcripts <- Ap.response.type[which(Ap.response.type$Ar.type == "Intermediate" | Ap.response.type$A22.type == "Intermediate"), ]
 # T test
@@ -653,6 +638,7 @@ The non-parametric test for both comparisions also finds greater expression in *
 
 ```{r thermal_breadth}
 # extract 'Intermediate' expressed transcripts for A22
+A22.int.transcripts <- Ap.response.type[which(Ap.response.type$A22.type == "Intermediate"), ]
 A22.int.lm <- RxNlmAIC[A22.int.transcripts$Transcript]
 length(A22.int.lm)
 
@@ -661,6 +647,7 @@ A22.int.sd <- unlist(Map(transcriptSD, A22.int.lm, colony = "A22"))
 A22.int.sd <- data.frame(colony = "A22", exp_sd = A22.int.sd)
 
 # repeat for Ar
+Ar.int.transcripts <- Ap.response.type[which(Ap.response.type$Ar.type == "Intermediate"), ]
 Ar.int.lm <- RxNlmAIC[Ar.int.transcripts$Transcript]
 Ar.int.sd <- unlist(Map(transcriptSD, Ar.int.lm, colony = "Ar"))
 Ar.int.sd <- data.frame(colony = "Ar", exp_sd = Ar.int.sd)
@@ -735,17 +722,17 @@ setkey(resp.TPM.dt.sub.pred, Transcript, colony)
 For next analyses, extract list of gene names by response type.
 
 ```{r extract_Transcripts}
-A22.high <- Ap.response.type[which(Ap.response.type$A22.type == "High"), "Transcript"]
-Ar.high <- Ap.response.type[which(Ap.response.type$Ar.type == "High"), "Transcript"]
+A22.high.transcripts <- Ap.response.type[which(Ap.response.type$A22.type == "High"), "Transcript"]
+Ar.high.transcripts <- Ap.response.type[which(Ap.response.type$Ar.type == "High"), "Transcript"]
 
-A22.low <- Ap.response.type[which(Ap.response.type$A22.type == "Low"), "Transcript"]
-Ar.low <- Ap.response.type[which(Ap.response.type$Ar.type == "Low"), "Transcript"]
+A22.low.transcripts <- Ap.response.type[which(Ap.response.type$A22.type == "Low"), "Transcript"]
+Ar.low.transcripts <- Ap.response.type[which(Ap.response.type$Ar.type == "Low"), "Transcript"]
 
-A22.bim <- Ap.response.type[which(Ap.response.type$A22.type == "Bimodal"), "Transcript"]
-Ar.bim <- Ap.response.type[which(Ap.response.type$Ar.type == "Bimodal"), "Transcript"]
+A22.bim.transcripts <- Ap.response.type[which(Ap.response.type$A22.type == "Bimodal"), "Transcript"]
+Ar.bim.transcripts <- Ap.response.type[which(Ap.response.type$Ar.type == "Bimodal"), "Transcript"]
 
-A22.int <- Ap.response.type[which(Ap.response.type$A22.type == "Intermediate"), "Transcript"]
-Ar.int <- Ap.response.type[which(Ap.response.type$Ar.type == "Intermediate"), "Transcript"]
+A22.int.transcripts <- Ap.response.type[which(Ap.response.type$A22.type == "Intermediate"), "Transcript"]
+Ar.int.transcripts <- Ap.response.type[which(Ap.response.type$Ar.type == "Intermediate"), "Transcript"]
 ```
 
 
@@ -753,7 +740,7 @@ Calculate T~on~ for *High* genes in each species.
 
 ```{r T_on_high}
 # transcripts expressed at *High* and *Bimodal* temperatures in A22
-A22.high.TPM.dt.sub <- resp.TPM.dt.sub.pred[J(union(A22.high, A22.bim), "A22")]
+A22.high.TPM.dt.sub <- resp.TPM.dt.sub.pred[J(union(A22.high.transcripts, A22.bim.transcripts), "A22")]
 setkey(A22.high.TPM.dt.sub, Transcript)
 str(A22.high.TPM.dt.sub)
 
@@ -771,7 +758,7 @@ for(i in unique(A22.high.TPM.dt.sub$Transcript)) {
 }   
 
 # repeat for Ar
-Ar.high.TPM.dt.sub <- resp.TPM.dt.sub.pred[J(union(Ar.high, Ar.bim), "Ar")]
+Ar.high.TPM.dt.sub <- resp.TPM.dt.sub.pred[J(union(Ar.high.transcripts, Ar.bim.transcripts), "Ar")]
 setkey(Ar.high.TPM.dt.sub, Transcript)
 str(Ar.high.TPM.dt.sub)
 
@@ -796,7 +783,7 @@ Repeat analysis for *Low* genes.
 
 ```{r T_on_low}
 # transcripts expressed at *Low* temperatures in A22
-A22.low.TPM.dt.sub <- resp.TPM.dt.sub.pred[J(union(A22.low, A22.bim), "A22")]
+A22.low.TPM.dt.sub <- resp.TPM.dt.sub.pred[J(union(A22.low.transcripts, A22.bim.transcripts), "A22")]
 setkey(A22.low.TPM.dt.sub, Transcript)
 str(A22.low.TPM.dt.sub)
 
@@ -813,7 +800,7 @@ for(i in unique(A22.low.TPM.dt.sub$Transcript)) {
 }   
 
 # repeat for Ar
-Ar.low.TPM.dt.sub <- resp.TPM.dt.sub.pred[J(union(Ar.low, Ar.bim), "A22")]
+Ar.low.TPM.dt.sub <- resp.TPM.dt.sub.pred[J(union(Ar.low.transcripts, Ar.bim.transcripts), "A22")]
 setkey(Ar.low.TPM.dt.sub, Transcript)
 str(Ar.low.TPM.dt.sub)
 
@@ -1115,7 +1102,7 @@ Ar.only.int <- Ap.response.type[which(Ap.response.type$A22.type != "Intermediate
 # A22 'High' genes
 A22.geneList.high <- rep(0, length = length(Ap.geneList))
 names(A22.geneList.high) <- names(Ap.geneList)
-A22.geneList.high[(which(names(A22.geneList.high) %in% A22.high))] <- 1
+A22.geneList.high[(which(names(A22.geneList.high) %in% A22.high.transcripts))] <- 1
 A22.high.gsea <- gsea(genelist = A22.geneList.high, geneID2GO = geneID2GO)
 ```
 
@@ -1269,7 +1256,7 @@ print(trp4)
 
 
 ```{r ggplot_high}
-trp_A22_high <- ggplot(resp.TPM.dt.sub[A22.high], aes(x=val, y=TPM.scaled, group=Transcript)) + 
+trp_A22_high <- ggplot(resp.TPM.dt.sub[A22.high.transcripts], aes(x=val, y=TPM.scaled, group=Transcript)) + 
   geom_smooth(method = "lm", formula = y ~ poly(x, 2)) + 
   facet_grid(. ~ colony2) + 
   scale_y_continuous(name="Expression (scaled)") +
