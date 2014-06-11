@@ -37,8 +37,7 @@ library(reshape2)
 #biocLite("RDAVIDWebService")
 #biocLite("GOSemSim")
 library(topGO) 
-library(Rgraphviz)
-	
+library(Rgraphviz)	
 library(GOSemSim)
 
 # load custom functions
@@ -314,7 +313,6 @@ A22.TPM <- data.table(A22.TPM)
 setkey(A22.TPM, Transcript, val)
 
 # set "trt" to true values - truncated in file names for convenience
-
 A22.TPM[val==3,val:=3.5]
 A22.TPM[val==10,val:=10.5]
 A22.TPM[val==17,val:=17.5]
@@ -322,7 +320,6 @@ A22.TPM[val==24,val:=24.5]
 A22.TPM[val==31,val:=31.5]
 A22.TPM[val==38,val:=38.5]
 str(A22.TPM)
-
 
 # Repeat for Ar
 Ar.TPM <- rbind(Ar_0_quant, Ar_3_quant, Ar_7_quant, Ar_10_quant, Ar_14_quant, Ar_17_quant, Ar_21_quant, Ar_24_quant, Ar_28_quant, Ar_31_quant, Ar_35_quant, Ar_38_quant)
