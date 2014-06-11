@@ -3,7 +3,7 @@ Thermal reactionome of the common ant species *Aphaenogaster picea* and *A. caro
    
 **Author:** [John Stanton-Geddes](john.stantongeddes.research@gmail.com)
 
-**June 10, 2014**
+**June 2, 2014**
 
 **Technical Report No. 3**
 
@@ -38,6 +38,7 @@ library(reshape2)
 #biocLite("GOSemSim")
 library(topGO) 
 library(Rgraphviz)
+	
 library(GOSemSim)
 
 # load custom functions
@@ -475,7 +476,7 @@ ries of expression response are:
 * High - increase expression with temperature
 * Low - decrease expression with temperature
 * Intermediate - maximum expression at intermediate temperatures (14 - 28C)
-* Bimodal - expressed greater than two standard deviations of expression at both low and high temperatures
+* Bimodal - expressed greater than one standard deviation of expression at both low and high temperatures
 
 I do this first for the thermally-responsive transcripts where there is no interaction with species. For the transcripts where thermal-responsive expression depends on species, I determine the functional type of the expression response separately for each species. 
 
@@ -505,7 +506,7 @@ A22.type.table <- table(Ap.response.type[ , 'A22.type'])
 Ar.type.table <- table(Ap.response.type[ , 'Ar.type'])
 
 # table
-Ap.type.table <- rbind(A22.type.table, Ar.type.table)
+(Ap.type.table <- rbind(A22.type.table, Ar.type.table))
 
 # Pearson Chi-square test
 chi1 <- chisq.test(Ap.type.table)
@@ -580,21 +581,21 @@ Genes upregulated in response to thermal stress in one species may have greater 
 
 ```{r optimum_expression_comparison}
 # list of transcripts that are 'high' expressed in A22
-A22.high <- Ap.response.type[which(Ap.response.type$A22.type == "High"), ]
+A22.high.transcripts <- Ap.response.type[which(Ap.response.type$A22.type == "High"), ]
 
 # Compare expression at optimum temp (A22.opt) between colonies using t-test
-t.test(A22.high$A22.opt, A22.high$Ar.opt)
-boxplot(A22.high$A22.opt, A22.high$Ar.opt)
+t.test(A22.high.transcripts$A22.opt, A22.high.transcripts$Ar.opt)
+boxplot(A22.high.transcripts$A22.opt, A22.high.transcripts$Ar.opt)
 
 # T test on log-transformed values to control for outliers
-t.test(log(A22.high$A22.opt+1), log(A22.high$Ar.opt+1))
-boxplot(log(A22.high$A22.opt+1), log(A22.high$Ar.opt+1))
+t.test(log(A22.high.transcripts$A22.opt+1), log(A22.high.transcripts$Ar.opt+1))
+boxplot(log(A22.high.transcripts$A22.opt+1), log(A22.high.transcripts$Ar.opt+1))
 ```
 
 The `t.test` fails to account for the many orders of magnitude difference in expression among transcripts, e.g. non-equal variances. This problem is the key issue in the analysis of differential expression `r citep(c("10.1186/1471-2105-11-94", "10.1038/nprot.2013.099"))`. As my goal is simply to determine if expression is typically greater at optimal temperatures (19.5 C) in *Ar* than *A22* for genes that are up-regulated at high temperatures in *A22*, I use a non-parametric Wilcoxon signed rank-test
 
 ```{r A22_high_wilcoxon}
-w1 <- wilcox.test(A22.high$A22.opt, A22.high$Ar.opt, alternative = "two.sided", paired = TRUE, conf.int = TRUE)
+w1 <- wilcox.test(A22.high.transcripts$A22.opt, A22.high.transcripts$Ar.opt, alternative = "two.sided", paired = TRUE, conf.int = TRUE)
 w1
 ```
 
@@ -604,20 +605,20 @@ Next I test the converse: do genes up-regulated at low temperatures in *Ar* have
 
 ```{r Ar_low_wilcoxon}
 # list of transcripts that are 'high' expressed in Ar
-Ar.low <- Ap.response.type[which(Ap.response.type$Ar.type == "Low"), ]
+Ar.low.transcripts <- Ap.response.type[which(Ap.response.type$Ar.type == "Low"), ]
 
 # t-test with log values
-t.test(log(Ar.low$A22.opt+1), log(Ar.low$Ar.opt+1))
-boxplot(log(Ar.low$A22.opt+1), log(Ar.low$Ar.opt+1))
+t.test(log(Ar.low.transcripts$A22.opt+1), log(Ar.low.transcripts$Ar.opt+1))
+boxplot(log(Ar.low.transcripts$A22.opt+1), log(Ar.low.transcripts$Ar.opt+1))
 
 # Wilcoxon signed rank-test
-w2 <- wilcox.test(Ar.low$A22.opt, Ar.low$Ar.opt, alternative = "two.sided", paired = TRUE, conf.int = TRUE)
+w2 <- wilcox.test(Ar.low.transcripts$A22.opt, Ar.low.transcripts$Ar.opt, alternative = "two.sided", paired = TRUE, conf.int = TRUE)
 w2
 ```
 
 Counter to expectations, expression at optimal temperatures is also greater in *Ar* than *A22* for transcripts upregulated at low temperatures in *Ar*. 
 
-To confirm that there are not sample-level issues, I performed the same comparison using transcripts where I do *not* expect to see a difference in expression.
+To confirm that there are not sample-level issues, I performed the same comparison using *Intermediate* expressed-genes where I do not expect to see a difference in expression.
 
 ```{r intermediate_transcripts}
 # list of transcripts that are 'Intermediate' expressed in either colony
@@ -965,7 +966,10 @@ First need to create gene ID to GO term map file
 
 ```{r geneid2go, echo=TRUE, eval=TRUE, cache=TRUE}
 # create geneid2go.map file from FastAnnotator annotationtable.txt
-geneid2GOmap(annotation.file)
+mapname = "geneid2go.map"
+if(file.exists(mapname)) print("Gene ID to GO term file exists") else{
+    geneid2GOmap(annotation.file, ontology = c("BP", "CC", "MF"), mapname = mapname)
+}
 ```
 
 then read map file.
@@ -1020,7 +1024,7 @@ Ap.BP.ResTable
 
 As the molecular processes involved in cold and hot temperature tolerance are different, I perform GSEA separately for each response type and compile results in a single table.
 
-```{r gsea_by_type, results = 'hide'}
+```{r gsea_Ap_high, results = 'hide'}
 ## Genes with *High* expression in both colonies
 Ap.high <- Ap.response.type[which(Ap.response.type$Ar.type == "High" & Ap.response.type$A22.type == "High"), "Transcript"]
 Ap.geneList.high <- rep(0, length = length(Ap.geneList))
@@ -1030,7 +1034,24 @@ Ap.geneList.high[(which(names(Ap.geneList.high) %in% Ap.high))] <- 1
 table(Ap.geneList.high)
 # run GSEA
 Ap.high.gsea <- gsea(genelist = Ap.geneList.high, geneID2GO = geneID2GO, plotpath = NA)
+```
 
+```{r gsea_Ap_high_cluster}
+# similarity among enriched GO terms
+Ap.high.GO.term.sim <- termSim(Ap.high.gsea$GO.ID, Ap.high.gsea$GO.ID, ont = "BP", organism = 'fly')
+# replace GO IDs with terms
+rownames(Ap.high.GO.term.sim) <- Ap.high.gsea$Term
+colnames(Ap.high.GO.term.sim) <- Ap.high.gsea$Term
+
+# distance matrix
+Ap.high.hclust <- hclust(dist(Ap.high.GO.term.sim))
+plot(Ap.high.hclust)
+
+# report items in each cluster at height 0.6 
+GSEAReportClusters(Ap.high.hclust, h = 0.6)
+```
+
+```{r gsea_Ap_low, results = "hide"}
 ## Genes with *Low* expression in both colonies
 Ap.low <- Ap.response.type[which(Ap.response.type$Ar.type == "Low" & Ap.response.type$A22.type == "Low"), "Transcript"]
 Ap.geneList.low <- rep(0, length = length(Ap.geneList))
@@ -1040,7 +1061,25 @@ Ap.geneList.low[(which(names(Ap.geneList.low) %in% Ap.low))] <- 1
 table(Ap.geneList.low)
 # Run GSEA
 Ap.low.gsea <- gsea(genelist = Ap.geneList.low, geneID2GO = geneID2GO)
+```
 
+```{r gsea_Ap_low_cluster}
+# similarity among enriched GO terms
+Ap.low.GO.term.sim <- termSim(Ap.low.gsea$GO.ID, Ap.low.gsea$GO.ID, ont = "BP", organism = 'fly')
+# replace GO IDs with terms
+rownames(Ap.low.GO.term.sim) <- Ap.low.gsea$Term
+colnames(Ap.low.GO.term.sim) <- Ap.low.gsea$Term
+
+# distance matrix
+Ap.low.hclust <- hclust(dist(Ap.low.GO.term.sim))
+plot(Ap.low.hclust)
+
+# report items in each cluster at height 1.5
+GSEAReportClusters(Ap.low.hclust, h = 1.5)
+```
+
+
+```{r gsea_Ap_bim, resuts = 'hide'}
 ## Genes with *Bimodal* expression in both colonies
 Ap.bim <- Ap.response.type[which(Ap.response.type$A22.type == "Bimodal" & Ap.response.type$Ar.type == "Bimodal"), "Transcript"]
 # create gene list, setting value to 1 for "bim" transcripts
@@ -1051,7 +1090,25 @@ Ap.geneList.bim[(which(names(Ap.geneList.bim) %in% Ap.bim))] <- 1
 table(Ap.geneList.bim)
 # Run GSEA
 Ap.bim.gsea <- gsea(genelist = Ap.geneList.bim, geneID2GO = geneID2GO)
+```
 
+
+```{r gsea_Ap_bim_cluster}
+# similarity among enriched GO terms
+Ap.bim.GO.term.sim <- termSim(Ap.bim.gsea$GO.ID, Ap.bim.gsea$GO.ID, ont = "BP", organism = 'fly')
+# replace GO IDs with terms
+rownames(Ap.bim.GO.term.sim) <- Ap.bim.gsea$Term
+colnames(Ap.bim.GO.term.sim) <- Ap.bim.gsea$Term
+
+# distance matrix
+Ap.bim.hclust <- hclust(dist(Ap.bim.GO.term.sim))
+plot(Ap.bim.hclust)
+
+# report items in each cluster at height 1.5
+GSEAReportClusters(Ap.bim.hclust, h = 1.5)
+```
+
+```{r gsea_Ap_int, results = 'hide'}
 ## Genes with *Intermediate* expression in both colonies
 Ap.int <- Ap.response.type[which(Ap.response.type$A22.type == "Intermediate" & Ap.response.type$Ar.type == "Intermediate"), "Transcript"]
 # create gene list, setting value to 1 for "int" transcripts
@@ -1062,6 +1119,23 @@ Ap.geneList.int[(which(names(Ap.geneList.int) %in% Ap.int))] <- 1
 table(Ap.geneList.int)
 # Run GSEA
 Ap.int.gsea <- gsea(genelist = Ap.geneList.int, geneID2GO = geneID2GO)
+```
+
+
+```{r gsea_Ap_int_cluster}
+# similarity among enriched GO terms
+Ap.int.GO.term.sim <- termSim(Ap.int.gsea$GO.ID, Ap.int.gsea$GO.ID, ont = "BP", organism = 'fly')
+# replace GO IDs with terms
+rownames(Ap.int.GO.term.sim) <- Ap.int.gsea$Term
+colnames(Ap.int.GO.term.sim) <- Ap.int.gsea$Term
+
+# distance matrix
+Ap.int.hclust <- hclust(dist(Ap.int.GO.term.sim))
+plot(Ap.int.hclust)
+
+# report items in each cluster at height 1.5
+GSEAReportClusters(Ap.int.hclust, h = 1.5)
+```
 
 ## merge results into single table
 Ap.high.gsea$Type <- "High"
@@ -1256,12 +1330,43 @@ print(trp4)
 
 
 ```{r ggplot_high}
-trp_A22_high <- ggplot(resp.TPM.dt.sub[A22.high.transcripts], aes(x=val, y=TPM.scaled, group=Transcript)) + 
+trp_A22_high <- ggplot(resp.TPM.dt.sub[A22.high.transcripts][1:220,], aes(x=val, y=TPM.scaled, group=Transcript)) +
   geom_smooth(method = "lm", formula = y ~ poly(x, 2)) + 
   facet_grid(. ~ colony2) + 
   scale_y_continuous(name="Expression (scaled)") +
   scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
 print(trp_A22_high)
+
+trp_A22_poslinear <- ggplot(resp.TPM.dt.sub[A22.poslinear.transcripts][1:220,], aes(x=val, y=TPM.scaled, group=Transcript)) +
+  geom_smooth(method = "lm", formula = y ~ poly(x, 2)) + 
+  facet_grid(. ~ colony2) + 
+  scale_y_continuous(name="Expression (scaled)") +
+  scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
+print(trp_A22_poslinear)
+
+### predicted values
+resp.TPM.dt.sub.pred[,pTPM.scaled:=scale(pTPM), by = Transcript]
+
+pred_A22_high <- ggplot(resp.TPM.dt.sub.pred[A22.high.transcripts][1:220,], aes(x=val, y=pTPM.scaled, group=Transcript)) +
+  geom_line() + 
+  facet_grid(. ~ colony) + 
+  scale_y_continuous(name="Expression (scaled)") +
+  scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
+print(pred_A22_high)
+
+pred_A22_poslinear <- ggplot(resp.TPM.dt.sub.pred[A22.poslinear.transcripts][1:220,], aes(x=val, y=pTPM.scaled, group=Transcript)) +
+  geom_line() + 
+  facet_grid(. ~ colony) + 
+  scale_y_continuous(name="Expression (scaled)") +
+  scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
+print(pred_A22_poslinear)
+
+ggplot(resp.TPM.dt.sub.pred["100348|*|comp3450455_c0_seq1"], aes(x=val, y=pTPM.scaled, group=Transcript)) +
+  geom_line() + 
+  facet_grid(. ~ colony) + 
+  scale_y_continuous(name="Expression (scaled)") +
+  scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
+
 ```
 
 ### Overlap between *Ar* Intermediate and *A22* Low genes
