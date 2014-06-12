@@ -3,7 +3,7 @@ Thermal reactionome of the common ant species *Aphaenogaster picea* and *A. caro
    
 **Author:** [John Stanton-Geddes](john.stantongeddes.research@gmail.com)
 
-**June 2, 2014**
+**June 12, 2014**
 
 **Technical Report No. 3**
 
@@ -29,6 +29,7 @@ library(MASS)
 library(xtable)
 library(methods) # required by `knitcitations` when file is `knit` from command-line
 library(reshape2)
+library(RColorBrewer)
 
 # Load Bioconductor libraries
 #source("http://bioconductor.org/biocLite.R")
@@ -437,12 +438,6 @@ RxNlmAIC <- try(dlply(sig.TPM.dt.sub, .(Transcript), lmFunc))
 The set of transcripts with significant expression patterns include those with expression that differs by species, temperature and the interaction of species and temperature. In this section, I am specifically interested in the thermally-responsive transcripts (temperature and species x temperature) so I subset the significant transcripts to examine these. 
 
 ```{r responsive_transcripts}
-grepFunc <- function(lmitem, term = NA) {
-  coefs <- coefficients(lmitem)
-  coef.names <- names(coefs)
-  keep <- if(length(grep(term, coef.names)) > 0) TRUE else FALSE
-}
-
 interaction.lms <- RxNlmAIC[which(Map(grepFunc, RxNlmAIC, term = "colonyAr:") == TRUE)]
 other.lms <- RxNlmAIC[setdiff(names(RxNlmAIC), names(interaction.lms))]
 temperature.lms <- other.lms[which(Map(grepFunc, other.lms, term = "val") == TRUE)]
@@ -514,8 +509,16 @@ type.table <- table(Ap.response.type[ , 'Ar.type'], Ap.response.type[ , 'A22.typ
 # reorder 
 tt2 <- type.table[c(2,4,1,3,5), c(2,4,1,3,5)]
 
+
 # plot
-mosaicplot(t(tt2), ylab = "AcNC", xlab = "ApVT", main = "Mosaic plot of responsive transcripts")
+mosaic.colors <- brewer.pal(5, "Blues")
+
+par(mar = c(5.1, 4.1, 4.1, 5.1))
+mosaicplot(tt2, ylab = "A. picea", xlab = "", main = "", color = mosaic.colors, cex.axis = 0.01)
+labels <- c("High", "Low", "Bimodal", "Intermediate", "NotResp")
+text(c(.1,.3,.55,.75,.95), par("usr")[3] - 0.05, srt = 45, adj = 1, labels = labels, xpd = TRUE)
+text(par("usr")[2] + 0.25, c(.95, .75, .55, .35, .1), srt = 0, adj = 1, labels = labels, xpd = TRUE)
+text(.5, par("usr")[4] + .1, "A. carolinensis", xpd = TRUE)
 ```
 
 The number of thermally-responsive in each response category differs between the colonies, with the msot transcripts expressed at *Low* temperatures in both colonies. For *ApVT*, an equal number of transcripts are expressed at *High* and *Bimodal*, followed by *Intermediate* transcripts. For *AcNC*, transcripts expressed at *Intermediate* temperatures are next most common, followed by *High* and *Bimodal*. 

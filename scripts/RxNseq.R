@@ -147,23 +147,16 @@ RxNtype <- function(lmitem) {
 
         # determine expression type
         A22.exp.type <- NA
-        # "Bimodal" if max expression below 10C and above 30C is greater than one standard deviation above expression at the optimum temperature (19.5C)
+        # "Bimodal" if max expression below 10C and above 30C is greater than one standard deviation above expression at the optimum temperature (19.5C)  
         if(max(A22.pout[A22.pout$val < 10, "pTPM"])[1] > (A22.pout[A22.pout$val == 19.5, "pTPM"] + sd(A22.pout$pTPM)) & max(A22.pout[A22.pout$val > 30, "pTPM"])[1] > (A22.pout[A22.pout$val == 19.5, "pTPM"] + sd(A22.pout$pTPM))) A22.exp.type <- "Bimodal" else {
-              # "PositiveLinear" if max expression at temperature above 30C and minimum expression at 0C
-              if(A22.max.val > 30 & A22.min.val == 0) A22.exp.type <- "PositiveLinear" else {
-                  # "HighOn" if max expression above 30C and minimum not at 0C (due to quadratic curvature)
-                  if(A22.max.val > 30 & A22.min.val != 0) A22.exp.type <- "HighOn" else {
-                      # "NegativeLinear" if max expression below 10C and minimum expression at 38.5
-                      if(A22.max.val < 10 & A22.min.val == 38.5) A22.exp.type <- "NegativeLinear" else {
-                          # "LowOn" if max expression below 10C and minimum not at 38.5C (due to quadratic curvature)
-                          if(A22.max.val < 10 & A22.min.val != 38.5) A22.exp.type <- "LowOn" else {
-                              A22.exp.type <- "Intermediate"
-                          }
-                      }
-                  }
-              }
-          }
-    }
+          # "High" if max expression at temperature above 30C
+          if(A22.max.val > 30) A22.exp.type <- "High" else {
+            # "Low" if max expression at temperature below 10C
+            if(A22.max.val < 10) A22.exp.type <- "Low" else
+              A22.exp.type <- "Intermediate"
+            } # end else
+          } # end else
+        } # end if/else
     
 
         
@@ -186,21 +179,14 @@ RxNtype <- function(lmitem) {
             Ar.exp.type <- NA
             # "Bimodal" if max expression below 10C and above 30C is greater than one standard deviation above expression at the optimum temperature (19.5C)
             if(max(Ar.pout[Ar.pout$val < 10, "pTPM"])[1] > (Ar.pout[Ar.pout$val == 19.5, "pTPM"] + sd(Ar.pout$pTPM)) & max(Ar.pout[Ar.pout$val > 30, "pTPM"])[1] > (Ar.pout[Ar.pout$val == 19.5, "pTPM"] + sd(Ar.pout$pTPM))) Ar.exp.type <- "Bimodal" else {
-              # "PositiveLinear" if max expression at temperature above 30C and minimum expression at 0C
-              if(Ar.max.val > 30 & Ar.min.val == 0) Ar.exp.type <- "PositiveLinear" else {
-                  # "HighOn" if max expression above 30C and minimum not at 0C (due to quadratic curvature)
-                  if(Ar.max.val > 30 & Ar.min.val != 0) Ar.exp.type <- "HighOn" else {
-                      # "NegativeLinear" if max expression below 10C and minimum expression at 38.5
-                      if(Ar.max.val < 10 & Ar.min.val == 38.5) Ar.exp.type <- "NegativeLinear" else {
-                          # "LowOn" if max expression below 10C and minimum not at 38.5C (due to quadratic curvature)
-                          if(Ar.max.val < 10 & Ar.min.val != 38.5) Ar.exp.type <- "LowOn" else {
-                              Ar.exp.type <- "Intermediate"
-                          }
-                      }
-                  }
-              }
-          }
-        }
+              # "High" if max expression at temperature above 30C
+              if(Ar.max.val > 30) Ar.exp.type <- "High" else {
+                # "Low" if max expression at temperature below 10C
+                if(Ar.max.val < 10) Ar.exp.type <- "Low" else
+                  Ar.exp.type <- "Intermediate"
+              } # end else
+            } # end else
+    } # end if/else
 
 
     data.frame(A22.max = A22.max.val,
