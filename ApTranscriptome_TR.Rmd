@@ -488,7 +488,7 @@ colnames(Ap.response.type)[which(colnames(Ap.response.type) == ".id")] <- "Trans
 str(Ap.response.type)
 
 # save results to file
-write.table(file = paste(resultsdir, "Ap-responsive-transcripts", Sys.Date(), ".txt", sep = ""), Ap.response.type, row.names = FALSE, col.names = TRUE, quote = FALSE, sep = "\t")
+write.table(file = paste(resultsdir, "Ap_responsive_transcripts_", Sys.Date(), ".txt", sep = ""), Ap.response.type, row.names = FALSE, col.names = TRUE, quote = FALSE, sep = "\t")
 ```
 
 Next, I compare the number of thermally-responsive in each response category between the two colonies. 
@@ -659,7 +659,7 @@ Ar.int.sd <- unlist(Map(transcriptSD, Ar.int.lm, colony = "Ar"))
 Ar.int.sd <- data.frame(colony = "Ar", exp_sd = Ar.int.sd)
 
 # T-test comparing standard deviation of expression between colonies
-(t.thermbreadth <- t.test(Ar.int.sd$exp_sd, A22.int.sd$exp_sd, alternative = "two.sided"))
+(t.varint <- t.test(Ar.int.sd$exp_sd, A22.int.sd$exp_sd, alternative = "two.sided"))
 ```
 
 Consistent with our hypothesis, *Intermediate* transcripts in *Ar* are expressed over a significantly wider range of temperatures than in *A22*. 
@@ -692,7 +692,7 @@ length(Ar.bim.lm)
 Ar.bim.sd <- unlist(Map(transcriptSD, Ar.bim.lm, colony = "Ar"))
 
 # t-test to compare standard deviation of 'Bimodal' transcripts between colonies
-(t.themsens <- t.test(Ar.bim.sd, A22.bim.sd))
+(t.varbim <- t.test(Ar.bim.sd, A22.bim.sd))
 ```
 
 No difference in the standard deviation of expression for bimodally-expressed transcripts between colonies.
@@ -830,40 +830,18 @@ Visualize T~on~ for both *Low* and *High* genes on the same plot.
 ```{r plot_T_on, echo=FALSE, eval=TRUE}
 # merge data for plotting
 Ap.T_on <- rbind(A22.high.T_on, Ar.high.T_on, A22.low.T_on, Ar.low.T_on)
-
-# low plot
-png("T_on_low.png")
-T_on_low_plot <- ggplot(rbind(A22.low.T_on, Ar.low.T_on), aes(x = T_on, y = ..density.., colour = colony, group = colony, fill = colony)) +
-    geom_histogram(position = "dodge", binwidth = 3) +
-    geom_density(adjust = 3, fill = NA, size = 2) +
-    labs(x = "Temperature of gene activation", y = "Density") +
-    theme(axis.title = element_text(size = rel(2))) +
-    theme(axis.text = element_text(size = rel(1.2))) +
-    theme(legend.position = "none")
-print(T_on_low_plot)
-dev.off()
-
-# high plot
-png("T_on_high.png")
-T_on_high_plot <- ggplot(rbind(A22.high.T_on, Ar.high.T_on), aes(x = T_on, y = ..density.., colour = colony, group = colony, fill = colony)) +
-    geom_histogram(position = "dodge", binwidth = 3) +
-    geom_density(adjust = 3, fill = NA, size = 2) +
-    labs(x = "Temperature of gene activation", y = "Density") +
-    theme(axis.title = element_text(size = rel(2))) +
-    theme(axis.text = element_text(size = rel(1.2))) +
-    theme(legend.position = "none")
-print(T_on_high_plot)
-dev.off()
-
+Ap.T_on$type <- factor(Ap.T_on$type, levels = c("Low", "High"))
+Ap.T_on$Species <- ifelse(Ap.T_on$colony == "ApVT", "A. picea", "A. carolinensis")
 
 # combined plot
-T_on_plot <- ggplot(Ap.T_on, aes(x = T_on, y = ..density.., colour = colony, group = colony, fill = colony)) +
+T_on_plot <- ggplot(Ap.T_on, aes(x = T_on, y = ..density.., colour = Species, group = Species, fill = Species)) +
+    facet_grid(. ~ type) +
     geom_histogram(position = "dodge", binwidth = 3) +
     geom_density(adjust = 3, fill = NA, size = 2) + 
     labs(x = "Temperature of gene activation", y = "Density") +
     theme(axis.title = element_text(size = rel(2))) +
-    theme(axis.text = element_text(size = rel(1.2))) +
-    theme(legend.position = "none")
+    theme(axis.text = element_text(size = rel(1.2)))
+#    theme(legend.position = "none")
 print(T_on_plot)
 ```
 
@@ -1094,8 +1072,14 @@ Ap.high.hclust <- hclust(dist(Ap.high.GO.term.sim))
 plot(Ap.high.hclust)
 
 # report items in each cluster
-GSEAReportClusters(Ap.high.hclust, h = 1)
-write.table(unlist(GSEAReportClusters(Ap.high.hclust, h = 0.6)), file = "Ap_high_hclust.txt")
+Ap.high.hclust.report <- GSEAReportClusters(Ap.high.hclust, h = 1)
+
+# add cluster information
+Ap.high.gsea$Cluster <- NA
+
+for(i in 1:length(Ap.high.hclust.report)) {
+    Ap.high.gsea[Ap.high.hclust.report[[i]], "Cluster"] <- i
+}
 ```
 
 ```{r gsea_Ap_low, results = "hide"}
@@ -1121,8 +1105,15 @@ colnames(Ap.low.GO.term.sim) <- Ap.low.gsea$Term
 Ap.low.hclust <- hclust(dist(Ap.low.GO.term.sim))
 plot(Ap.low.hclust)
 
-# report items in each cluster at height 2
-(Ap.low.hclust.report <- GSEAReportClusters(Ap.low.hclust, h = 2))
+# report items in each cluster
+Ap.low.gsea.cluster <- Ap.low.hclust.report <- GSEAReportClusters(Ap.low.hclust, h = 1.5)
+
+# add cluster information
+Ap.low.gsea$Cluster <- NA
+
+for(i in 1:length(Ap.low.hclust.report)) {
+    Ap.low.gsea[Ap.low.hclust.report[[i]], "Cluster"] <- i
+}
 ```
 
 
@@ -1139,7 +1130,6 @@ table(Ap.geneList.bim)
 Ap.bim.gsea <- gsea(genelist = Ap.geneList.bim, geneID2GO = geneID2GO)
 ```
 
-
 ```{r gsea_Ap_bim_cluster}
 # similarity among enriched GO terms
 Ap.bim.GO.term.sim <- termSim(Ap.bim.gsea$GO.ID, Ap.bim.gsea$GO.ID, ont = "BP", organism = 'fly')
@@ -1151,8 +1141,15 @@ colnames(Ap.bim.GO.term.sim) <- Ap.bim.gsea$Term
 Ap.bim.hclust <- hclust(dist(Ap.bim.GO.term.sim))
 plot(Ap.bim.hclust)
 
-# report items in each cluster at height 1.5
-(Ap.bim.hclust.report <- GSEAReportClusters(Ap.bim.hclust, h = 1.5))
+# report items in each cluster
+Ap.bim.hclust.report <- GSEAReportClusters(Ap.bim.hclust, h = 1.5)
+
+# add cluster information
+Ap.bim.gsea$Cluster <- NA
+
+for(i in 1:length(Ap.bim.hclust.report)) {
+    Ap.bim.gsea[Ap.bim.hclust.report[[i]], "Cluster"] <- i
+}
 ```
 
 ```{r gsea_Ap_int, results = 'hide'}
@@ -1179,9 +1176,31 @@ colnames(Ap.int.GO.term.sim) <- Ap.int.gsea$Term
 Ap.int.hclust <- hclust(dist(Ap.int.GO.term.sim))
 plot(Ap.int.hclust)
 
-# report items in each cluster at height 1.5
+# report items in each cluster
 (Ap.int.hclust.report <- GSEAReportClusters(Ap.int.hclust, h = 1.5))
+
+# add cluster information
+Ap.int.gsea$Cluster <- NA
+
+for(i in 1:length(Ap.int.hclust.report)) {
+    Ap.int.gsea[Ap.int.hclust.report[[i]], "Cluster"] <- i
+}
 ```
+
+```{r Ap_gsea_intersect_save, echo = FALSE}
+Ap.high.gsea$Type <- "High"
+Ap.low.gsea$Type <- "Low"
+Ap.bim.gsea$Type <- "Bimodal"
+Ap.int.gsea$Type <- "Intermediate"
+Ap.gsea.intersect <- rbind(Ap.low.gsea, Ap.int.gsea, Ap.high.gsea, Ap.bim.gsea)
+
+Ap.gsea.intersect <- Ap.gsea.intersect[,c("Type", "GO.ID", "Term", "Cluster", "Annotated", "Significant", "Expected", "parentchild")]
+colnames(Ap.gsea.intersect)[which(colnames(Ap.gsea.intersect) == "parentchild")] <- "P"
+
+write.csv(Ap.gsea.intersect, file = paste(resultsdir, "Ap_gsea_intersect_", Sys.Date(), ".csv", sep = ""), row.names = FALSE)
+```
+
+GSEA for genes that are *Intermediate* in A. carolinensis and *Bimodal* in A. picea
 
 ```{r gsea_Ar_int_A22_bim, results = 'hide'}
 # genes with *Intermediate* expression in Ar and *Bimodal* in A22
@@ -1194,6 +1213,8 @@ table(Ar.int.A22.bim.geneList)
 # run GSEA
 Ar.int.A22.bim.gsea <- gsea(genelist = Ar.int.A22.bim.geneList, geneID2GO = geneID2GO, plotpath = NA)
 ```
+
+Cluster by semantic similarity
 
 ```{r gsea_Ar_int_A22_bim_cluster}
 # similarity among enriched GO terms
@@ -1209,6 +1230,7 @@ plot(Ar.int.A22.bim.gsea.term.sim.hclust)
 (Ar.int.A22.bim.hclust.report <- GSEAReportClusters(Ar.int.A22.bim.gsea.term.sim.hclust, h = 1))
 ```
 
+GSEA for genes that are *Intermediate* in A. carolinensis and *Low* in A. picea
 
 ```{r gsea_Ar_int_A22_low, results = 'hide'}
 # genes with *Intermediate* expression in Ar and *Low* in A22
@@ -1236,6 +1258,8 @@ plot(Ar.int.A22.low.gsea.term.sim.hclust)
 ```
 
 
+
+
 ### GSEA for each functional type in each species
 
 GO enrichment for *A. picea* **High** genes.
@@ -1247,7 +1271,6 @@ names(A22.geneList.high) <- names(Ap.geneList)
 A22.geneList.high[(which(names(A22.geneList.high) %in% A22.high.transcripts))] <- 1
 A22.high.gsea <- gsea(genelist = A22.geneList.high, geneID2GO = geneID2GO)
 ```
-
 Clustering of enriched GO terms for *A. picea* **High** genes.
 
 ```{r gsea_A22_high_cluster}
@@ -1437,11 +1460,7 @@ plot((Ar.int.gsea.term.sim.hclust))
 GSEAReportClusters(Ar.int.gsea.term.sim.hclust, h = 1.8)
 ```
 
-
-
-
-
-
+Combine gene set enrichment analysis for each species and category into single table.
 
 ```{r gsea_combine, eval = FALSE}
 # combine into single table
@@ -1460,33 +1479,14 @@ Ar.gsea <- rbind(Ar.high.gsea, Ar.low.gsea, Ar.int.gsea, Ar.bim.gsea)
 Ar.gsea$Species <- "AcNC"
 
 # combine
-Ap.setdiff.gsea <- rbind(A22.gsea, Ar.gsea)
+Ap.gsea.union <- rbind(A22.gsea, Ar.gsea)
 # reorder
-Ap.setdiff.gsea <- Ap.setdiff.gsea[,c("Species", "Type", "GO.ID", "Term", "Annotated", "Significant", "Expected", "parentchild")]
-colnames(Ap.setdiff.gsea)[8] <- "P"
+Ap.gsea.union <- Ap.gsea.union[,c("Species", "Type", "GO.ID", "Term", "Annotated", "Significant", "Expected", "parentchild")]
+colnames(Ap.gsea.union)[8] <- "P"
 
-write.csv(Ap.setdiff.gsea, file = paste(resultsdir, "Ap_setdiff_GSEA_", Sys.Date(), ".csv", sep = ""), row.names = FALSE)
+write.csv(Ap.gsea.union, file = paste(resultsdir, "Ap_gsea_union", Sys.Date(), ".csv", sep = ""), row.names = FALSE)
 ```
 
-```{r gsea_setdiff_table, echo = FALSE, results = 'asis', eval = FALSE}
-#pandoc.table(Ap.setdiff.gsea[ , 1:4], caption = "Enriched GO terms found in one species but not the other for each thermal-response category")
-print(xtable(Ap.setdiff.gsea[ , 1:4], comment = getOption("xtable.comment", FALSE)))
-```
-
-
-
-
-```{r GOSemSim}
-# similarity among enriched GO terms
-A22.low.GO.term.sim <- termSim(A22.low.gsea$GO.ID, A22.low.gsea$GO.ID, ont = "BP", organism = "fly")
-# distance matrix
-dist.A22.low.GO.term.sim <- dist(A22.low.GO.term.sim)
-plot(hclust(dist(A22.low.GO.term.sim)))
-
-A22.high.GO.term.sim <- termSim(A22.high.gsea$GO.ID, A22.high.gsea$GO.ID, ont = "BP", organism = "fly")
-# distance matrix
-plot(hclust(dist(A22.high.GO.term.sim)))
-```
 
 
 ## Visualize responsive transcripts
@@ -1630,7 +1630,7 @@ To assist visualization of specific transcripts, I made a interactive web-app us
 Export data for interactive shiny app. 
 
 ```{r shiny_file, eval=FALSE, echo=FALSE}
-shiny.dt <- TPM.dt.sub[Ap.response.type$Transcript]
+shiny.dt <- TPM.dt.sub[responsive.lms.ann.type[,list(Transcript, best.hit.to.nr.1, GO.Biological.Process.1)]]
 
 # scale expression values 
 shiny.dt[,TPM.scaled:=scale(TPM), by = Transcript]
@@ -1641,7 +1641,7 @@ write.csv(shiny.dt, file = "ApRxN-shinyapp/responsive.lms.TPM.csv", quote = TRUE
 
 ```{r rData, echo=FALSE}
 # save RData for manuscript file
-save(RxNpval, sigtable, chi1, resp.TPM.dt.sub, Ap.type.table, tt2, tt3, qlslope, qlmean, GO.stress.Xsq, GO0006950.responsive, Ap.df, w1, w2, w3, Ap.T_on, Ap.BP.resultParentChild, Ap.gsea1, Ap.setdiff.gsea, resp.stress.responsive.count, t.mean, t.slope, t.curvature, t.wiggle, t.themsens, t.thermbreadth, file = "ms.RData")
+save(RxNpval, sigtable, chi1, resp.TPM.dt.sub, Ap.type.table, tt2, tt3, qlslope, qlmean, GO.stress.Xsq, GO0006950.responsive, Ap.df, w1, w2, w3, Ap.T_on, Ap.BP.resultParentChild, resp.stress.responsive.count, t.mean, t.slope, t.curvature, t.wiggle, t.varint, t.varbim, T_on.high.ttest, T_on.low.ttest, Ap.gsea.intersect, Ap.gsea.union, file = "ms.RData")
 ```
 
 
