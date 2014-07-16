@@ -649,20 +649,25 @@ chi1
 ```r
 # Reorganize for plotting to show overlap among categories between colonies
 type.table <- table(Ap.response.type[ , 'Ar.type'], Ap.response.type[ , 'A22.type'])
-# reorder 
-tt2 <- type.table[c(2,4,1,3,5), c(2,4,1,3,5)]
+# reorder
+tt2 <- type.table[c("Low", "Intermediate", "High", "Bimodal", "NotResp"), c("Low", "Intermediate", "High", "Bimodal", "NotResp")]
 
 # plot
+png("mosaic_plot.png")
 mosaic.colors <- brewer.pal(5, "Blues")
 par(mar = c(5.1, 3.1, 2.1, 7.5))
 mosaicplot(tt2, ylab = expression(italic("A. picea")), xlab = "", main = "", color = mosaic.colors, cex.axis = 0.01)
-labels <- c("High", "Low", "Bimodal", "Intermediate", "NotResp")
-text(c(.1,.3,.55,.75,.95), par("usr")[3] - 0.05, srt = 45, adj = 1, labels = labels, xpd = TRUE, font = 1)
+labels <- c("Low", "Intermediate", "High", "Bimodal", "NotResp")
+text(c(.1,.5,.75,.85,.99), par("usr")[3] - 0.05, srt = 45, adj = 1, labels = labels, xpd = TRUE, font = 1)
 text(.5, par("usr")[4], "A. carolinensis", xpd = TRUE, font = 3)
-legend(1.05, .75, fill = mosaic.colors, c("High", "Low", "Bimodal", "Intermediate", "NotResp"), xpd=TRUE)
+legend(1.05, .75, fill = mosaic.colors, c("Low", "Intermediate", "High", "Bimodal", "NotResp"), xpd=TRUE)
+dev.off()
 ```
 
-![plot of chunk temperature_response](figure/temperature_response.png) 
+```
+## pdf 
+##   2
+```
 
 The number of thermally-responsive in each response category differs between the colonies, with the msot transcripts expressed at *Low* temperatures in both colonies. For *ApVT*, an equal number of transcripts are expressed at *High* and *Bimodal*, followed by *Intermediate* transcripts. For *AcNC*, transcripts expressed at *Intermediate* temperatures are next most common, followed by *High* and *Bimodal*. 
 
@@ -709,13 +714,25 @@ Ap.df <- data.frame(Transcript = rep(Ap.response.type$Transcript, times = 2), co
 
 maxexplot <- ggplot(Ap.df, aes(x=max.val, fill=colony)) + 
   geom_density(alpha=0.2, position="identity") + 
-  #scale_fill_manual(name = "Colony", values = c("white", "black")) + 
-  scale_y_continuous(name="Density") +
-  scale_x_continuous(name="Temperature of maximum expression")
+  labs(x = "Temperature of maximum expression", y = "Density") +
+  theme(axis.title = element_text(size = rel(2))) +
+  theme(axis.text = element_text(size = rel(1.2)))
 print(maxexplot)
 ```
 
 ![plot of chunk max_exp_PDF](figure/max_exp_PDF.png) 
+
+```r
+# Figure for presentation
+png("results/temp_max_expression.png")
+maxexplot + theme(legend.position = "none")
+dev.off()
+```
+
+```
+## pdf 
+##   2
+```
 
 
 ### Compare basal expression at optimal temperature for thermally-responsive genes
@@ -1270,6 +1287,17 @@ for(i in unique(Ar.low.TPM.dt.sub$Transcript)) {
 Genes with increased expression at *Low* temperatures are on average turned on 0.2°C higher in *ApVT* than *AcNC*.
 
 Visualize T~on~ for both *Low* and *High* genes on the same plot.
+
+
+```
+## pdf 
+##   2
+```
+
+```
+## pdf 
+##   2
+```
 
 ![plot of chunk plot_T_on](figure/plot_T_on.png) 
 
@@ -1906,32 +1934,34 @@ plot(Ap.high.hclust)
 ![plot of chunk gsea_Ap_high_cluster](figure/gsea_Ap_high_cluster.png) 
 
 ```r
-# report items in each cluster at height 0.6 
-GSEAReportClusters(Ap.high.hclust, h = 0.6)
+# report items in each cluster
+GSEAReportClusters(Ap.high.hclust, h = 1)
 ```
 
 ```
 ## $`Cluster 1`
-## regulation of biosynthetic process    regulation of metabolic process 
-##                                  1                                  5 
-## 
-## $`Cluster 2`
+##          regulation of biosynthetic process 
+##                                           1 
 ## regulation of cellular biosynthetic proc... 
 ##                                           2 
+##             regulation of metabolic process 
+##                                           5 
 ##    regulation of cellular metabolic process 
 ##                                           6 
+## regulation of macromolecule biosynthetic... 
+##                                           7 
 ## 
-## $`Cluster 3`
+## $`Cluster 2`
 ## cytokinesis 
 ##           3 
 ## 
-## $`Cluster 4`
+## $`Cluster 3`
 ## hindbrain development 
-##                     4 
-## 
-## $`Cluster 5`
-## regulation of macromolecule biosynthetic... 
-##                                           7
+##                     4
+```
+
+```r
+write.table(unlist(GSEAReportClusters(Ap.high.hclust, h = 0.6)), file = "Ap_high_hclust.txt")
 ```
 
 
@@ -1964,7 +1994,7 @@ plot(Ap.low.hclust)
 
 ```r
 # report items in each cluster at height 2
-GSEAReportClusters(Ap.low.hclust, h = 2)
+(Ap.low.hclust.report <- GSEAReportClusters(Ap.low.hclust, h = 2))
 ```
 
 ```
@@ -2206,7 +2236,7 @@ plot(Ap.bim.hclust)
 
 ```r
 # report items in each cluster at height 1.5
-GSEAReportClusters(Ap.bim.hclust, h = 1.5)
+(Ap.bim.hclust.report <- GSEAReportClusters(Ap.bim.hclust, h = 1.5))
 ```
 
 ```
@@ -2265,7 +2295,7 @@ GSEAReportClusters(Ap.bim.hclust, h = 1.5)
 
 
 ```r
-## Genes with *Intermediate* expression in both colonies
+# genes with *Intermediate* expression in both colonies
 Ap.int <- Ap.response.type[which(Ap.response.type$A22.type == "Intermediate" & Ap.response.type$Ar.type == "Intermediate"), "Transcript"]
 # create gene list, setting value to 1 for "int" transcripts
 Ap.geneList.int <- rep(0, length = length(Ap.geneList))
@@ -2273,10 +2303,9 @@ names(Ap.geneList.int) <- names(Ap.geneList)
 Ap.geneList.int[(which(names(Ap.geneList.int) %in% Ap.int))] <- 1
 # check correct number of values set to 1
 table(Ap.geneList.int)
-# Run GSEA
+# run GSEA
 Ap.int.gsea <- gsea(genelist = Ap.geneList.int, geneID2GO = geneID2GO)
 ```
-
 
 
 ```r
@@ -2295,7 +2324,7 @@ plot(Ap.int.hclust)
 
 ```r
 # report items in each cluster at height 1.5
-GSEAReportClusters(Ap.int.hclust, h = 1.5)
+(Ap.int.hclust.report <- GSEAReportClusters(Ap.int.hclust, h = 1.5))
 ```
 
 ```
@@ -2326,147 +2355,6 @@ GSEAReportClusters(Ap.int.hclust, h = 1.5)
 ##                                       13
 ```
 
-## merge results into single table
-Ap.high.gsea$Type <- "High"
-Ap.low.gsea$Type <- "Low"
-Ap.bim.gsea$Type <- "Bimodal"
-Ap.int.gsea$Type <- "Intermediate"
-# combine
-Ap.gsea <- rbind(Ap.high.gsea, Ap.low.gsea, Ap.bim.gsea, Ap.int.gsea)
-# reorder
-Ap.gsea1 <- Ap.gsea[,c("Type", "GO.ID", "Term", "Annotated", "Significant", "Expected", "parentchild")]
-colnames(Ap.gsea1)[7] <- "P"
-# write to file
-write.csv(Ap.setdiff.gsea, file = paste(resultsdir, "Ap_setdiff_GSEA_", Sys.Date(), ".csv", sep = ""), row.names = FALSE)
-```
-
-% latex table generated in R 3.1.0 by xtable 1.7-3 package
-% Thu Jun  5 17:36:22 2014
-\begin{table}[ht]
-\centering
-\begin{tabular}{rlll}
-  \hline
- & Type & GO.ID & Term \\ 
-  \hline
-1 & High & GO:0009889 & regulation of biosynthetic process \\ 
-  2 & High & GO:0031326 & regulation of cellular biosynthetic proc... \\ 
-  3 & High & GO:0000910 & cytokinesis \\ 
-  4 & High & GO:0030902 & hindbrain development \\ 
-  5 & High & GO:0019222 & regulation of metabolic process \\ 
-  6 & High & GO:0031323 & regulation of cellular metabolic process \\ 
-  7 & High & GO:0010556 & regulation of macromolecule biosynthetic... \\ 
-  8 & Low & GO:0019538 & protein metabolic process \\ 
-  9 & Low & GO:0070085 & glycosylation \\ 
-  10 & Low & GO:0043412 & macromolecule modification \\ 
-  11 & Low & GO:0007264 & small GTPase mediated signal transductio... \\ 
-  12 & Low & GO:0044267 & cellular protein metabolic process \\ 
-  13 & Low & GO:0009141 & nucleoside triphosphate metabolic proces... \\ 
-  14 & Low & GO:0033036 & macromolecule localization \\ 
-  15 & Low & GO:0045184 & establishment of protein localization \\ 
-  16 & Low & GO:0006486 & protein glycosylation \\ 
-  17 & Low & GO:0009101 & glycoprotein biosynthetic process \\ 
-  18 & Low & GO:0006643 & membrane lipid metabolic process \\ 
-  19 & Low & GO:0009100 & glycoprotein metabolic process \\ 
-  20 & Low & GO:0006413 & translational initiation \\ 
-  21 & Low & GO:0009259 & ribonucleotide metabolic process \\ 
-  22 & Low & GO:0055001 & muscle cell development \\ 
-  23 & Low & GO:0036211 & protein modification process \\ 
-  24 & Low & GO:0009581 & detection of external stimulus \\ 
-  25 & Low & GO:0010608 & posttranscriptional regulation of gene e... \\ 
-  26 & Low & GO:0070271 & protein complex biogenesis \\ 
-  27 & Low & GO:0032318 & regulation of Ras GTPase activity \\ 
-  28 & Low & GO:0050650 & chondroitin sulfate proteoglycan biosynt... \\ 
-  29 & Low & GO:0030206 & chondroitin sulfate biosynthetic process \\ 
-  30 & Low & GO:0051259 & protein oligomerization \\ 
-  31 & Low & GO:0006664 & glycolipid metabolic process \\ 
-  32 & Low & GO:0006140 & regulation of nucleotide metabolic proce... \\ 
-  33 & Low & GO:0006417 & regulation of translation \\ 
-  34 & Low & GO:0006163 & purine nucleotide metabolic process \\ 
-  35 & Low & GO:0061326 & renal tubule development \\ 
-  36 & Low & GO:0009118 & regulation of nucleoside metabolic proce... \\ 
-  37 & Low & GO:0046907 & intracellular transport \\ 
-  38 & Low & GO:0009166 & nucleotide catabolic process \\ 
-  39 & Low & GO:0043170 & macromolecule metabolic process \\ 
-  40 & Low & GO:0046039 & GTP metabolic process \\ 
-  41 & Low & GO:1901292 & nucleoside phosphate catabolic process \\ 
-  42 & Low & GO:0009894 & regulation of catabolic process \\ 
-  43 & Low & GO:0006665 & sphingolipid metabolic process \\ 
-  44 & Low & GO:0001894 & tissue homeostasis \\ 
-  45 & Low & GO:0006464 & cellular protein modification process \\ 
-  46 & Low & GO:0042692 & muscle cell differentiation \\ 
-  47 & Low & GO:1901068 & guanosine-containing compound metabolic ... \\ 
-  48 & Low & GO:0009966 & regulation of signal transduction \\ 
-  49 & Low & GO:0015031 & protein transport \\ 
-  50 & Low & GO:0030811 & regulation of nucleotide catabolic proce... \\ 
-  51 & Low & GO:0009582 & detection of abiotic stimulus \\ 
-  52 & Low & GO:0033121 & regulation of purine nucleotide cataboli... \\ 
-  53 & Low & GO:0006184 & GTP catabolic process \\ 
-  54 & Low & GO:0048871 & multicellular organismal homeostasis \\ 
-  55 & Low & GO:0001655 & urogenital system development \\ 
-  56 & Low & GO:0050794 & regulation of cellular process \\ 
-  57 & Low & GO:0006446 & regulation of translational initiation \\ 
-  58 & Low & GO:0031329 & regulation of cellular catabolic process \\ 
-  59 & Low & GO:0019220 & regulation of phosphate metabolic proces... \\ 
-  60 & Low & GO:0032273 & positive regulation of protein polymeriz... \\ 
-  61 & Low & GO:1901069 & guanosine-containing compound catabolic ... \\ 
-  62 & Low & GO:0050954 & sensory perception of mechanical stimulu... \\ 
-  63 & Low & GO:0065003 & macromolecular complex assembly \\ 
-  64 & Low & GO:0072002 & Malpighian tubule development \\ 
-  65 & Low & GO:0006518 & peptide metabolic process \\ 
-  66 & Low & GO:0016573 & histone acetylation \\ 
-  67 & Low & GO:0016570 & histone modification \\ 
-  68 & Low & GO:1900542 & regulation of purine nucleotide metaboli... \\ 
-  69 & Low & GO:0050654 & chondroitin sulfate proteoglycan metabol... \\ 
-  70 & Low & GO:0030204 & chondroitin sulfate metabolic process \\ 
-  71 & Low & GO:0006749 & glutathione metabolic process \\ 
-  72 & Low & GO:0060042 & retina morphogenesis in camera-type eye \\ 
-  73 & Low & GO:0046656 & folic acid biosynthetic process \\ 
-  74 & Low & GO:0048598 & embryonic morphogenesis \\ 
-  75 & Low & GO:0019685 & photosynthesis, dark reaction \\ 
-  76 & Low & GO:0051649 & establishment of localization in cell \\ 
-  77 & Bimodal & GO:0065007 & biological regulation \\ 
-  78 & Bimodal & GO:0050794 & regulation of cellular process \\ 
-  79 & Bimodal & GO:0050789 & regulation of biological process \\ 
-  80 & Bimodal & GO:0031323 & regulation of cellular metabolic process \\ 
-  81 & Bimodal & GO:0080090 & regulation of primary metabolic process \\ 
-  82 & Bimodal & GO:0009889 & regulation of biosynthetic process \\ 
-  83 & Bimodal & GO:0019222 & regulation of metabolic process \\ 
-  84 & Bimodal & GO:0031326 & regulation of cellular biosynthetic proc... \\ 
-  85 & Bimodal & GO:0010468 & regulation of gene expression \\ 
-  86 & Bimodal & GO:0006351 & transcription, DNA-templated \\ 
-  87 & Bimodal & GO:0010556 & regulation of macromolecule biosynthetic... \\ 
-  88 & Bimodal & GO:0051171 & regulation of nitrogen compound metaboli... \\ 
-  89 & Bimodal & GO:2000112 & regulation of cellular macromolecule bio... \\ 
-  90 & Bimodal & GO:0044700 & single organism signaling \\ 
-  91 & Bimodal & GO:0060255 & regulation of macromolecule metabolic pr... \\ 
-  92 & Bimodal & GO:0050896 & response to stimulus \\ 
-  93 & Bimodal & GO:0036211 & protein modification process \\ 
-  94 & Bimodal & GO:0032774 & RNA biosynthetic process \\ 
-  95 & Bimodal & GO:0034654 & nucleobase-containing compound biosynthe... \\ 
-  96 & Bimodal & GO:0023052 & signaling \\ 
-  97 & Bimodal & GO:0019219 & regulation of nucleobase-containing comp... \\ 
-  98 & Bimodal & GO:0072523 & purine-containing compound catabolic pro... \\ 
-  99 & Bimodal & GO:0007154 & cell communication \\ 
-  100 & Intermediate & GO:0006664 & glycolipid metabolic process \\ 
-  101 & Intermediate & GO:0046467 & membrane lipid biosynthetic process \\ 
-  102 & Intermediate & GO:0009100 & glycoprotein metabolic process \\ 
-  103 & Intermediate & GO:0009101 & glycoprotein biosynthetic process \\ 
-  104 & Intermediate & GO:0006486 & protein glycosylation \\ 
-  105 & Intermediate & GO:0009247 & glycolipid biosynthetic process \\ 
-  106 & Intermediate & GO:0006643 & membrane lipid metabolic process \\ 
-  107 & Intermediate & GO:0071103 & DNA conformation change \\ 
-  108 & Intermediate & GO:0006323 & DNA packaging \\ 
-  109 & Intermediate & GO:0034728 & nucleosome organization \\ 
-  110 & Intermediate & GO:0043413 & macromolecule glycosylation \\ 
-  111 & Intermediate & GO:0006665 & sphingolipid metabolic process \\ 
-  112 & Intermediate & GO:0071824 & protein-DNA complex subunit organization \\ 
-  113 & Intermediate & GO:0070085 & glycosylation \\ 
-  114 & Intermediate & GO:0044267 & cellular protein metabolic process \\ 
-  115 & Intermediate & GO:0042158 & lipoprotein biosynthetic process \\ 
-   \hline
-\end{tabular}
-\end{table}
-
 
 ```r
 # genes with *Intermediate* expression in Ar and *Bimodal* in A22
@@ -2496,7 +2384,7 @@ plot(Ar.int.A22.bim.gsea.term.sim.hclust)
 
 ```r
 # report items in each cluster at height 1.5
-GSEAReportClusters(Ar.int.A22.bim.gsea.term.sim.hclust, h = 1)
+(Ar.int.A22.bim.hclust.report <- GSEAReportClusters(Ar.int.A22.bim.gsea.term.sim.hclust, h = 1))
 ```
 
 ```
@@ -2547,7 +2435,7 @@ plot(Ar.int.A22.low.gsea.term.sim.hclust)
 
 ```r
 # report items in each cluster at height 1.8
-GSEAReportClusters(Ar.int.A22.low.gsea.term.sim.hclust, h = 1.6)
+(Ar.int.A22.low.hclust.report <- GSEAReportClusters(Ar.int.A22.low.gsea.term.sim.hclust, h = 1.6))
 ```
 
 ```
@@ -2632,6 +2520,7 @@ GSEAReportClusters(Ar.int.A22.low.gsea.term.sim.hclust, h = 1.6)
 ##                                          29
 ```
 
+
 ### GSEA for each functional type in each species
 
 GO enrichment for *A. picea* **High** genes.
@@ -2707,6 +2596,7 @@ GSEAReportClusters(A22.high.gsea.term.sim.hclust, h = 1.2)
 ## cAMP biosynthetic process 
 ##                        15
 ```
+
 GO enrichment for *A. picea* **Low** genes.
 
 
@@ -2970,7 +2860,7 @@ A22.geneList.bim[(which(names(A22.geneList.bim) %in% A22.bim.transcripts))] <- 1
 A22.bim.gsea <- gsea(genelist = A22.geneList.bim, geneID2GO = geneID2GO)
 ```
 
-Clustering of enriched GO terms for *A. picea* **Low** genes.
+Clustering of enriched GO terms for *A. picea* **Bimodal** genes.
 
 
 ```r
@@ -3078,6 +2968,495 @@ GSEAReportClusters(A22.int.gsea.term.sim.hclust, h = 1.3)
 ## embryo sac egg cell differentiation 
 ##                                  12
 ```
+
+GO enrichment for *A. carolinensis* **High** genes.
+
+
+```r
+# Ar 'High' genes
+Ar.geneList.high <- rep(0, length = length(Ap.geneList))
+names(Ar.geneList.high) <- names(Ap.geneList)
+Ar.geneList.high[(which(names(Ar.geneList.high) %in% Ar.high.transcripts))] <- 1
+Ar.high.gsea <- gsea(genelist = Ar.geneList.high, geneID2GO = geneID2GO)
+```
+
+Clustering of enriched GO terms for *A. carolinensis* **High** genes.
+
+
+```r
+# similarity among enriched GO terms
+Ar.high.gsea.term.sim <- termSim(Ar.high.gsea$GO.ID, Ar.high.gsea$GO.ID, ont = "BP", organism = 'fly')
+# replace GO IDs with terms
+rownames(Ar.high.gsea.term.sim) <- Ar.high.gsea$Term
+colnames(Ar.high.gsea.term.sim) <- Ar.high.gsea$Term
+# distance matrix
+Ar.high.gsea.term.sim.hclust <- hclust(dist((Ar.high.gsea.term.sim)))
+plot((Ar.high.gsea.term.sim.hclust))
+```
+
+![plot of chunk gsea_Ar_high_cluster](figure/gsea_Ar_high_cluster.png) 
+
+```r
+# report items in each cluster
+GSEAReportClusters(Ar.high.gsea.term.sim.hclust, h = 1.2)
+```
+
+```
+## $`Cluster 1`
+##                 ossification regulation of blood pressure 
+##                            1                            4 
+##            tissue remodeling 
+##                           10 
+## 
+## $`Cluster 2`
+## microtubule anchoring 
+##                     2 
+## 
+## $`Cluster 3`
+## macromolecular complex assembly 
+##                               3 
+## 
+## $`Cluster 4`
+## negative regulation of transmembrane rec... 
+##                                           5 
+## negative regulation of cellular response... 
+##                                           6 
+## 
+## $`Cluster 5`
+##           mammary gland development                pancreas development 
+##                                   7                                   8 
+## developmental programmed cell death          osteoblast differentiation 
+##                                  13                                  14 
+## 
+## $`Cluster 6`
+## nitrogen compound transport           hormone transport 
+##                           9                          15 
+## 
+## $`Cluster 7`
+##     cellular response to biotic stimulus 
+##                                       11 
+## response to endoplasmic reticulum stress 
+##                                       12
+```
+GO enrichment for *A. carolinensis* **Low** genes.
+
+
+```r
+# Ar 'Low' genes
+Ar.geneList.low <- rep(0, length = length(Ap.geneList))
+names(Ar.geneList.low) <- names(Ap.geneList)
+Ar.geneList.low[(which(names(Ar.geneList.low) %in% Ar.low.transcripts))] <- 1
+Ar.low.gsea <- gsea(genelist = Ar.geneList.low, geneID2GO = geneID2GO)
+```
+
+Clustering of enriched GO terms for *A. carolinensis* **Low** genes.
+
+
+```r
+# similarity among enriched GO terms
+Ar.low.gsea.term.sim <- termSim(Ar.low.gsea$GO.ID, Ar.low.gsea$GO.ID, ont = "BP", organism = 'fly')
+# replace GO IDs with terms
+rownames(Ar.low.gsea.term.sim) <- Ar.low.gsea$Term
+colnames(Ar.low.gsea.term.sim) <- Ar.low.gsea$Term
+# distance matrix
+Ar.low.gsea.term.sim.hclust <- hclust(dist((Ar.low.gsea.term.sim)))
+plot((Ar.low.gsea.term.sim.hclust))
+```
+
+![plot of chunk gsea_Ar_low_cluster](figure/gsea_Ar_low_cluster.png) 
+
+```r
+# report items in each cluster at height 1.8
+GSEAReportClusters(Ar.low.gsea.term.sim.hclust, h = 2)
+```
+
+```
+## $`Cluster 1`
+##                   protein metabolic process 
+##                                           1 
+##                    translational initiation 
+##                                           7 
+##                  macromolecule modification 
+##                                           9 
+##          cellular protein metabolic process 
+##                                          11 
+##                           protein acylation 
+##                                          13 
+##                       protein glycosylation 
+##                                          14 
+##             macromolecule metabolic process 
+##                                          25 
+##           glycoprotein biosynthetic process 
+##                                          35 
+##              glycoprotein metabolic process 
+##                                          36 
+##      regulation of translational initiation 
+##                                          38 
+## regulation of cellular protein metabolic... 
+##                                          56 
+##    cellular macromolecule metabolic process 
+##                                          57 
+##                protein modification process 
+##                                          60 
+##                   regulation of translation 
+##                                          67 
+##       cellular protein modification process 
+##                                          71 
+## 
+## $`Cluster 2`
+##                               glycosylation 
+##                                           2 
+##                         histone acetylation 
+##                                          15 
+##            membrane lipid metabolic process 
+##                                          30 
+##           organophosphate catabolic process 
+##                                          31 
+##         glycosyl compound catabolic process 
+##                                          44 
+##             folic acid biosynthetic process 
+##                                          46 
+##                  cell cycle DNA replication 
+##                                          49 
+##    DNA replication, synthesis of RNA primer 
+##                                          62 
+## chondroitin sulfate proteoglycan biosynt... 
+##                                          63 
+##    chondroitin sulfate biosynthetic process 
+##                                          64 
+##       tetrahydrobiopterin metabolic process 
+##                                          69 
+## regulation of sequence-specific DNA bind... 
+##                                          70 
+##                    malate metabolic process 
+##                                          73 
+## 
+## $`Cluster 3`
+## nucleoside triphosphate metabolic proces... 
+##                                           3 
+##            ribonucleotide metabolic process 
+##                                           6 
+##      nucleoside phosphate catabolic process 
+##                                           8 
+##                nucleotide catabolic process 
+##                                          12 
+##                nucleoside catabolic process 
+##                                          23 
+## regulation of nucleotide metabolic proce... 
+##                                          28 
+##                       GTP metabolic process 
+##                                          29 
+## purine-containing compound catabolic pro... 
+##                                          33 
+## guanosine-containing compound metabolic ... 
+##                                          40 
+##         purine nucleotide metabolic process 
+##                                          43 
+## regulation of nucleoside metabolic proce... 
+##                                          50 
+##           regulation of Ras GTPase activity 
+##                                          52 
+## positive regulation of Rab GTPase activi... 
+##                                          55 
+## regulation of purine nucleotide metaboli... 
+##                                          74 
+## 
+## $`Cluster 4`
+## small GTPase mediated signal transductio... 
+##                                           4 
+##       establishment of protein localization 
+##                                           5 
+##                  macromolecule localization 
+##                                          10 
+##                           protein transport 
+##                                          18 
+##                 regulation of ion transport 
+##                                          21 
+##     regulation of muscle tissue development 
+##                                          32 
+##           regulation of signal transduction 
+##                                          41 
+##              detection of external stimulus 
+##                                          51 
+##                     intracellular transport 
+##                                          65 
+## 
+## $`Cluster 5`
+##                          limb morphogenesis 
+##                                          16 
+##                     muscle cell development 
+##                                          17 
+##                            limb development 
+##                                          20 
+##                    renal tubule development 
+##                                          26 
+##                       muscle system process 
+##                                          27 
+##                          embryo development 
+##                                          37 
+##        multicellular organismal homeostasis 
+##                                          47 
+##                          photomorphogenesis 
+##                                          48 
+##                          tissue homeostasis 
+##                                          54 
+## sensory perception of mechanical stimulu... 
+##                                          59 
+##      regulation of muscle organ development 
+##                                          61 
+##          reproductive structure development 
+##                                          66 
+##            anatomical structure arrangement 
+##                                          72 
+## 
+## $`Cluster 6`
+##        protein complex assembly      protein complex biogenesis 
+##                              19                              22 
+## macromolecular complex assembly         protein oligomerization 
+##                              39                              58 
+## 
+## $`Cluster 7`
+## regulation of phosphate metabolic proces... 
+##                                          24 
+## posttranscriptional regulation of gene e... 
+##                                          34 
+##                           metabolic process 
+##                                          42 
+## regulation of phosphorus metabolic proce... 
+##                                          45 
+##              regulation of cellular process 
+##                                          53 
+##             regulation of catabolic process 
+##                                          68
+```
+
+GO enrichment for *A. carolinensis* **Bimodal** genes.
+
+
+```r
+# Ar 'Bim' genes
+Ar.geneList.bim <- rep(0, length = length(Ap.geneList))
+names(Ar.geneList.bim) <- names(Ap.geneList)
+Ar.geneList.bim[(which(names(Ar.geneList.bim) %in% Ar.bim.transcripts))] <- 1
+Ar.bim.gsea <- gsea(genelist = Ar.geneList.bim, geneID2GO = geneID2GO)
+```
+
+Clustering of enriched GO terms for *A. carolinensis* **Bimodal** genes.
+
+
+```r
+# similarity among enriched GO terms
+Ar.bim.gsea.term.sim <- termSim(Ar.bim.gsea$GO.ID, Ar.bim.gsea$GO.ID, ont = "BP", organism = 'fly')
+# replace GO IDs with terms
+rownames(Ar.bim.gsea.term.sim) <- Ar.bim.gsea$Term
+colnames(Ar.bim.gsea.term.sim) <- Ar.bim.gsea$Term
+# distance matrix
+Ar.bim.gsea.term.sim.hclust <- hclust(dist((Ar.bim.gsea.term.sim)))
+plot((Ar.bim.gsea.term.sim.hclust))
+```
+
+![plot of chunk gsea_Ar_bim_cluster](figure/gsea_Ar_bim_cluster.png) 
+
+```r
+# report items in each cluster at height 1.8
+GSEAReportClusters(Ar.bim.gsea.term.sim.hclust, h = 1)
+```
+
+```
+## $`Cluster 1`
+## hemolymph coagulation 
+##                     1 
+## 
+## $`Cluster 2`
+## outflow tract morphogenesis 
+##                           2 
+## 
+## $`Cluster 3`
+## nucleobase-containing compound metabolic... 
+##                                           3 
+## pyrimidine nucleoside monophosphate bios... 
+##                                           6 
+## 
+## $`Cluster 4`
+## cellular aromatic compound metabolic pro... 
+##                                           4 
+## organic cyclic compound metabolic proces... 
+##                                           5 
+##    cellular macromolecule metabolic process 
+##                                          10 
+## 
+## $`Cluster 5`
+##      regulation of gene expression regulation of biosynthetic process 
+##                                  7                                  9 
+## 
+## $`Cluster 6`
+## cellular potassium ion transport 
+##                                8
+```
+
+GO enrichment for *A. carolinensis* **Intermediate** genes.
+
+
+```r
+# Ar 'Int' genes
+Ar.geneList.int <- rep(0, length = length(Ap.geneList))
+names(Ar.geneList.int) <- names(Ap.geneList)
+Ar.geneList.int[(which(names(Ar.geneList.int) %in% Ar.int.transcripts))] <- 1
+Ar.int.gsea <- gsea(genelist = Ar.geneList.int, geneID2GO = geneID2GO)
+```
+
+Clustering of enriched GO terms for *A. carolinensis* **Intermediate** genes.
+
+
+```r
+# similarity among enriched GO terms
+Ar.int.gsea.term.sim <- termSim(Ar.int.gsea$GO.ID, Ar.int.gsea$GO.ID, ont = "BP", organism = 'fly')
+# replace GO IDs with terms
+rownames(Ar.int.gsea.term.sim) <- Ar.int.gsea$Term
+colnames(Ar.int.gsea.term.sim) <- Ar.int.gsea$Term
+# distance matrix
+Ar.int.gsea.term.sim.hclust <- hclust(dist((Ar.int.gsea.term.sim)))
+plot((Ar.int.gsea.term.sim.hclust))
+```
+
+![plot of chunk gsea_Ar_int_cluster](figure/gsea_Ar_int_cluster.png) 
+
+```r
+# report items in each cluster
+GSEAReportClusters(Ar.int.gsea.term.sim.hclust, h = 1.8)
+```
+
+```
+## $`Cluster 1`
+##                protein metabolic process 
+##                                        1 
+##       cellular protein metabolic process 
+##                                        2 
+##                            glycosylation 
+##                                        3 
+##                    protein glycosylation 
+##                                        4 
+##        glycoprotein biosynthetic process 
+##                                        6 
+##           glycoprotein metabolic process 
+##                                        8 
+##          macromolecule metabolic process 
+##                                       11 
+##              macromolecule glycosylation 
+##                                       17 
+##               macromolecule modification 
+##                                       18 
+## cellular macromolecule metabolic process 
+##                                       28 
+##   regulation of translational initiation 
+##                                       51 
+##                              translation 
+##                                       52 
+## 
+## $`Cluster 2`
+##        respiratory electron transport chain 
+##                                           5 
+##              phospholipid metabolic process 
+##                                          10 
+##                glycolipid metabolic process 
+##                                          12 
+##                    electron transport chain 
+##                                          20 
+##    phosphatidylcholine biosynthetic process 
+##                                          23 
+##                            membrane docking 
+##                                          32 
+##                     lipid metabolic process 
+##                                          33 
+## ethanolamine-containing compound metabol... 
+##                                          38 
+##              sphingolipid metabolic process 
+##                                          43 
+##              phospholipid catabolic process 
+##                                          48 
+##           phospholipid biosynthetic process 
+##                                          49 
+##            cellular lipid metabolic process 
+##                                          54 
+##             glycolipid biosynthetic process 
+##                                          55 
+## 
+## $`Cluster 3`
+##                       GTP catabolic process 
+##                                           7 
+## guanosine-containing compound catabolic ... 
+##                                           9 
+##                       GTP metabolic process 
+##                                          16 
+## guanosine-containing compound metabolic ... 
+##                                          22 
+## regulation of purine nucleotide metaboli... 
+##                                          25 
+## regulation of purine nucleotide cataboli... 
+##                                          30 
+## regulation of nucleotide catabolic proce... 
+##                                          39 
+##      positive regulation of GTPase activity 
+##                                          40 
+## 
+## $`Cluster 4`
+## small GTPase mediated signal transductio... 
+##                                          13 
+##      single-organism organelle organization 
+##                                          14 
+##                      organelle organization 
+##                                          15 
+## regulation of actin cytoskeleton organiz... 
+##                                          21 
+## regulation of actin filament-based proce... 
+##                                          26 
+## 
+## $`Cluster 5`
+##                  nucleosome organization 
+##                                       19 
+## protein-DNA complex subunit organization 
+##                                       24 
+##     regulation of protein polymerization 
+##                                       47 
+## 
+## $`Cluster 6`
+##               response to organic substance 
+##                                          27 
+##                  vesicle-mediated transport 
+##                                          29 
+## cellular component organization or bioge... 
+##                                          31 
+##                       cellular localization 
+##                                          36 
+##                     intracellular transport 
+##                                          42 
+##       establishment of localization in cell 
+##                                          53 
+## 
+## $`Cluster 7`
+##                          chromatin assembly 
+##                                          34 
+## tRNA splicing, via endonucleolytic cleav... 
+##                                          35 
+##                                RNA splicing 
+##                                          37 
+##               regulation of mRNA processing 
+##                                          41 
+##                         nucleosome assembly 
+##                                          46 
+##                     DNA conformation change 
+##                                          50 
+## 
+## $`Cluster 8`
+##         glycosaminoglycan catabolic process 
+##                                          44 
+## positive regulation of hydrolase activit... 
+##                                          45
+```
+
+
+
+
 
 
 
@@ -3227,14 +3606,19 @@ print(pred_A22_poslinear)
 ```
 
 ```r
-ggplot(resp.TPM.dt.sub.pred["100348|*|comp3450455_c0_seq1"], aes(x=val, y=pTPM.scaled, group=Transcript)) +
+png("RxN_example.png")
+ggplot(resp.TPM.dt.sub.pred["100348|*|comp3450455_c0_seq1"], aes(x=val, y=pTPM.scaled, group=Transcript, color = Transcript)) +
   geom_line() + 
-  facet_grid(. ~ colony) + 
-  scale_y_continuous(name="Expression (scaled)") +
-  scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
+  facet_grid(. ~ colony) +
+  labs(y = "Expression (scaled)", x = expression("Temperature ", degree, "C")) +
+  theme(legend.position = "none")
+dev.off()
 ```
 
-![plot of chunk ggplot_high](figure/ggplot_high3.png) 
+```
+## pdf 
+##   2
+```
 
 ### Overlap between *Ar* Intermediate and *A22* Low genes
 
