@@ -3,7 +3,7 @@ Thermal reactionome of the common ant species *Aphaenogaster picea* and *A. caro
    
 **Author:** [John Stanton-Geddes](john.stantongeddes.research@gmail.com)
 
-**June 16, 2014**
+**July 17, 2014**
 
 **Technical Report No. 3**
 
@@ -1253,8 +1253,8 @@ colnames(Ar.int.A22.low.gsea.term.sim) <- Ar.int.A22.low.gsea$Term
 # distance matrix
 Ar.int.A22.low.gsea.term.sim.hclust <- hclust(dist(Ar.int.A22.low.gsea.term.sim))
 plot(Ar.int.A22.low.gsea.term.sim.hclust)
-# report items in each cluster at height 1.8
-(Ar.int.A22.low.hclust.report <- GSEAReportClusters(Ar.int.A22.low.gsea.term.sim.hclust, h = 1.6))
+# report items in each cluster at height 1
+(Ar.int.A22.low.hclust.report <- GSEAReportClusters(Ar.int.A22.low.gsea.term.sim.hclust, h = 1.2))
 ```
 
 
@@ -1641,7 +1641,7 @@ write.csv(shiny.dt, file = "ApRxN-shinyapp/responsive.lms.TPM.csv", quote = TRUE
 
 ```{r rData, echo=FALSE}
 # save RData for manuscript file
-save(RxNpval, sigtable, chi1, resp.TPM.dt.sub, Ap.type.table, tt2, tt3, qlslope, qlmean, GO.stress.Xsq, GO0006950.responsive, Ap.df, w1, w2, w3, Ap.T_on, Ap.BP.resultParentChild, resp.stress.responsive.count, t.mean, t.slope, t.curvature, t.wiggle, t.varint, t.varbim, T_on.high.ttest, T_on.low.ttest, Ap.gsea.intersect, Ap.gsea.union, file = "ms.RData")
+save(RxNpval, sigtable, chi1, resp.TPM.dt.sub, Ap.type.table, tt2, tt3, qlslope, qlmean, GO.stress.Xsq, GO0006950.responsive, Ap.df, w1, w2, w3, Ap.T_on, Ap.BP.resultParentChild, resp.stress.responsive.count, t.mean, t.slope, t.curvature, t.wiggle, t.varint, t.varbim, T_on.high.ttest, T_on.low.ttest, Ap.gsea.intersect, Ap.gsea.union, Ar.int.A22.bim.gsea, Ar.int.A22.low.gsea, file = "ms.RData")
 ```
 
 
