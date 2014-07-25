@@ -53,36 +53,24 @@ resultsdir <- "results/"
 
 ## Summary ##
   
-In this technical report, which accompanies the manuscript **Thermal reactionome of a common ant species** (Stanton-Geddes et al., in press), we:
+In this technical report, which accompanies the manuscript **Patterns of stress tolerance versus resistance in genome-wide expression data of parapatric ant species** (Stanton-Geddes et al., in press), we:
 
 1. describe the *de novo* assembly of the transcriptome for two ant species within the *Aphaenogaster rudis-picea-fulva* species complex `r citep("10.1155/2012/752815")`
 2. identify thermally-responsive genes
-3. evaluate differences in the expression patterns between the two species
-3. perform gene set enrichment analysis of thermally-responsive genes for the two species
-
-
+3. evaluate differences in reaction norms of expression for each thermally-responsive gene between the two species
+4. perform gene set enrichment analysis of thermally-responsive genes for the two species
 
 This script is completely reproducible assuming that R, `knitr` and the other required libraries (listed within the source document) are installed on a standard linux system using the following:
     
     Rscript -e "library(knitr); knit('ApTranscriptome_TR.Rmd')"
 
-The assembled transcriptome, annotation and expression values are downloaded rather than re-run due to the computational demands, but the exact commands for each of these steps are documented below.
+
 
 
 
 ## Data ##
 
-The Illumina fastq files are available from [https://minilims1.uvm.edu/BCProject-26-Cahan/downloads.html]. The Trimmomatic filtered fastq files should be downloaded, uncompressed and moved to the appropriate directory using the following code.
-
-~~~
-# download filtered fastq files, uncompress and move
-wget --no-check-certificate https://minilims1.uvm.edu/BCProject-26-Cahan/_downloads/trimmomatic_output.tar.gz
-tar -zxvf trimmomatic_output.tar.gz
-mkdir -p data/
-mv ind_files data/.
-~~~
-
-
+The raw Illumina fastq files are available from the NCBI short read archive [link tbd]. The assembled transcriptome, annotation and expression values are downloaded rather than re-run due to the computational demands, but the exact commands for each of these steps are documented below.
 
 ## Sample description ##
 
@@ -94,18 +82,18 @@ For each colony, three ants were exposed to one of 12 temperature treatments, ev
 
 ## Transcriptome assembly ##
 
-The Illumina reads were filtered using the program [Trimmomatic](http://www.usadellab.org/cms/?page=trimmomatic) `r citep("10.1093/nar/gks540")` to remove Ilumina adapter sequences and filter out bases with quality scores less than ??. 
+The Illumina reads were filtered using the program [Trimmomatic](http://www.usadellab.org/cms/?page=trimmomatic) `r citep("10.1093/nar/gks540")` to remove Ilumina adapter sequences, trim bases with PHRED quality scores less than 15 in a 4 bp sliding window and remove final trimmed sequences with length less than 36 bp. The code used was 
 
 ~~~
-TRIMMOMATIC CODE
+java -jar trimmomatic-0.30.jar PE -threads 40 -phred33 -trimlog trimmomatic.log sample.R1.fastq sample.R2.fastq sample.R1.trimmed.paired.fastq sample.R1.trimmed.unpaired.fastq sample.R2.trimmed.paired.fastq sample.R2.trimmed.unpaired.fastq ILLUMINACLIP:TruSeq3-PE.fa:2:30:10 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15 MINLEN:36
 ~~~
 
-This filtering yielded...
+where "sample" was replaced by each sample. This filtering yielded 339,845,787 properly paired reads and 16,860,885 unpaired reads. 
 
-These reads were combined and used in *de novo* transcriptome assembly using the program [Trinity](http://trinityrnaseq.sourceforge.net/) `r citep("10.1038/nbt.1883")`. Note that this required ??? GB RAM and ??? hours run-time and was run on the [Vermont Genetics Network](http://vgn.uvm.edu/) computing cluster. 
+Properly paired and unpaired reads passing the Trimmomatic filter were combined and used in de novo transcriptome assembly using the program [Trinity](http://trinityrnaseq.sourceforge.net/) `r citep("10.1038/nbt.1883")`. Unpaired reads resulting from Trimmomatic were concatenated to the set of left (R1) reads per Trinity usage documentation. Assembly on a single 40 CPU machine with 1TB of memory required 20 hours of compute time.
 
 ~~~
-TRINITY CODE
+Trinity.pl --seqType=fq --JM=90G —left=all.R1.trimmed.fastq —right=all.R2.trimmed.fastq --output=trinity --CPU=40 --inchworm_cpu=40 --bflyCPU=5
 ~~~
 
 This assembly contained 100,381 unique components (roughly genes) in 126,172 total transcripts (Table 1). 
@@ -212,77 +200,42 @@ Note that I used the reduced assembly, prior to cleaning out contaminants. As I 
 
 I quantified gene expression using [sailfish](http://www.cs.cmu.edu/~ckingsf/software/sailfish/index.html). To run this program, first make sure that PATHs to the software libraries are set up correctly as described on the sailfish website. 
                                                  
-Then build the index of the assembly:
+An index of the assembly is built with the command:                                                 
 
-```{r sailfish_index}
-system("sailfish index -t results/trinity-full/Trinity_cap3_uclust.fasta -o results/trinity-full/sailfish-index-Trinity-cap3-uclust -k 20 -p 4")
-```
+~~~
+sailfish index -t results/trinity-full/Trinity_cap3_uclust.fasta -o results/trinity-full/sailfish-index-Trinity-cap3-uclust -k 20 -p 4
+~~~
 
-Once this is done, quantify expression for the Trimmomatic filtered reads from each species-treatment sample separately. Note that for each sample, there are three four filtered read files:
+Once this is done, expression is quantified for the Trimmomatic filtered reads from each species-treatment sample separately. Note that for each sample, there are four filtered read files:
 
 - paired.left.fastq
 - paired.right.fastq
 - unpaired.left.fastq
 - unpaired.right.fastq
-                                                 
-Make a directory for the expression values
 
-```{r mk_sailfish_dir}
-system("mkdir -p results/trinity-full/sailfish-expression-Trinity-cap3-uclust")
-```
 
-Then, for each sample, run the following command in the `results/trinity-full/` directory:
-                                                 
-    sailfish quant -i sailfish-index-Trinity-cap3-uclust -o sailfish-expression-Trinity-cap3-uclust/A22-0 -l "T=SE:S=U" -r A22-0_ATCACG.unpaired.left.fastq A22-0_ATCACG.unpaired.right.fastq A22-0_ATCACG.paired.left.fastq A22-0_ATCACG.paired.right.fastq -p 4
-	
+
+~~~
+# make a directory for the expression values
+mkdir -p results/trinity-full/sailfish-expression-Trinity-cap3-uclust
+# change to "trinity-full" directory
+cd results/trinity-full
+# for each sample, run the following command
+sailfish quant -i sailfish-index-Trinity-cap3-uclust -o sailfish-expression-Trinity-cap3-uclust/A22-0 -l "T=SE:S=U" -r A22-0_ATCACG.unpaired.left.fastq A22-0_ATCACG.unpaired.right.fastq A22-0_ATCACG.paired.left.fastq A22-0_ATCACG.paired.right.fastq -p 4
+~~~
+                                           
 While it is possible to separately specify the paired-end and orphaned single-end reads in Sailfish v0.6.3, the results are exactly the same as if they are all entered as SE.	
 
-Or, using a loop in R:                                                 
-                                                 
-```{r sailfish_quant, results = 'hide'}
-# directory containing trimmed reads
-readdir <- "data/ind_files/" 
-# sailfish index directory
-sfindex <- "results/trinity-full/sailfish-index-Trinity-cap3-uclust"
-# sailfish expression directory
-sfexpressionroot <- "results/trinity-full/sailfish-expression-Trinity-cap3-uclust/"
+These files are downloaded for convenience:
 
-# list of reads in each of four trimmed classes
-readlist <- list.files(readdir)
-paired.left <- readlist[grep(".\\.paired.left.fastq$", readlist)]
-paired.right <- readlist[grep("\\.paired.right.fastq$", readlist)]
-unpaired.left <- readlist[grep("unpaired.left.fastq$", readlist)]
-unpaired.right <- readlist[grep("unpaired.right.fastq$", readlist)]
+~~~
+wget ...
+mkdir -p /results/trinity-full/sailfish-expression-Trinity-cap3-uclust
+mv .. /results/trinity-full/sailfish-expression-Trinity-cap3-uclust
+tar -zxvf ...
+~~~
 
-# Loop across each sample and quantify expression
-
-# NOTE - samples listed in same order as given by the above lists
-samples <- c("A22-0", "A22-10", "A22-14", "A22-17", "A22-21", "A22-24", "A22-28", "A22-31", "A22-35", "A22-38", "A22-3", "A22-7", "Ar-0", "Ar-10", "Ar-14", "Ar-17", "Ar-21", "Ar-24", "Ar-28", "Ar-31", "Ar-35", "Ar-38", "Ar-3", "Ar-7")
-
-for (j in 1:length(samples)) {
-    message("Start expression quantification for sample ", samples[j], ": ", Sys.time())
-    quantdir <- paste(sfexpressionroot, samples[j], "_quant", sep="")
-    samp.pos <- grep(paste(paste(samples[j], "_", sep="")), paired.left)
-    samp.paired.l <- paste(readdir, paired.left[samp.pos], sep="")
-    samp.paired.r <- paste(readdir, paired.right[samp.pos], sep="")
-    samp.unpaired.l <- paste(readdir, unpaired.left[samp.pos], sep="")
-    samp.unpaired.r <- paste(readdir, unpaired.right[samp.pos], sep="")
-    sailfishcmd <- paste("sailfish quant -i ", sfindex, " -o ", quantdir, " -l 'T=SE:S=U' -r ", samp.paired.l, " ", samp.paired.r, " ", samp.unpaired.l, " ", samp.unpaired.r, " -p 4", sep="")
-    #print(sailfishcmd)
-    system(sailfishcmd)
-    message("Done with expression quantification for sample ", samples[j], ": ", Sys.time(), "\n")
-}
-```
-
-This generated a directory for each sample
-
-`r list.files(sfexpressionroot)`
-
-and within each directory there are the following r:
-
-`r list.files(quantdir)`
-
-The file *quant_bias_corrected.sf* contains the following columns, following a number of header lines:
+For each sample, there is a directory containting a file *quant_bias_corrected.sf*. This file has the following columns, following a number of header lines:
 
 1. Transcript ID
 2. Transcript Length
@@ -292,6 +245,9 @@ The file *quant_bias_corrected.sf* contains the following columns, following a n
 The TPM column for each sample was extracted and combined into a matrix for each species.
 
 ```{r load_expression_data, eval=TRUE, echo=FALSE, results='hide'}
+# sailfish expression directory
+sfexpressionroot <- "results/trinity-full/sailfish-expression-Trinity-cap3-uclust/"
+
 # read in each file using loop
 for (j in 1:length(samples)) {
     samp <- samples[j]
