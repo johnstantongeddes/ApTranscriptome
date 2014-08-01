@@ -1,0 +1,47 @@
+\usepackage{lipsum}
+\usepackage[colorinlistoftodos,
+textsize=footnotesize,textwidth=0.90\marginparwidth]{todonotes}
+\usepackage{lineno}
+\usepackage{setspace}
+\usepackage[parfill]{parskip}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% new command for inserting initialed comments
+\newcommand{\njg}[1]{\todo[color=blue!20]{\textbf{njg}: #1}} 
+
+% new command for inserting needed references
+\newcommand{\addref}[1]{\todo[color=red!40]{\textsc{add ref}: \\ #1}}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%add the following to the YAML of the markdown document. Some of this is created in Rstudio, but other lines are not:
+
+%csl: ecology.csl
+%output:
+%  pdf_document:
+%    latex_engine: xelatex
+%    number_sections: yes
+%    toc_depth: 3
+%    keep_tex: true
+%    includes:
+%      in_header: header.tex
+%bibliography: eco-centennial-paper.bib   
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% common commands to use in the .Rmd file with these packages
+
+% \lipsum[1-5] 
+%for 5 paragraphs of text filler
+
+% \doublespacing 
+%for double-spaced manuscript
+
+%\setlength{\parindent}{0cm}
+%for indenting of paragraphs
+
+%\setlength{\parskip}{2ex plus4mm minus3mm}
+%for amount of spacing between paragraphs
+
+%to start line numbering
+%\linenumbers
+
+%\listoftodos
+%for generating a list of all the notes
