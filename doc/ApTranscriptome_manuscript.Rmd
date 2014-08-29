@@ -51,9 +51,11 @@ Regardless of the experimental design or treatment of temperature as a categoric
 
 Here, we present a novel method for RNAseq analysis: the *reactionome*, which we define as a characterization of the reaction norm for all genes in an organism's transcriptome across an environmental gradient. We use this method to identify genes that are thermally-responsive in two closely related eastern North American ant species, *Aphaenogaster carolinensis* and *A. picea* [@umphrey1996]. Ants are ecologically-important species involved in multiple symbioses¸ and are key contributors to seed dispersal [@lengyel2009; @rodriguez-cabal2012], litter processing and decomposition [@lyford1963; @folgarait1998; @terborgh2001; @holec2006; @wardle2010]. 
 
-We compared the thermal reactionomes of these species to gain insight on the relationship between short-term physiological acclimation and longer-term adaptive changes to temperature. First, through the process of genetic assimilation [@pigliucci2006], adaptive responses are hypothesized to involve the same molecular pathways as short-term acclimatory responses. Finding that the genes up-regulated in response to cold temperatures in *A. carolinensis* have increased basal expression in the colder-climate species *A. picea*, and vice versa, would be consistent with this pattern. Second, species from more stressful environments may rely more upon constitutive tolerance than plastically-induced resistance mechanisms [@barshis2013]. Finding that fewer genes are up-regulated to high temperatures in the warmer-climate species *A. carolinensis* would support this hypothesis. Third, spatially-divergent selection often results in local adaptation (cite...). For gene expression, this local adaptation may be manifested through changes in the sensitivity of responsive genes to changes in temperature. Evidence for local adaptation in gene expression would be observed in heat-responsive genes are up-regulated at higher temperatures in *A. carolinensis* than in *A. picea*, and conversely, that cold-responsive genes are activated at colder temperatures in *A. picea*. 
+To gain insight on the genetic basis of thermal adaptation, we compared the thermal reactionomes of these species with two specific predictions. First, species from more thermally-stressful environments may rely to a greater extent upon constitutive tolerance than plastically-induced resistance mechanisms [@barshis2013]. Finding that fewer genes are up-regulated to high temperatures in the warmer-climate species *A. carolinensis* would support this prediction. Second, spatially-divergent selection often results in local adaptation [@turesson1922]. For gene expression, this local adaptation may be manifested through changes in the sensitivity of responsive genes to changes in temperature. Evidence for local adaptation in gene expression would be observed if heat-responsive genes are up-regulated at higher temperatures in *A. carolinensis* than in *A. picea*, and conversely, that cold-responsive genes are activated at colder temperatures in *A. picea*. 
 
-Importantly, none of the above predictions depend on the functional annotation of the responsive genes, which can be inaccurate in non-model systems [@primmer2013; @skunca2012]. However, insight on the molecular toolkit involved in adaptation to thermal extremes can be gained through examination of the functional annotation of responsive genes using gene set enrichment analysis. For example, we expect genes in the cellular stress response [@kultz2005] to be up-regulated in response to thermal extremes, whereas we expect genes involved with cell profliferation and non-essential molecular processes to be down-regulated in response to thermal extremes [@somero2011]. 
+In addition, we used the thermal reactionomes to examine the relationship between short-term physiological acclimation and longer-term adaptive changes to temperature. Specifically, through the process of genetic assimilation [@pigliucci2006], adaptive responses are hypothesized to involve the same molecular pathways as short-term acclimatory responses. Finding that the genes up-regulated in response to cold temperatures in *A. carolinensis* have increased basal expression in the colder-climate species *A. picea*, and vice versa, would be consistent with this prediction.
+
+Importantly, none of the above predictions depend on the functional annotation of the responsive genes, which can be inaccurate in non-model systems [@primmer2013; @skunca2012; @pavlidis2012]. However, insight on the molecular toolkit involved in adaptation to thermal extremes can be gained through examination of the functional annotation of responsive genes using gene set enrichment analysis. For example, in response to thermal extremes, we expect genes in the cellular stress response [@kultz2005] to be up-regulated, whereas we expect genes involved with cell profliferation and non-essential molecular processes to be down-regulated [@somero2011]. 
 
 To test these predictions for these two exemplar species, we collected RNAseq data at 12 temperatures (every 3.5°C between 0° and 38.5°C) using Illumina paired-end short read data, generated the transcriptome using Trinity [@grabherr2011], quantified gene expression using Sailfish [@patro2014], and characterized the reaction norm for each gene using a custom analysis.
 
@@ -65,13 +67,16 @@ options(scipen = 1, digits = 3)
 load("../ms.RData")
 library(data.table)
 library(ggplot2)
+library(reshape2)
+library(pander)
 library(RColorBrewer)
 library(topGO)
 ```
 
 ## Species comparisons in the number of thermally-responsive genes
 
-The combined *Aphaenogaster* transcriptome assembly contained 99,861 transcripts.  Of these, we identified `r prettyNum(sum(sigtable[sigtable$Coefficient %in% c("Temperature", "Temperature:Colony"), "Number.significant"]), big.mark = ",", scientific = FALSE)` transcripts genes with expression patterns that were thermally-responsive at 5% False Discovery Rate. Thus, at a minimum `r round(9100/99861, 2)*100`% of genes are thermally-responsive. However, the closest related ant species with sequenced genomes have only about 17,000 genes [@gadau2012]. Assuming that the number of genes is similar for these two *Aphaenogaster* species, this suggests that up to 50% of the genome (9,100 / 17,000) could be thermally-responsive.
+The combined *Aphaenogaster* transcriptome assembly contained 99,861 transcripts. Of these, we identified `r prettyNum(sum(sigtable[sigtable$Coefficient %in% c("Temperature", "Temperature:Colony"), "Number.significant"]), big.mark = ",", scientific = FALSE)` transcripts (hereafter referred to as genes) with expression patterns that were thermally-responsive at 5% False Discovery Rate. Of these, xxx had a non-linear relationship with temperature that would not have been detected with a standard differential expression approach. At a minimum `r round(9100/99861, 2)*100`% of the transcriptome is thermally-responsive. ~~However, the closest related ant species with sequenced genomes have only about 17,000 genes [@gadau2012]. Assuming that the number of genes is similar for these two *Aphaenogaster* species, this suggests that up to 50% of the genome (9,100 / 17,000) could be thermally-responsive.~~
+
 
 ```{r mosaic_plot, echo=FALSE, results='asis', fig.cap = "Mosaic plot of the number of thermally-responsive genes by expression type. **Low** are genes with increased expression at low temperatuers (< 10°C), **Intermediate** are genes with maximum expression between 10 - 30°C, **High** are genes with increased expression at high temperatures (> 31°C), **Bimodal** are genes with increased expression at both low and high temperatures, while **NotResp** are genes that are thermally-responsive in one species but not the other. The width of the columns is proportional to the number of genes for each expression type for *A. carolinensis* while the height of the rows is proportional to the number of genes for each expression type for *A. picea.* The rows are colored by expression type for *A. picea*. **Low** The total number of genes for two categories (*A. picea* **Low** - *A. carolinensis* **Low**; *A. picea* **NotResp** - *A. carolinensis* **Bimodal**) is labeled in two boxes for perspective."}
 mosaic.colors <- brewer.pal(5, "Blues")
@@ -85,7 +90,53 @@ text(.85, .03, "223", cex = .75)
 legend(1.05, .9, fill = mosaic.colors, c("Low", "Intermediate", "High", "Bimodal", "NotResp"), xpd=TRUE)
 ```
 
-For each species, the thermally-responsive genes were grouped into five expression categories based on their reaction norms: genes that had greatest expression at high (> 31°) temperatures (**High**), low (< 10°C) temperatures (**Low**), intermediate (10 - 30°C) temperatures (**Intermediate**), both high and low temperatures (**Bimodal**) or were not thermally-responsive in that species (*NotResp*). For the **Bimodal** group, we required that expression at both low and high temperatures was at least one standard deviation greater than the expression at the mean temperature of 19.5°C. Of the thermally-responsive genes, `r prettyNum(sum(sigtable[sigtable$Coefficient %in% "Temperature:Colony", "Number.significant"]), big.mark = ",", scientific = FALSE)` had an expression pattern that differed between the two species. While some of these were responsive in only one species (`r colSums(tt2)[which(colnames(tt2) == "NotResp")]` genes were responsive in *A. carolinensis* but not *A. picea*, and `r rowSums(tt2)[which(rownames(tt2) == "NotResp")]` were responsive in *A. picea* but not *A. carolinensis*), most of these were genes that changed from one expression category to another between the species (e.g. the number of genes in each expression category differed significantly between species; $\chi^2$ = `r round(chi1$statistic, 0)`, P < `r max(chi1$p.value, 0.001)`; Fig. 1). In both species, the majority of genes were in the **Low** category (Fig. 1). For *A. carolinensis*, this was followed by **Intermediate**, **High** and then **Bimodal**, whereas for *A. picea* the second largest category was **Bimodal** followed by **High** and finally **Intermediate** (Fig. 1). 
+For each species, the thermally-responsive genes were grouped into five expression categories based on their reaction norms: genes that had greatest expression at high (> 31°) temperatures (**High**), low (< 10°C) temperatures (**Low**), intermediate (10 - 30°C) temperatures (**Intermediate**), both high and low temperatures (**Bimodal**) or were not thermally-responsive in that species (**Not Responsive**). For the **Bimodal** group, we required that expression at both low and high temperatures was at least one standard deviation greater than the expression at midpoint (19.5°C). In both species, the majority of genes were in the **Low** category (Fig. 1). For *A. carolinensis*, this was followed by **Intermediate**, **High** and then **Bimodal**, whereas for *A. picea* the second largest category was **Bimodal** followed by **High** and finally **Intermediate** (Fig. 1). Of the thermally-responsive genes, `r prettyNum(sum(sigtable[sigtable$Coefficient %in% "Temperature:Colony", "Number.significant"]), big.mark = ",", scientific = FALSE)` (`r prettyNum(sigtable[sigtable$Coefficient == "Temperature:Colony", "Number.significant"] / sigtable[sigtable$Coefficient == "Total", "Number.significant"]*100, digits=2)`%) had an expression pattern that differed between the two species. While some of these were responsive in only one species (`r colSums(tt2)[which(colnames(tt2) == "NotResp")]` genes were responsive in *A. carolinensis* but not *A. picea*, and `r rowSums(tt2)[which(rownames(tt2) == "NotResp")]` were responsive in *A. picea* but not *A. carolinensis*), most of these were genes that changed from one expression category to another between the species (i.e. the number of genes in each expression category differed significantly between species; $\chi^2$ = `r round(chi1$statistic, 0)`, P < `r max(chi1$p.value, 0.001)`; Fig. 1).
+
+Specifically, all the diagonals (e.g. **Low** -- **Low**) the *A. carolinensis* **Bimodal** -- *A. picea* **Not responsive** and *A. carolinensis* **Not responsive** -- *A. picea* **High** categories were over-represented compared to a hypothetical homogenous distribution for the contingency table. 
+
+Specifically, 
+...categories that were over-expressed relative to null...
+
+```{r expression_change, echo=FALSE}
+cont.tab <- structure(unlist(as.vector(tt2)), .Dim = c(5L, 5L), .Dimnames = structure(list(
+    c("Low", "Intermediate", "High", "Bimodal", "NotResp"), c("Low", 
+    "Intermediate", "High", "Bimodal", "NotResp")), .Names = c("Ac", 
+"Ap")))
+
+# marginal sums and total
+rs <- rowSums(cont.tab)
+cs <- colSums(cont.tab)
+n <- sum(cont.tab)
+
+# grand mean for each class
+gm <- (rs + cs) / sum(cont.tab * 2)
+
+# calculate observed values for each cell using overall mean for each expression type
+Ec <- outer(gm, gm, "*") *sum(cont.tab)
+
+# get deviations of observed from expected
+Ec.dev <- cont.tab - Ec
+
+# overall table P-value
+Ec.chistat <- sum((cont.tab-Ec)^2 / Ec)
+# P-value
+pchisq(Ec.chistat, df=(nrow(cont.tab)-1) * (ncol(cont.tab)-1), lower.tail = FALSE)
+
+# overall minimum chi-squared value `X2.df` for a significantly non-homogenous distribution of counts
+df = (ncol(cont.tab) - 1) * (nrow(cont.tab) - 1)
+X2.df <- qchisq(p = 0.05, df = df, lower.tail = FALSE)
+
+# posthoc result for each cell
+Ec.cells <- sign(cont.tab - Ec) * (cont.tab - Ec)^2 / Ec
+Ec.cells.sign.table <- apply(Ec.cells, c(1,2), function(x) ifelse(abs(x) <= X2.df, "0", 
+                                                            ifelse(x > X2.df, "+", "-")))
+
+# plot
+qplot(x=Ap, y=Ac, data=melt(Ec.cells), fill=value, geom="tile") + 
+  scale_fill_gradient2(limits=c(-600, 600)) 
+```
+
+
 
 ## Sensitivity of thermally-responsive genes to changes in temperature
 
@@ -104,7 +155,9 @@ T_on_plot <- ggplot(Ap.T_on, aes(x = T_on, y = ..density.., colour = Species, gr
 print(T_on_plot)
 ```
 
-We looked for evidence of genetic assimilation (the process by which physiologically-relevant genes change from being environmentally-induced to basally-expressed )by comparing gene expression at intermediate temperatures for genes that were up-regulated at low temperatures in *A. carolinensis* or high temperatures in *A. picea*. Contrary to expectations, for **Low** genes in *A. carolinensis* gene expression at intermediate temperatures was lower in *A. picea* than *A. carolinensis* (Wilcoxon V = `r prettyNum(w2$statistic)`, *P* < `r max(w2$p.value, 0.001)`, 95% CI location shift `r paste(round(w2$conf.int[1], 3), "--", round(w2$conf.int[2], 3))`) . Moreover, for **High** genes in *A. picea* (Wilcoxon V = `r prettyNum(w1$statistic)`, *P* < `r max(w1$p.value, 0.001)`, 95% CI location shift `r paste(round(w1$conf.int[1], 3), "--", round(w1$conf.int[2], 3))`) and **Intermediate** genes in both species (Wilcoxon V = `r prettyNum(w3$statistic)`, *P* < `r max(w3$p.value, 0.001)`, 95% CI location shift `r paste(round(w3$conf.int[1], 3), "--", round(w3$conf.int[2], 3))`), gene expression at intermediate temperatures was always higher in *A. carolinensis*. 
+## Adaptive changes in basal expression are not linked to genes involved in short-term physiological acclimation
+
+We looked for evidence of genetic assimilation (the process by which physiologically-relevant genes change from being environmentally-induced to basally-expressed) by comparing gene expression at intermediate temperatures for genes that were up-regulated at low temperatures in *A. carolinensis* or high temperatures in *A. picea*. Contrary to expectations, for **Low** genes in *A. carolinensis* gene expression at intermediate temperatures was lower in *A. picea* than *A. carolinensis* (Wilcoxon V = `r prettyNum(w2$statistic)`, *P* < `r max(w2$p.value, 0.001)`, 95% CI location shift `r paste(round(w2$conf.int[1], 3), "--", round(w2$conf.int[2], 3))`) . Moreover, for **High** genes in *A. picea* (Wilcoxon V = `r prettyNum(w1$statistic)`, *P* < `r max(w1$p.value, 0.001)`, 95% CI location shift `r paste(round(w1$conf.int[1], 3), "--", round(w1$conf.int[2], 3))`) and **Intermediate** genes in both species (Wilcoxon V = `r prettyNum(w3$statistic)`, *P* < `r max(w3$p.value, 0.001)`, 95% CI location shift `r paste(round(w3$conf.int[1], 3), "--", round(w3$conf.int[2], 3))`), gene expression at intermediate temperatures was always higher in *A. carolinensis*. 
 
 
 ## Gene set enrichment analysis
