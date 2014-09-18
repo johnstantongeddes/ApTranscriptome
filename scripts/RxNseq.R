@@ -77,26 +77,6 @@ lmFunc <- function(bar) {
 }
 
 
-############################################################################################
-## grepFunc
-############################################################################################
-
-grepFunc <- function(lmitem, term = NA) {
-    # Function to identify models (after stepwise AIC selection) that contain a specific term
-    #
-    # Arguments:
-    #  lmitem: object of class `lm`
-    #  term: term to grep if in model
-    #
-    # Returns
-    #   TRUE/FALSE list of linear models that do or do not include term
-    
-    coefs <- coefficients(lmitem)
-    coef.names <- names(coefs)
-    keep <- if(length(grep(term, coef.names)) > 0) TRUE else FALSE
-}
-
-
 
 
 ############################################################################################
@@ -144,29 +124,19 @@ RxNtype <- function(lmitem) {
         # for min.val, take median point as it may be string of points at zero
         A22.min.val <- median(A22.pout[which(A22.pout$pTPM == min(A22.pout$pTPM)), "val"])
         A22.opt <- A22.pout[A22.pout$val == 19.5, "pTPM"]
-
-        # determine expression type
-        A22.exp.type <- NA
-        # "Bimodal" if max expression below 10C and above 30C is greater than one standard deviation above expression at the optimum temperature (19.5C)
+        # determine expression shape
+         A22.exp.type <- NA
+        # expression type defined as "Bimodal" if max expression below 10C and above 30C is greater than one standard deviation above expression at the optimum temperature (19.5C)
         if(max(A22.pout[A22.pout$val < 10, "pTPM"])[1] > (A22.pout[A22.pout$val == 19.5, "pTPM"] + sd(A22.pout$pTPM)) & max(A22.pout[A22.pout$val > 30, "pTPM"])[1] > (A22.pout[A22.pout$val == 19.5, "pTPM"] + sd(A22.pout$pTPM))) A22.exp.type <- "Bimodal" else {
-              # "PositiveLinear" if max expression at temperature above 30C and minimum expression at 0C
-              if(A22.max.val > 30 & A22.min.val == 0) A22.exp.type <- "PositiveLinear" else {
-                  # "HighOn" if max expression above 30C and minimum not at 0C (due to quadratic curvature)
-                  if(A22.max.val > 30 & A22.min.val != 0) A22.exp.type <- "HighOn" else {
-                      # "NegativeLinear" if max expression below 10C and minimum expression at 38.5
-                      if(A22.max.val < 10 & A22.min.val == 38.5) A22.exp.type <- "NegativeLinear" else {
-                          # "LowOn" if max expression below 10C and minimum not at 38.5C (due to quadratic curvature)
-                          if(A22.max.val < 10 & A22.min.val != 38.5) A22.exp.type <- "LowOn" else {
-                              A22.exp.type <- "Intermediate"
-                          }
-                      }
-                  }
-              }
-          }
-    }
-    
+              # expression type "High" if max expression at temperature above 30C
+              if(A22.max.val > 30) A22.exp.type <- "High" else {
+              # expression type "Low" if max expression at temperature below 10C
+                  if(A22.max.val < 10) A22.exp.type <- "Low" else
+                  A22.exp.type <- "Intermediate"
+              } # end else
+          } # end else
+      } # end if/else
 
-        
     # calculate for Ar
     Ar.pout <- pout[pout$colony == "Ar", ]
     # if pTPM doesn't vary, set max and min values to NA
@@ -181,27 +151,18 @@ RxNtype <- function(lmitem) {
             # for min.val, take median point as it may be string of points at zero
             Ar.min.val <- median(Ar.pout[which(Ar.pout$pTPM == min(Ar.pout$pTPM)), "val"])
             Ar.opt <- Ar.pout[Ar.pout$val == 19.5, "pTPM"]
-
-            # determine expression type
+            # determine expression shape
             Ar.exp.type <- NA
-            # "Bimodal" if max expression below 10C and above 30C is greater than one standard deviation above expression at the optimum temperature (19.5C)
+            # expression type defined as "Bimodal" if max expression below 10C and above 30C is greater than one standard deviation above expression at the optimum temperature (19.5C)
             if(max(Ar.pout[Ar.pout$val < 10, "pTPM"])[1] > (Ar.pout[Ar.pout$val == 19.5, "pTPM"] + sd(Ar.pout$pTPM)) & max(Ar.pout[Ar.pout$val > 30, "pTPM"])[1] > (Ar.pout[Ar.pout$val == 19.5, "pTPM"] + sd(Ar.pout$pTPM))) Ar.exp.type <- "Bimodal" else {
-              # "PositiveLinear" if max expression at temperature above 30C and minimum expression at 0C
-              if(Ar.max.val > 30 & Ar.min.val == 0) Ar.exp.type <- "PositiveLinear" else {
-                  # "HighOn" if max expression above 30C and minimum not at 0C (due to quadratic curvature)
-                  if(Ar.max.val > 30 & Ar.min.val != 0) Ar.exp.type <- "HighOn" else {
-                      # "NegativeLinear" if max expression below 10C and minimum expression at 38.5
-                      if(Ar.max.val < 10 & Ar.min.val == 38.5) Ar.exp.type <- "NegativeLinear" else {
-                          # "LowOn" if max expression below 10C and minimum not at 38.5C (due to quadratic curvature)
-                          if(Ar.max.val < 10 & Ar.min.val != 38.5) Ar.exp.type <- "LowOn" else {
-                              Ar.exp.type <- "Intermediate"
-                          }
-                      }
-                  }
-              }
-          }
-        }
-
+                # expression type "High" if max expression at temperature above 30C
+                if(Ar.max.val > 30) Ar.exp.type <- "High" else {
+                # expression type "Low" if max expression at temperature below 10C
+                    if(Ar.max.val < 10) Ar.exp.type <- "Low" else
+                      Ar.exp.type <- "Intermediate"
+                } # end else
+            } # end else
+        } # end if/else
 
     data.frame(A22.max = A22.max.val,
                A22.min = A22.min.val,
@@ -213,6 +174,7 @@ RxNtype <- function(lmitem) {
                Ar.type = Ar.exp.type)
            
 } # end RxNtype
+
 
 ############################################################################################
 ## transcriptSD
@@ -332,7 +294,7 @@ RxNvarshape <- function(lmitem) {
 ## geneid2GOmap
 ############################################################################################
 
-geneid2GOmap <- function(annotmat, ontology = c("BP", "CC", "MF"), mapname = "geneid2go.map") {
+geneid2GOmap <- function(annotmat) {
   # Create geneid2go.map file from AnnotationTable.txt produced by FastAnnotator 
   #
   # Args:
@@ -343,38 +305,25 @@ geneid2GOmap <- function(annotmat, ontology = c("BP", "CC", "MF"), mapname = "ge
     
   # requires
   require(stringr)
-
-  # check that mapname doesn't already exist
-  if(file.exists(mapname)) stop(paste("File ", mapname, " already exists!", sep =""))
   
   # Extract all GO terms and combine, write to file
-
-  
   for(r in 1:nrow(annotmat)) {
-     all.GO.terms <- vector(length=0)
-     if("BP" %in% ontology) {
-          GO.BP.list <- str_split(annotmat[r,"GO.Biological.Process"], " ")
-          GO.BP.terms <- grep('GO', unlist(GO.BP.list), value = TRUE)
-          all.GO.terms <- paste(c(all.GO.terms, GO.BP.terms), collapse = ", ")
-      }
-      if("CC" %in% ontology) {
-          GO.CC.list <- str_split(annotmat[r,"GO.Cellular.Component"], " ")
-          GO.CC.terms <- grep('GO', unlist(GO.CC.list), value = TRUE)
-          all.GO.terms <- paste(c(all.GO.terms, GO.CC.terms), collapse = ", ")
-      }
-      if("MF" %in% ontology) {
-          GO.MF.list <- str_split(annotmat[r,"GO.Molecular.Function"], " ")
-          GO.MF.terms <- grep('GO', unlist(GO.MF.list), value = TRUE)
-          all.GO.terms <- paste(c(all.GO.terms, GO.MF.terms), collapse = ", ")
-      }
-        
-    cat(annotmat[r, "Sequence.Name"], '\t', all.GO.terms, '\n', file = mapname, append = TRUE)    
+    GO.BP.list <- str_split(annotmat[r,"GO.Biological.Process"], " ")
+    GO.BP.terms <- grep('GO', unlist(GO.BP.list), value = TRUE)
+    GO.CC.list <- str_split(annotmat[r,"GO.Cellular.Component"], " ")
+    GO.CC.terms <- grep('GO', unlist(GO.CC.list), value = TRUE)
+    GO.MF.list <- str_split(annotmat[r,"GO.Molecular.Function"], " ")
+    GO.MF.terms <- grep('GO', unlist(GO.MF.list), value = TRUE)
+    
+    
+    (all.GO.terms <- paste(c(GO.BP.terms, GO.CC.terms, GO.MF.terms), collapse = ", "))
+    cat(annotmat[r, "Sequence.Name"], '\t', all.GO.terms, '\n', file = "geneid2go.map", append = TRUE)    
   } # end for loop
 } # end function
 
 
 ############################################################################################
-## gsea
+## geneid2GOmap
 ############################################################################################
 
 gsea <- function(genelist, geneID2GO, plotpath=NA) {
@@ -414,32 +363,4 @@ gsea <- function(genelist, geneID2GO, plotpath=NA) {
   
   # result table
   resTable <- GenTable(GOdata, parentchild = resultParentChild, topNodes = numsignodes)
-}
-
-
-
-
-############################################################################################
-## GSEAReportClusters
-############################################################################################
-
-GSEAReportClusters <- function(hclustobj, h) {
-    # Identify members of cluster from `hclust` object
-    #                                    
-    # Args:
-    #   hclustobj: hclust() object
-    #   h: height, determined visually from looking at plot(hclustobj), to split clusters
-    #
-    # Returns:
-    #   list of terms in each cluster
-      
-    clusters <- cutree(hclustobj, h = h)
-    clustlist <- list()
-    for(i in 1:max(clusters)) {
-        li <- list(which(clusters == i))
-        names(li) <- paste("Cluster", i)
-        clustlist <- c(clustlist, li)
-    }
-
-    return(clustlist)
 }

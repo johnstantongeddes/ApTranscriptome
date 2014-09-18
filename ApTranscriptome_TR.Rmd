@@ -32,7 +32,7 @@ library(reshape2)
 library(RColorBrewer)
 
 # Load Bioconductor libraries
-#source("http://bioconductor.org/biocLite.R")
+source("http://bioconductor.org/biocLite.R")
 #biocLite("topGO")
 #biocLite("Rgraphviz")
 #biocLite("GOSemSim")
@@ -49,7 +49,6 @@ opts_chunk$set(cache=TRUE)
 # directory to save results
 resultsdir <- "results/"
 ```
-
 
 ## Summary ##
   
@@ -248,6 +247,8 @@ The TPM column for each sample was extracted and combined into a matrix for each
 # sailfish expression directory
 sfexpressionroot <- "results/trinity-full/sailfish-expression-Trinity-cap3-uclust/"
 
+samples <- c("A22-0", "A22-10", "A22-14", "A22-17", "A22-21", "A22-24", "A22-28", "A22-31", "A22-35", "A22-38", "A22-3", "A22-7", "Ar-0", "Ar-10", "Ar-14", "Ar-17", "Ar-21", "Ar-24", "Ar-28", "Ar-31", "Ar-35", "Ar-38", "Ar-3", "Ar-7")
+    
 # read in each file using loop
 for (j in 1:length(samples)) {
     samp <- samples[j]
