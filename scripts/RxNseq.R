@@ -25,6 +25,53 @@ read.sailfish.quant <- function(filein, outname, samp, trtval) {
 }
 
 
+############################################################################################
+## read.sailfish.reps
+############################################################################################
+
+
+read.sailfish.reps <- function(r, fd=".", repout){
+  repdir <- paste(fd, r, "/", sep="")
+  # read in each file using loop
+  for (j in 1:length(samples)) {
+    samp <- samples[j]
+    trtval <- as.numeric(str_split_fixed(samp, "-", 2)[2])
+    outpre <- gsub("-", "_", samp)
+    outname <- paste(outpre, "_quant", sep="")
+    read.sailfish.quant(filein=paste(repdir, samp, "_quant/quant_bias_corrected.sf", sep=""), 
+                        outname=outname, samp = samp, trtval = trtval)
+  } 
+  
+  # combine results for each treatment into long format as data.table
+  A22.TPM <- data.table(rbind(A22_0_quant, A22_3_quant, A22_7_quant, A22_10_quant, A22_14_quant, A22_17_quant, 
+                              A22_21_quant, A22_24_quant, A22_28_quant, A22_31_quant, A22_35_quant, A22_38_quant))
+  A22.TPM[,colony:="A22"]
+  Ar.TPM <- data.table(rbind(Ar_0_quant, Ar_3_quant, Ar_7_quant, Ar_10_quant, Ar_14_quant, Ar_17_quant, 
+                             Ar_21_quant, Ar_24_quant, Ar_28_quant, Ar_31_quant, Ar_35_quant, Ar_38_quant))
+  Ar.TPM[,colony:="Ar"]
+  
+  # combine each colony into single data.table
+  TPM.dt <- rbind(A22.TPM, Ar.TPM)
+  TPM.dt$colony <- as.factor(TPM.dt$colony)
+  setkey(TPM.dt, val)
+  
+  # set "trt" to true values - truncated in file names for convenience
+  TPM.dt[val==3,val:=3.5]
+  TPM.dt[val==10,val:=10.5]
+  TPM.dt[val==17,val:=17.5]
+  TPM.dt[val==24,val:=24.5]
+  TPM.dt[val==31,val:=31.5]
+  TPM.dt[val==38,val:=38.5]
+  
+  # drop treatment value of 7
+  TPM.dt.sub <- TPM.dt[val != 7] 
+  unique(TPM.dt.sub$val)
+  length(unique(TPM.dt.sub$Transcript))
+  
+  # return data.table
+  assign(repout, TPM.dt.sub, envir = .GlobalEnv)
+}
+
 
 ############################################################################################
 ## modpFunc
