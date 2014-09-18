@@ -254,12 +254,13 @@ sfexpressionroot <- "results/trinity-full/sailfish-expression-Trinity-cap3-uclus
 # samples
 samples <- c("A22-0", "A22-10", "A22-14", "A22-17", "A22-21", "A22-24", "A22-28", "A22-31", "A22-35", "A22-38", "A22-3", "A22-7", "Ar-0", "Ar-10", "Ar-14", "Ar-17", "Ar-21", "Ar-24", "Ar-28", "Ar-31", "Ar-35", "Ar-38", "Ar-3", "Ar-7")
 
-# loop across replicates
+# replicates
 reps <- c("rep1", "rep2", "rep3", "rep4", "rep5", "rep6", "rep7", "rep8", "rep9", "rep10")
 
+# loop across replicates and load expression data
 for(sr in reps) {
   read.sailfish.reps(sr, fd=sfexpressionroot, repout=paste("TPM.dt.", sr, sep=""))
-  }
+}
 ```
 
 For any single replicate, the expression levels at each temperature treatment are highly correlated between the two colonies.
@@ -286,14 +287,22 @@ cont.list <- read.table("results/trinity-full/cont.list")
 str(cont.list)
 
 # setkey of each TPM replicate to 'Transcript'
-ls1 <- ls(pattern="TPM")
+ls1 <- ls(pattern="TPM.dt.rep")
 sapply(mget(ls1), function(x) setkey(x, Transcript))
+sapply(mget(ls1), function(x) key(x))
 # remove Transcripts found in contaminant list
-sapply(mget(ls1), function(x) x[!cont.list])
+TPM.dt.rep1 <- TPM.dt.rep1[!cont.list]
+TPM.dt.rep2 <- TPM.dt.rep2[!cont.list]
+TPM.dt.rep3 <- TPM.dt.rep3[!cont.list]
+TPM.dt.rep4 <- TPM.dt.rep4[!cont.list]
+TPM.dt.rep5 <- TPM.dt.rep5[!cont.list]
+TPM.dt.rep6 <- TPM.dt.rep6[!cont.list]
+TPM.dt.rep7 <- TPM.dt.rep7[!cont.list]
+TPM.dt.rep8 <- TPM.dt.rep8[!cont.list]
+TPM.dt.rep9 <- TPM.dt.rep9[!cont.list]
+TPM.dt.rep10 <- TPM.dt.rep10[!cont.list]
 
-
-
-# remove from annotation.table
+# remove contaminants from annotation.table
 setkey(annotation.table, Sequence.Name)
 annotation.table <- annotation.table[!cont.list]
 str(annotation.table)
@@ -316,7 +325,12 @@ where TPM is transcripts per million.
 model <-  "log(TPM+1) ~ colony + val + I(val^2) + colony:val + colony:I(val^2)"
 
 # calculate overall P value and R^2 for each transcript
-RxNpval <- ddply(TPM.dt.sub, .(Transcript), .inform="TRUE", modpFunc)
+RxNpval.r1 <- ddply(TPM.dt.rep1, .(Transcript), .inform="TRUE", modpFunc)
+RxNpval.r2 <- ddply(TPM.dt.rep2, .(Transcript), .inform="TRUE", modpFunc)
+RxNpval.r3 <- ddply(TPM.dt.rep3, .(Transcript), .inform="TRUE", modpFunc)
+RxNpval.r4 <- ddply(TPM.dt.rep4, .(Transcript), .inform="TRUE", modpFunc)
+
+
 ```
 
 Of the `r nrow(RxNpval)` transcripts, `r length(which(RxNpval$pval < 0.05))` have models with P < 0.05.
@@ -324,14 +338,21 @@ Of the `r nrow(RxNpval)` transcripts, `r length(which(RxNpval$pval < 0.05))` hav
 Many of these are likely false positives, so I adjust P-values using false discovery rate (FDR). Only those transcripts with less than 5% FDR are retained as significant. 
 
 ```{r padjust}
-RxNpval$padj <- p.adjust(RxNpval$pval, method = "fdr")
+RxNpval.r1$padj <- p.adjust(RxNpval.r1$pval, method = "fdr")
+RxNpval.r2$padj <- p.adjust(RxNpval.r2$pval, method = "fdr")
+RxNpval.r3$padj <- p.adjust(RxNpval.r3$pval, method = "fdr")
+RxNpval.r4$padj <- p.adjust(RxNpval.r4$pval, method = "fdr")
+
 # Plot FDR values against initial pvalues
 par(mfrow = c(2,1))
 hist(RxNpval$pval)
 hist(RxNpval$padj)
 
 # subset to significant transcripts
-signif.transcripts <- RxNpval[which(RxNpval$padj < 0.05), ]
+signif.transcripts.r1 <- RxNpval.r1[which(RxNpval.r1$padj < 0.05), ]
+signif.transcripts.r2 <- RxNpval.r2[which(RxNpval.r2$padj < 0.05), ]
+signif.transcripts.r3 <- RxNpval.r3[which(RxNpval.r3$padj < 0.05), ]
+signif.transcripts.r4 <- RxNpval.r4[which(RxNpval.r4$padj < 0.05), ]
 
 # extract significant transcripts
 sig.TPM.dt.sub <- TPM.dt.sub[signif.transcripts$Transcript]
