@@ -6,3 +6,4 @@ export LD_LIBRARY_PATH=/home/ubuntu/software/Sailfish-0.6.3-Linux_x86-64/lib:$LD
 # script to bootstrap gene expression quantification using sailfish
 parallel Rscript sailfish_quant.R {1} ::: {1..20}
 
+

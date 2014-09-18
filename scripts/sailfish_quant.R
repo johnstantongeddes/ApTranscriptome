@@ -22,6 +22,8 @@ paired.right <- readlist[grep("\\.paired.right.fastq$", readlist)]
 unpaired.left <- readlist[grep("unpaired.left.fastq$", readlist)]
 unpaired.right <- readlist[grep("unpaired.right.fastq$", readlist)]
 
+iout = 1
+
 # output directiry
 system(paste('mkdir -p ../results/trinity-full/sailfish-expression-Trinity-cap3-uclust/rep', iout, sep=""))
 
