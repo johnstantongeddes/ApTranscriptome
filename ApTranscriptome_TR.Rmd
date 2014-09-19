@@ -32,7 +32,7 @@ library(reshape2)
 library(RColorBrewer)
 
 # Load Bioconductor libraries
-source("http://bioconductor.org/biocLite.R")
+#source("http://bioconductor.org/biocLite.R")
 #biocLite("topGO")
 #biocLite("Rgraphviz")
 #biocLite("GOSemSim")
@@ -138,7 +138,7 @@ colnames(assemstats) <- c("Total contigs", "Total length", "Median contig size",
 pandoc.table(assemstats, style="rmarkdown", caption = "Statistics for Trinity and cap3+uclust reduced transcriptome assemblies")
 ```
 
-To remove contigs that are likely contaminants from bacterial, archael, virus or human sources, we used the program [DeconSeq](http://deconseq.sourceforge.net/) `r citep("10.1371/journal.pone.0017288")`. We downloaded the bacteria, virus, archae and human [databases of contaminants](ftp://edwards.sdsu.edu:7009/deconseq/db), modified the `DeconSeqConfig.pm` file as described [here](http://www.vcru.wisc.edu/simonlab/bioinformatics/programs/install/deconseq.htm) to point to the databases, and ran DeconSeq specifiying 95% identity over 50% the length of contig
+To remove contigs that are likely contaminants from bacterial, archael, virus or human sources, we used the program [DeconSeq](http://deconseq.sourceforge.net/) r citep("10.1371/journal.pone.0017288"). We downloaded the bacteria, virus, archae and human [databases of contaminants](ftp://edwards.sdsu.edu:7009/deconseq/db), modified the `DeconSeqConfig.pm` file as described [here](http://www.vcru.wisc.edu/simonlab/bioinformatics/programs/install/deconseq.htm) to point to the databases, and ran DeconSeq specifiying 95% identity over 50% the length of contig
 
     deconseq.pl -c 50 -i 95 -f Trinity_cap3_uclust.fasta -d Trinity_cap3_uclust -dbs hsref,bast,vir,arch
 	
@@ -161,7 +161,7 @@ mv Trinity_cap3_uclust.fasta results/trinity-full/.
 mv Trinity_cap3_uclust_clean.fasta results/trinity-full/.
 ~~~
 
-To examine the species distribution of BLAST hits in the transcriptome assembly, I used the program [Krona](http://sourceforge.net/p/krona/home/krona/) `r citep("doi:10.1186/1471-2105-12-385")`. I ... 
+To examine the species distribution of BLAST hits in the transcriptome assembly, I used the program [Krona](http://sourceforge.net/p/krona/home/krona/) r citep("doi:10.1186/1471-2105-12-385"). I ... 
 
 ~~~
 KRONA code
@@ -172,7 +172,7 @@ The interactive visualization is available [here]().
 
 ## Transcriptome annotation ##
 
-Annotation was performed by uploading the reduced assembly "Trinity_cap3_uclust.fasta" to the web-based annotation program [FastAnnotator](http://fastannotator.cgu.edu.tw/index.php) `r citep("10.1186/1471-2164-13-S7-S9")`.
+Annotation was performed by uploading the reduced assembly "Trinity_cap3_uclust.fasta" to the web-based annotation program [FastAnnotator](http://fastannotator.cgu.edu.tw/index.php).
 
 Results are available as job ID [13894410176993](http://fastannotator.cgu.edu.tw/job.php?jobid=13894410176993#page=basicinfo).
 
@@ -243,6 +243,9 @@ For each sample, there is a directory containting a file *quant_bias_corrected.s
 
 The TPM column for each sample was extracted and combined into a matrix for each species.
 
+**Preliminary [examination](https://minilims1.uvm.edu/BCProject-26-Cahan/methods.html#clustering-of-samples) of the data indicated that the A22_7 and Ar_7 samples may have been switched, so I remove these values from the combined expression data set for the two species.** 
+
+
 ```{r load_expression_data, eval=TRUE, echo=FALSE, results='hide'}
 # sailfish expression directory
 sfexpressionroot <- "results/trinity-full/sailfish-expression-Trinity-cap3-uclust/"
@@ -258,63 +261,46 @@ for (j in 1:length(samples)) {
     read.sailfish.quant(filein=paste(sfexpressionroot, samp, "_quant/quant_bias_corrected.sf", sep=""), outname=outname, samp = samp, trtval = trtval)
 }
 
-# combine into long format
-A22.TPM <- rbind(A22_0_quant, A22_3_quant, A22_7_quant, A22_10_quant, A22_14_quant, A22_17_quant, A22_21_quant, A22_24_quant, A22_28_quant, A22_31_quant, A22_35_quant, A22_38_quant)
-str(A22.TPM)
+# combine into long format data.table
+A22.TPM <- data.table(rbind(A22_0_quant, A22_3_quant, A22_7_quant, A22_10_quant, A22_14_quant, A22_17_quant, A22_21_quant, A22_24_quant, A22_28_quant, A22_31_quant, A22_35_quant, A22_38_quant))
+A22.TPM[,colony:="A22"]
 
-# convert to data.table
-A22.TPM <- data.table(A22.TPM)
-setkey(A22.TPM, Transcript, val)
+Ar.TPM <- data.table(rbind(Ar_0_quant, Ar_3_quant, Ar_7_quant, Ar_10_quant, Ar_14_quant, Ar_17_quant, Ar_21_quant, Ar_24_quant, Ar_28_quant, Ar_31_quant, Ar_35_quant, Ar_38_quant))
+Ar.TPM[,colony:="Ar"]
+
+# combine colonies into single data.frame
+TPM.dt <- rbind(A22.TPM, Ar.TPM)
+TPM.dt$colony <- as.factor(TPM.dt$colony)
+str(TPM.dt)
+
+# drop temperature 7 
+setkey(TPM.dt, val)
+TPM.dt.sub <- TPM.dt[val != 7] 
+
+length(unique(TPM.dt.sub$Transcript))
 
 # set "trt" to true values - truncated in file names for convenience
-A22.TPM[val==3,val:=3.5]
-A22.TPM[val==10,val:=10.5]
-A22.TPM[val==17,val:=17.5]
-A22.TPM[val==24,val:=24.5]
-A22.TPM[val==31,val:=31.5]
-A22.TPM[val==38,val:=38.5]
-str(A22.TPM)
-
-# Repeat for Ar
-Ar.TPM <- rbind(Ar_0_quant, Ar_3_quant, Ar_7_quant, Ar_10_quant, Ar_14_quant, Ar_17_quant, Ar_21_quant, Ar_24_quant, Ar_28_quant, Ar_31_quant, Ar_35_quant, Ar_38_quant)
-Ar.TPM <- data.table(Ar.TPM)
-setkey(Ar.TPM, Transcript, val)
-Ar.TPM[val==3,val:=3.5]
-Ar.TPM[val==10,val:=10.5]
-Ar.TPM[val==17,val:=17.5]
-Ar.TPM[val==24,val:=24.5]
-Ar.TPM[val==31,val:=31.5]
-Ar.TPM[val==38,val:=38.5]
-str(Ar.TPM)
+TPM.dt.sub[val==3,val:=3.5]
+TPM.dt.sub[val==10,val:=10.5]
+TPM.dt.sub[val==17,val:=17.5]
+TPM.dt.sub[val==24,val:=24.5]
+TPM.dt.sub[val==31,val:=31.5]
+TPM.dt.sub[val==38,val:=38.5]
+str(TPM.dt.sub)
+unique(TPM.dt.sub$val)
 ```
 
 Note that expression levels at each temperature treatment are highly correlated between the two colonies.
 
 ```{r exp_correlations, echo=FALSE, results='hide'}
-temp <- c(0, 3.5, 7, 10.5, 14, 17.5, 21, 24.5, 28, 31.5, 35, 38.5)
-cors <- c(round(cor(Ar_0_quant$TPM, A22_0_quant$TPM), 2), round(cor(Ar_3_quant$TPM, A22_3_quant$TPM), 2), round(cor(Ar_7_quant$TPM, A22_7_quant$TPM), 2), round(cor(Ar_10_quant$TPM, A22_10_quant$TPM), 2), round(cor(Ar_14_quant$TPM, A22_14_quant$TPM), 2), round(cor(Ar_17_quant$TPM, A22_17_quant$TPM), 2), round(cor(Ar_21_quant$TPM, A22_21_quant$TPM), 2), round(cor(Ar_24_quant$TPM, A22_24_quant$TPM), 2), round(cor(Ar_28_quant$TPM, A22_28_quant$TPM), 2), round(cor(Ar_31_quant$TPM, A22_31_quant$TPM), 2), round(cor(Ar_35_quant$TPM, A22_35_quant$TPM), 2), round(cor(Ar_38_quant$TPM, A22_38_quant$TPM), 2))
-
-cortable <- cbind(Temperature = temp, Correlation = cors)
+cortable <- ddply(TPM.dt.sub, .(val), summarize, cor(TPM[which(colony=="A22")], TPM[which(colony=="Ar")]))
 ```
 
 ```{r exp_correlations_table, echo=FALSE, results='asis'}
-pandoc.table(cortable, style="rmarkdown", caption = "Correlations between species for gene expression at temperature treatment")
+colnames(cortable) <- c("Temperature", "r")
+pandoc.table(cortable, style="rmarkdown", caption = "Correlations between species for gene expression at temperature treatment", round=2)
 ```
 
-**Preliminary [examination](https://minilims1.uvm.edu/BCProject-26-Cahan/methods.html#clustering-of-samples) of the data indicated that the A22_7 and Ar_7 samples may have been switched, so I remove these values from the combined expression data set for the two species.** 
-
-```{r combined_TPM, results = 'hide'}
-A22.TPM[,colony:="A22"]
-Ar.TPM[,colony:="Ar"]
-TPM.dt <- rbind(A22.TPM, Ar.TPM)
-TPM.dt$colony <- as.factor(TPM.dt$colony)
-str(TPM.dt)
-
-setkey(TPM.dt, val)
-TPM.dt.sub <- TPM.dt[val != 7] 
-unique(TPM.dt.sub$val)
-length(unique(TPM.dt.sub$Transcript))
-```
 
 ### Remove *contaminant* transcripts
 
@@ -413,7 +399,7 @@ siglist <- c(length(RxNlmAIC),
 
 sigtable <- data.frame(Coefficient = clist, "Number significant" = siglist)
 
-pandoc.table(sigtable, style="rmarkdown", caption = "Number of transcripts of 99,861 total with expression that depends on species, temperature or their interaction at 5% FDR.")
+pandoc.table(sigtable, style="rmarkdown", caption = "Number of transcripts with expression that depends on species, temperature or their interaction at 5% FDR  out of 98,186 total transcripts.")
 ```
 
 
@@ -864,7 +850,7 @@ mean(varshape.out$prop.lslope)
 (qlslope <- quantile(varshape.out$prop.lslope, probs = c(0.05, 0.5, 0.95)))
 ```
 
-From this analysis, about 3/4 of the differences in reaction norms between species are due to changes in the mean, with the remainder being due to changes in slope.
+From this analysis, about 80% of the differences in reaction norms between species are due to changes in the mean, with the remainder being due to changes in slope.
 
 
 
@@ -926,8 +912,6 @@ GO.stress.Xsq
 
 While `r nrow(GO0006950.responsive)` "response to stress" genes are in the responsive set, this is not enriched compared to the whole transcriptome. 
 
-There are also 7 heat shock related genes in the responsive transcripts, out of 130 total.
-
 ```{r grep_shock}
 hsp_responsive <- responsive.lms.ann.type[grep("shock", responsive.lms.ann.type$best.hit.to.nr), list(Transcript, best.hit.to.nr, A22.type, Ar.type)]
 hsp_responsive
@@ -935,6 +919,9 @@ hsp_responsive
 hsp_all <- annotation.table[grep("shock", annotation.table$best.hit.to.nr), list(Sequence.Name, best.hit.to.nr)]
 nrow(hsp_all)
 ```
+
+There are also `r nrow(hsp_responsive)` heat shock related genes in the responsive transcripts, out of `r nrow(hsp_all)` total heat shock related genes in the transcriptome annotation.
+
 
 ### Gene set enrichment analysis
 
@@ -1419,7 +1406,7 @@ GSEAReportClusters(Ar.int.gsea.term.sim.hclust, h = 1.8)
 
 Combine gene set enrichment analysis for each species and category into single table.
 
-```{r gsea_combine, eval = FALSE}
+```{r gsea_combine, eval = TRUE}
 # combine into single table
 A22.high.gsea$Type <- "High"
 A22.low.gsea$Type <- "Low"
@@ -1448,9 +1435,9 @@ write.csv(Ap.gsea.union, file = paste(resultsdir, "Ap_gsea_union", Sys.Date(), "
 
 ## Visualize responsive transcripts
 
-Make plots for all genes expressed at *High* temps in GO category "GO:0006950: response to stress"
+Plots for all genes expressed at *High* temps in GO category "GO:0006950: response to stress"
 
-```{r plot_GOstress, echo=FALSE, eval=FALSE}
+```{r plot_GOstress, echo=FALSE, eval=TRUE}
 high.stress.terms <- GO0006950.responsive[intersect(with(GO0006950.responsive, grep("High", Ar.type)), with(GO0006950.responsive, grep("High", A22.type))), ]
 
 # in low category
@@ -1509,13 +1496,6 @@ trp_A22_high <- ggplot(resp.TPM.dt.sub[A22.high.transcripts][1:220,], aes(x=val,
   scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
 print(trp_A22_high)
 
-trp_A22_poslinear <- ggplot(resp.TPM.dt.sub[A22.poslinear.transcripts][1:220,], aes(x=val, y=TPM.scaled, group=Transcript)) +
-  geom_smooth(method = "lm", formula = y ~ poly(x, 2)) + 
-  facet_grid(. ~ colony2) + 
-  scale_y_continuous(name="Expression (scaled)") +
-  scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
-print(trp_A22_poslinear)
-
 ### predicted values
 resp.TPM.dt.sub.pred[,pTPM.scaled:=scale(pTPM), by = Transcript]
 
@@ -1526,13 +1506,6 @@ pred_A22_high <- ggplot(resp.TPM.dt.sub.pred[A22.high.transcripts][1:220,], aes(
   scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
 print(pred_A22_high)
 
-pred_A22_poslinear <- ggplot(resp.TPM.dt.sub.pred[A22.poslinear.transcripts][1:220,], aes(x=val, y=pTPM.scaled, group=Transcript)) +
-  geom_line() + 
-  facet_grid(. ~ colony) + 
-  scale_y_continuous(name="Expression (scaled)") +
-  scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
-print(pred_A22_poslinear)
-
 png("RxN_example.png")
 ggplot(resp.TPM.dt.sub.pred["100348|*|comp3450455_c0_seq1"], aes(x=val, y=pTPM.scaled, group=Transcript, color = Transcript)) +
   geom_line() + 
@@ -1540,44 +1513,6 @@ ggplot(resp.TPM.dt.sub.pred["100348|*|comp3450455_c0_seq1"], aes(x=val, y=pTPM.s
   labs(y = "Expression (scaled)", x = expression("Temperature ", degree, "C")) +
   theme(legend.position = "none")
 dev.off()
-
-
-
-```
-
-### Overlap between *Ar* Intermediate and *A22* Low genes
-
-An observation from GO analysis is that there is an overlap between enriched terms in the *Low* group for *A22* and the *Intermediate* group for *Ar*. A potential explanation for this pattern is if the *Low* genes in *A22* shut down at high temperatures, but not low temperatures, rather than are up-regulated at low temperatures.
-
-```{r gene_overlap}
-# transcripts where TPM increases at low temps & decreases at high temps
-A22.low.Ar.int.TPM.dt.sub <- resp.TPM.dt.sub.pred[J(intersect(A22.low,Ar.int), "A22")]
-
-for(i in unique(A22.low.Ar.int.TPM.dt.sub$Transcript)[1:10]) {
-    s <- A22.low.Ar.int.TPM.dt.sub[i]
-    X11()
-    plot(s$val, s$pTPM, ylim = c(0, max(s$pTPM)+.1))
-    points(s$val, s$TPM, pch = 8, col = "red")
-    if(s[which(s$val == 38.5) , pTPM] == min(s$pTPM)) print("OffHigh") else {
-        print("OnLow")
-    }
-}
-
-# tabulate the number of transcripts that have lowest expression at maximum temperature "OffHigh"
-A22.low.Ar.int.low.type <- ddply(A22.low.Ar.int.TPM.dt.sub, .(Transcript), summarise, lt = ifelse(pTPM[which(val == 38.5)] == min(pTPM), "OffHigh", "OnLow"))
-
-table(A22.low.Ar.int.low.type$lt)
-
-
-# A22 low Ar low
-A22.low.Ar.low.TPM.dt.sub <- resp.TPM.dt.sub.pred[J(intersect(A22.low, Ar.low), "A22")]
-
-A22.low.Ar.low.low.type <- ddply(A22.low.Ar.low.TPM.dt.sub, .(Transcript), summarise, lt = ifelse(pTPM[which(val == 38.5)] == min(pTPM), "OffHigh", "OnLow"))
-
-# table results and perform chi-square test
-low.table <- rbind(LowInt = table(A22.low.Ar.int.low.type$lt), LowLow = table(A22.low.Ar.low.low.type$lt))
-low.table
-chisq.test(low.table)
 ```
 
 ## Shiny interactive web-app
@@ -1598,11 +1533,11 @@ write.csv(shiny.dt, file = "ApRxN-shinyapp/responsive.lms.TPM.csv", quote = TRUE
 
 ```{r rData, echo=FALSE}
 # save RData for manuscript file
-save(RxNpval, sigtable, chi1, resp.TPM.dt.sub, Ap.type.table, tt2, tt3, qlslope, qlmean, GO.stress.Xsq, GO0006950.responsive, Ap.df, w1, w2, w3, Ap.T_on, Ap.BP.resultParentChild, resp.stress.responsive.count, t.mean, t.slope, t.curvature, t.wiggle, t.varint, t.varbim, T_on.high.ttest, T_on.low.ttest, Ap.gsea.intersect, Ap.gsea.union, Ar.int.A22.bim.gsea, Ar.int.A22.low.gsea, file = "ms.RData")
+save(TPM.dt.sub, RxNpval, sigtable, chi1, resp.TPM.dt.sub, Ap.type.table, tt2, tt3, qlslope, qlmean, GO.stress.Xsq, GO0006950.responsive, Ap.df, w1, w2, w3, Ap.T_on, Ap.BP.resultParentChild, resp.stress.responsive.count, t.mean, t.slope, t.curvature, t.wiggle, t.varint, t.varbim, T_on.high.ttest, T_on.low.ttest, Ap.gsea.union, Ap.gsea.intersect, Ar.int.A22.bim.gsea, Ar.int.A22.low.gsea, file = "ms.RData")
 ```
 
 
-## Session information ##
+## Session information
 
 ```{r session}
 save.image()

@@ -3,7 +3,7 @@ Thermal reactionome of the common ant species *Aphaenogaster picea* and *A. caro
    
 **Author:** [John Stanton-Geddes](john.stantongeddes.research@gmail.com)
 
-**June 16, 2014**
+**July 17, 2014**
 
 **Technical Report No. 3**
 
@@ -13,39 +13,26 @@ Thermal reactionome of the common ant species *Aphaenogaster picea* and *A. caro
 
 
 
-
 ## Summary ##
   
-In this technical report, which accompanies the manuscript **Thermal reactionome of a common ant species** (Stanton-Geddes et al., in press), we:
+In this technical report, which accompanies the manuscript **Patterns of stress tolerance versus resistance in genome-wide expression data of parapatric ant species** (Stanton-Geddes et al., in press), we:
 
-1. describe the *de novo* assembly of the transcriptome for two ant species within the *Aphaenogaster rudis-picea-fulva* species complex (<a href="http://dx.doi.org/10.1155/2012/752815">Lubertazzi, 2012</a>)
+1. describe the *de novo* assembly of the transcriptome for two ant species within the *Aphaenogaster rudis-picea-fulva* species complex (Lubertazzi, 2012)
 2. identify thermally-responsive genes
-3. evaluate differences in the expression patterns between the two species
-3. perform gene set enrichment analysis of thermally-responsive genes for the two species
-
-
+3. evaluate differences in reaction norms of expression for each thermally-responsive gene between the two species
+4. perform gene set enrichment analysis of thermally-responsive genes for the two species
 
 This script is completely reproducible assuming that R, `knitr` and the other required libraries (listed within the source document) are installed on a standard linux system using the following:
     
     Rscript -e "library(knitr); knit('ApTranscriptome_TR.Rmd')"
 
-The assembled transcriptome, annotation and expression values are downloaded rather than re-run due to the computational demands, but the exact commands for each of these steps are documented below.
+
 
 
 
 ## Data ##
 
-The Illumina fastq files are available from [https://minilims1.uvm.edu/BCProject-26-Cahan/downloads.html]. The Trimmomatic filtered fastq files should be downloaded, uncompressed and moved to the appropriate directory using the following code.
-
-~~~
-# download filtered fastq files, uncompress and move
-wget --no-check-certificate https://minilims1.uvm.edu/BCProject-26-Cahan/_downloads/trimmomatic_output.tar.gz
-tar -zxvf trimmomatic_output.tar.gz
-mkdir -p data/
-mv ind_files data/.
-~~~
-
-
+The raw Illumina fastq files are available from the NCBI short read archive [link tbd]. The assembled transcriptome, annotation and expression values are downloaded rather than re-run due to the computational demands, but the exact commands for each of these steps are documented below.
 
 ## Sample description ##
 
@@ -57,25 +44,26 @@ For each colony, three ants were exposed to one of 12 temperature treatments, ev
 
 ## Transcriptome assembly ##
 
-The Illumina reads were filtered using the program [Trimmomatic](http://www.usadellab.org/cms/?page=trimmomatic) (<a href="http://dx.doi.org/10.1093/nar/gks540">Lohse et al. 2012</a>) to remove Ilumina adapter sequences and filter out bases with quality scores less than ??. 
+The Illumina reads were filtered using the program [Trimmomatic](http://www.usadellab.org/cms/?page=trimmomatic) (Lohse, Bolger, Nagel, Fernie, Lunn, Stitt, and Usadel, 2012) to remove Ilumina adapter sequences, trim bases with PHRED quality scores less than 15 in a 4 bp sliding window and remove final trimmed sequences with length less than 36 bp. The code used was 
 
 ~~~
-TRIMMOMATIC CODE
+java -jar trimmomatic-0.30.jar PE -threads 40 -phred33 -trimlog trimmomatic.log sample.R1.fastq sample.R2.fastq sample.R1.trimmed.paired.fastq sample.R1.trimmed.unpaired.fastq sample.R2.trimmed.paired.fastq sample.R2.trimmed.unpaired.fastq ILLUMINACLIP:TruSeq3-PE.fa:2:30:10 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15 MINLEN:36
 ~~~
 
-This filtering yielded...
+where "sample" was replaced by each sample. This filtering yielded 339,845,787 properly paired reads and 16,860,885 unpaired reads. 
 
-These reads were combined and used in *de novo* transcriptome assembly using the program [Trinity](http://trinityrnaseq.sourceforge.net/) (<a href="http://dx.doi.org/10.1038/nbt.1883">Grabherr et al. 2011</a>). Note that this required ??? GB RAM and ??? hours run-time and was run on the [Vermont Genetics Network](http://vgn.uvm.edu/) computing cluster. 
+Properly paired and unpaired reads passing the Trimmomatic filter were combined and used in de novo transcriptome assembly using the program [Trinity](http://trinityrnaseq.sourceforge.net/) (Grabherr, Haas, Yassour, Levin, Thompson, Amit, Adiconis, Fan, Raychowdhury, Zeng, Chen, Mauceli, Hacohen, Gnirke, Rhind, di
+Palma, Birren, Nusbaum, Lindblad-Toh, Friedman, and Regev, 2011). Unpaired reads resulting from Trimmomatic were concatenated to the set of left (R1) reads per Trinity usage documentation. Assembly on a single 40 CPU machine with 1TB of memory required 20 hours of compute time.
 
 ~~~
-TRINITY CODE
+Trinity.pl --seqType=fq --JM=90G —left=all.R1.trimmed.fastq —right=all.R2.trimmed.fastq --output=trinity --CPU=40 --inchworm_cpu=40 --bflyCPU=5
 ~~~
 
 This assembly contained 100,381 unique components (roughly genes) in 126,172 total transcripts (Table 1). 
 
-As we were assembling two divergent colonies into a single transcriptome, we suspected that this assembly would be susceptible to known problems of errors during assembly (e.g. chimeric transcripts that are fusions of two transcripts) and redundancy (<a href="http://dx.doi.org/10.1186/1471-2164-14-328">Yang & Smith, 2013</a>). To account for this, we performed two post-assembly processing steps.
+As we were assembling two divergent colonies into a single transcriptome, we suspected that this assembly would be susceptible to known problems of errors during assembly (e.g. chimeric transcripts that are fusions of two transcripts) and redundancy (Yang and Smith, 2013). To account for this, we performed two post-assembly processing steps.
 
-First, we ran the program [cap3](http://seq.cs.iastate.edu/) (<a href="http://dx.doi.org/10.1101/gr.9.9.868">Huang, 1999</a>) setting the maximum gap length and band expansion size to 50 `-f 50 -a 50`, no end clipping as the reads were already filtered `k 0`, requiring 90% identity for assembly, and a minimum overlap length of 100 bp `-o 100`. The percent identity threshold of 90% was chosen to liberally collapse orthologous contigs from the two colonies that may have been assembled separately. 
+First, we ran the program [cap3](http://seq.cs.iastate.edu/) (Huang, 1999) setting the maximum gap length and band expansion size to 50 `-f 50 -a 50`, no end clipping as the reads were already filtered `k 0`, requiring 90% identity for assembly, and a minimum overlap length of 100 bp `-o 100`. The percent identity threshold of 90% was chosen to liberally collapse orthologous contigs from the two colonies that may have been assembled separately. 
 
     cap3 Trinity.fasta -f 50 -a 50 -k 0 -p 90 -o 100 > Trinity_cap3.out
 
@@ -118,7 +106,7 @@ Table: Statistics for Trinity and cap3+uclust reduced transcriptome assemblies (
 |  **trinity**  |        795         |    16,201    |    1,631     |
 |  **reduced**  |        593         |    15,491    |     895      |
 
-To remove contigs that are likely contaminants from bacterial, archael, virus or human sources, we used the program [DeconSeq](http://deconseq.sourceforge.net/) (<a href="http://dx.doi.org/10.1371/journal.pone.0017288">Schmieder et al. 2011</a>). We downloaded the bacteria, virus, archae and human [databases of contaminants](ftp://edwards.sdsu.edu:7009/deconseq/db), modified the `DeconSeqConfig.pm` file as described [here](http://www.vcru.wisc.edu/simonlab/bioinformatics/programs/install/deconseq.htm) to point to the databases, and ran DeconSeq specifiying 95% identity over 50% the length of contig
+To remove contigs that are likely contaminants from bacterial, archael, virus or human sources, we used the program [DeconSeq](http://deconseq.sourceforge.net/) r citep("10.1371/journal.pone.0017288"). We downloaded the bacteria, virus, archae and human [databases of contaminants](ftp://edwards.sdsu.edu:7009/deconseq/db), modified the `DeconSeqConfig.pm` file as described [here](http://www.vcru.wisc.edu/simonlab/bioinformatics/programs/install/deconseq.htm) to point to the databases, and ran DeconSeq specifiying 95% identity over 50% the length of contig
 
     deconseq.pl -c 50 -i 95 -f Trinity_cap3_uclust.fasta -d Trinity_cap3_uclust -dbs hsref,bast,vir,arch
 	
@@ -141,7 +129,7 @@ mv Trinity_cap3_uclust.fasta results/trinity-full/.
 mv Trinity_cap3_uclust_clean.fasta results/trinity-full/.
 ~~~
 
-To examine the species distribution of BLAST hits in the transcriptome assembly, I used the program [Krona](http://sourceforge.net/p/krona/home/krona/) (<a href="">unknown, unknown</a>). I ... 
+To examine the species distribution of BLAST hits in the transcriptome assembly, I used the program [Krona](http://sourceforge.net/p/krona/home/krona/) r citep("doi:10.1186/1471-2105-12-385"). I ... 
 
 ~~~
 KRONA code
@@ -152,7 +140,7 @@ The interactive visualization is available [here]().
 
 ## Transcriptome annotation ##
 
-Annotation was performed by uploading the reduced assembly "Trinity_cap3_uclust.fasta" to the web-based annotation program [FastAnnotator](http://fastannotator.cgu.edu.tw/index.php) (<a href="">unknown, unknown</a>).
+Annotation was performed by uploading the reduced assembly "Trinity_cap3_uclust.fasta" to the web-based annotation program [FastAnnotator](http://fastannotator.cgu.edu.tw/index.php).
 
 Results are available as job ID [13894410176993](http://fastannotator.cgu.edu.tw/job.php?jobid=13894410176993#page=basicinfo).
 
@@ -215,161 +203,52 @@ Note that I used the reduced assembly, prior to cleaning out contaminants. As I 
 
 I quantified gene expression using [sailfish](http://www.cs.cmu.edu/~ckingsf/software/sailfish/index.html). To run this program, first make sure that PATHs to the software libraries are set up correctly as described on the sailfish website. 
                                                  
-Then build the index of the assembly:
+An index of the assembly is built with the command:                                                 
 
+~~~
+sailfish index -t results/trinity-full/Trinity_cap3_uclust.fasta -o results/trinity-full/sailfish-index-Trinity-cap3-uclust -k 20 -p 4
+~~~
 
-```r
-system("sailfish index -t results/trinity-full/Trinity_cap3_uclust.fasta -o results/trinity-full/sailfish-index-Trinity-cap3-uclust -k 20 -p 4")
-```
-
-Once this is done, quantify expression for the Trimmomatic filtered reads from each species-treatment sample separately. Note that for each sample, there are three four filtered read files:
+Once this is done, expression is quantified for the Trimmomatic filtered reads from each species-treatment sample separately. Note that for each sample, there are four filtered read files:
 
 - paired.left.fastq
 - paired.right.fastq
 - unpaired.left.fastq
 - unpaired.right.fastq
-                                                 
-Make a directory for the expression values
 
 
-```r
-system("mkdir -p results/trinity-full/sailfish-expression-Trinity-cap3-uclust")
-```
 
-Then, for each sample, run the following command in the `results/trinity-full/` directory:
-                                                 
-    sailfish quant -i sailfish-index-Trinity-cap3-uclust -o sailfish-expression-Trinity-cap3-uclust/A22-0 -l "T=SE:S=U" -r A22-0_ATCACG.unpaired.left.fastq A22-0_ATCACG.unpaired.right.fastq A22-0_ATCACG.paired.left.fastq A22-0_ATCACG.paired.right.fastq -p 4
-	
+~~~
+# make a directory for the expression values
+mkdir -p results/trinity-full/sailfish-expression-Trinity-cap3-uclust
+# change to "trinity-full" directory
+cd results/trinity-full
+# for each sample, run the following command
+sailfish quant -i sailfish-index-Trinity-cap3-uclust -o sailfish-expression-Trinity-cap3-uclust/A22-0 -l "T=SE:S=U" -r A22-0_ATCACG.unpaired.left.fastq A22-0_ATCACG.unpaired.right.fastq A22-0_ATCACG.paired.left.fastq A22-0_ATCACG.paired.right.fastq -p 4
+~~~
+                                           
 While it is possible to separately specify the paired-end and orphaned single-end reads in Sailfish v0.6.3, the results are exactly the same as if they are all entered as SE.	
 
-Or, using a loop in R:                                                 
-                                                 
+These files are downloaded for convenience:
 
-```r
-# directory containing trimmed reads
-readdir <- "data/ind_files/" 
-# sailfish index directory
-sfindex <- "results/trinity-full/sailfish-index-Trinity-cap3-uclust"
-# sailfish expression directory
-sfexpressionroot <- "results/trinity-full/sailfish-expression-Trinity-cap3-uclust/"
+~~~
+wget ...
+mkdir -p /results/trinity-full/sailfish-expression-Trinity-cap3-uclust
+mv .. /results/trinity-full/sailfish-expression-Trinity-cap3-uclust
+tar -zxvf ...
+~~~
 
-# list of reads in each of four trimmed classes
-readlist <- list.files(readdir)
-paired.left <- readlist[grep(".\\.paired.left.fastq$", readlist)]
-paired.right <- readlist[grep("\\.paired.right.fastq$", readlist)]
-unpaired.left <- readlist[grep("unpaired.left.fastq$", readlist)]
-unpaired.right <- readlist[grep("unpaired.right.fastq$", readlist)]
-
-# Loop across each sample and quantify expression
-
-# NOTE - samples listed in same order as given by the above lists
-samples <- c("A22-0", "A22-10", "A22-14", "A22-17", "A22-21", "A22-24", "A22-28", "A22-31", "A22-35", "A22-38", "A22-3", "A22-7", "Ar-0", "Ar-10", "Ar-14", "Ar-17", "Ar-21", "Ar-24", "Ar-28", "Ar-31", "Ar-35", "Ar-38", "Ar-3", "Ar-7")
-
-for (j in 1:length(samples)) {
-    message("Start expression quantification for sample ", samples[j], ": ", Sys.time())
-    quantdir <- paste(sfexpressionroot, samples[j], "_quant", sep="")
-    samp.pos <- grep(paste(paste(samples[j], "_", sep="")), paired.left)
-    samp.paired.l <- paste(readdir, paired.left[samp.pos], sep="")
-    samp.paired.r <- paste(readdir, paired.right[samp.pos], sep="")
-    samp.unpaired.l <- paste(readdir, unpaired.left[samp.pos], sep="")
-    samp.unpaired.r <- paste(readdir, unpaired.right[samp.pos], sep="")
-    sailfishcmd <- paste("sailfish quant -i ", sfindex, " -o ", quantdir, " -l 'T=SE:S=U' -r ", samp.paired.l, " ", samp.paired.r, " ", samp.unpaired.l, " ", samp.unpaired.r, " -p 4", sep="")
-    #print(sailfishcmd)
-    system(sailfishcmd)
-    message("Done with expression quantification for sample ", samples[j], ": ", Sys.time(), "\n")
-}
-```
-
-```
-## Start expression quantification for sample A22-0: 2014-06-05 16:39:19
-## Done with expression quantification for sample A22-0: 2014-06-05 16:39:48
-## 
-## Start expression quantification for sample A22-10: 2014-06-05 16:39:48
-## Done with expression quantification for sample A22-10: 2014-06-05 16:40:09
-## 
-## Start expression quantification for sample A22-14: 2014-06-05 16:40:09
-## Done with expression quantification for sample A22-14: 2014-06-05 16:40:28
-## 
-## Start expression quantification for sample A22-17: 2014-06-05 16:40:28
-## Done with expression quantification for sample A22-17: 2014-06-05 16:40:50
-## 
-## Start expression quantification for sample A22-21: 2014-06-05 16:40:50
-## Done with expression quantification for sample A22-21: 2014-06-05 16:41:09
-## 
-## Start expression quantification for sample A22-24: 2014-06-05 16:41:09
-## Done with expression quantification for sample A22-24: 2014-06-05 16:41:30
-## 
-## Start expression quantification for sample A22-28: 2014-06-05 16:41:30
-## Done with expression quantification for sample A22-28: 2014-06-05 16:41:48
-## 
-## Start expression quantification for sample A22-31: 2014-06-05 16:41:48
-## Done with expression quantification for sample A22-31: 2014-06-05 16:42:07
-## 
-## Start expression quantification for sample A22-35: 2014-06-05 16:42:07
-## Done with expression quantification for sample A22-35: 2014-06-05 16:42:27
-## 
-## Start expression quantification for sample A22-38: 2014-06-05 16:42:27
-## Done with expression quantification for sample A22-38: 2014-06-05 16:42:48
-## 
-## Start expression quantification for sample A22-3: 2014-06-05 16:42:48
-## Done with expression quantification for sample A22-3: 2014-06-05 16:43:09
-## 
-## Start expression quantification for sample A22-7: 2014-06-05 16:43:09
-## Done with expression quantification for sample A22-7: 2014-06-05 16:43:28
-## 
-## Start expression quantification for sample Ar-0: 2014-06-05 16:43:28
-## Done with expression quantification for sample Ar-0: 2014-06-05 16:43:49
-## 
-## Start expression quantification for sample Ar-10: 2014-06-05 16:43:49
-## Done with expression quantification for sample Ar-10: 2014-06-05 16:44:10
-## 
-## Start expression quantification for sample Ar-14: 2014-06-05 16:44:10
-## Done with expression quantification for sample Ar-14: 2014-06-05 16:44:30
-## 
-## Start expression quantification for sample Ar-17: 2014-06-05 16:44:30
-## Done with expression quantification for sample Ar-17: 2014-06-05 16:44:51
-## 
-## Start expression quantification for sample Ar-21: 2014-06-05 16:44:51
-## Done with expression quantification for sample Ar-21: 2014-06-05 16:45:12
-## 
-## Start expression quantification for sample Ar-24: 2014-06-05 16:45:12
-## Done with expression quantification for sample Ar-24: 2014-06-05 16:45:31
-## 
-## Start expression quantification for sample Ar-28: 2014-06-05 16:45:31
-## Done with expression quantification for sample Ar-28: 2014-06-05 16:45:51
-## 
-## Start expression quantification for sample Ar-31: 2014-06-05 16:45:51
-## Done with expression quantification for sample Ar-31: 2014-06-05 16:46:11
-## 
-## Start expression quantification for sample Ar-35: 2014-06-05 16:46:11
-## Done with expression quantification for sample Ar-35: 2014-06-05 16:46:32
-## 
-## Start expression quantification for sample Ar-38: 2014-06-05 16:46:32
-## Done with expression quantification for sample Ar-38: 2014-06-05 16:46:55
-## 
-## Start expression quantification for sample Ar-3: 2014-06-05 16:46:55
-## Done with expression quantification for sample Ar-3: 2014-06-05 16:47:14
-## 
-## Start expression quantification for sample Ar-7: 2014-06-05 16:47:14
-## Done with expression quantification for sample Ar-7: 2014-06-05 16:47:35
-```
-
-This generated a directory for each sample
-
-A22-0_quant, A22-10_quant, A22-14_quant, A22-17_quant, A22-21_quant, A22-24_quant, A22-28_quant, A22-31_quant, A22-35_quant, A22-38_quant, A22-3_quant, A22-7_quant, Ar-0_quant, Ar-10_quant, Ar-14_quant, Ar-17_quant, Ar-21_quant, Ar-24_quant, Ar-28_quant, Ar-31_quant, Ar-35_quant, Ar-38_quant, Ar-3_quant, Ar-7_quant
-
-and within each directory there are the following r:
-
-logs, quant_bias_corrected.sf, quant.sf, reads.count_info, reads.sfc
-
-The file *quant_bias_corrected.sf* contains the following columns, following a number of header lines:
+For each sample, there is a directory containting a file *quant_bias_corrected.sf*. This file has the following columns, following a number of header lines:
 
 1. Transcript ID
 2. Transcript Length
-3. Transcripts per Million (TPM): computed as described in (<a href="http://dx.doi.org/10.1093/bioinformatics/btp692">Li et al. 2009</a>), and is meant as an estimate of the number of transcripts, per million observed transcripts, originating from each isoform.
+3. Transcripts per Million (TPM): computed as described in (Li, Ruotti, Stewart, Thomson, and Dewey, 2009), and is meant as an estimate of the number of transcripts, per million observed transcripts, originating from each isoform.
 4. Reads Per Kilobase per Million mapped reads (RPKM): classic measure of relative transcript abundance, and is an estimate of the number of reads per kilobase of transcript (per million mapped reads) originating from each transcript.
 
 The TPM column for each sample was extracted and combined into a matrix for each species.
+
+**Preliminary [examination](https://minilims1.uvm.edu/BCProject-26-Cahan/methods.html#clustering-of-samples) of the data indicated that the A22_7 and Ar_7 samples may have been switched, so I remove these values from the combined expression data set for the two species.** 
+
 
 
 
@@ -378,38 +257,22 @@ Note that expression levels at each temperature treatment are highly correlated 
 
 
 
-|  Temperature  |  Correlation  |
-|:-------------:|:-------------:|
-|       0       |     0.99      |
-|      3.5      |     0.98      |
-|       7       |     0.98      |
-|     10.5      |       1       |
-|      14       |     0.99      |
-|     17.5      |     0.98      |
-|      21       |     0.98      |
-|     24.5      |     0.99      |
-|      28       |     0.99      |
-|     31.5      |     0.99      |
-|      35       |     0.99      |
-|     38.5      |     0.99      |
+|  Temperature  |  r   |
+|:-------------:|:----:|
+|       0       | 0.99 |
+|      3.5      | 0.98 |
+|     10.5      |  1   |
+|      14       | 0.99 |
+|     17.5      | 0.98 |
+|      21       | 0.98 |
+|     24.5      | 0.99 |
+|      28       | 0.99 |
+|     31.5      | 0.99 |
+|      35       | 0.99 |
+|     38.5      | 0.99 |
 
 Table: Correlations between species for gene expression at temperature treatment
 
-**Preliminary [examination](https://minilims1.uvm.edu/BCProject-26-Cahan/methods.html#clustering-of-samples) of the data indicated that the A22_7 and Ar_7 samples may have been switched, so I remove these values from the combined expression data set for the two species.** 
-
-
-```r
-A22.TPM[,colony:="A22"]
-Ar.TPM[,colony:="Ar"]
-TPM.dt <- rbind(A22.TPM, Ar.TPM)
-TPM.dt$colony <- as.factor(TPM.dt$colony)
-str(TPM.dt)
-
-setkey(TPM.dt, val)
-TPM.dt.sub <- TPM.dt[val != 7] 
-unique(TPM.dt.sub$val)
-length(unique(TPM.dt.sub$Transcript))
-```
 
 ### Remove *contaminant* transcripts
 
@@ -438,14 +301,14 @@ str(TPM.dt.sub)
 ```
 
 ```
-## Classes 'data.table' and 'data.frame':	2196942 obs. of  10 variables:
+## Classes 'data.table' and 'data.frame':	2160092 obs. of  10 variables:
 ##  $ Transcript       : chr  "0|*|Contig6267" "0|*|Contig6267" "0|*|Contig6267" "0|*|Contig6267" ...
 ##  $ Length           : int  9990 9990 9990 9990 9990 9990 9990 9990 9990 9990 ...
-##  $ TPM              : num  0.0788 0.0626 0.0355 0.0923 0.0394 ...
-##  $ RPKM             : num  0.0918 0.1049 0.0528 0.1411 0.0491 ...
-##  $ KPKM             : num  0.0918 0.1049 0.0528 0.1411 0.0491 ...
-##  $ EstimatedNumReads: num  2968 1462 1364 2425 1710 ...
-##  $ V7               : num  37.1 18.1 17 30 21.3 ...
+##  $ TPM              : num  0.079 0.0643 0.0357 0.093 0.0395 ...
+##  $ RPKM             : num  0.0926 0.1078 0.0532 0.1418 0.0494 ...
+##  $ KPKM             : num  0.0926 0.1078 0.0532 0.1418 0.0494 ...
+##  $ EstimatedNumKmers: num  2974 1500 1373 2433 1713 ...
+##  $ EstimatedNumReads: num  37.1 18.6 17.1 30.1 21.4 ...
 ##  $ sample           : chr  "A22-0" "Ar-0" "A22-3" "Ar-3" ...
 ##  $ val              : num  0 0 3.5 3.5 10.5 10.5 14 14 17.5 17.5 ...
 ##  $ colony           : Factor w/ 2 levels "A22","Ar": 1 2 1 2 1 2 1 2 1 2 ...
@@ -458,7 +321,7 @@ length(unique(TPM.dt.sub$Transcript))
 ```
 
 ```
-## [1] 99861
+## [1] 98186
 ```
 
 ```r
@@ -507,7 +370,7 @@ model <-  "log(TPM+1) ~ colony + val + I(val^2) + colony:val + colony:I(val^2)"
 RxNpval <- ddply(TPM.dt.sub, .(Transcript), .inform="TRUE", modpFunc)
 ```
 
-Of the 99861 transcripts, 22306 have models with P < 0.05.
+Of the 98186 transcripts, 22089 have models with P < 0.05.
 
 Many of these are likely false positives, so I adjust P-values using false discovery rate (FDR). Only those transcripts with less than 5% FDR are retained as significant. 
 
@@ -530,7 +393,7 @@ signif.transcripts <- RxNpval[which(RxNpval$padj < 0.05), ]
 sig.TPM.dt.sub <- TPM.dt.sub[signif.transcripts$Transcript]
 ```
 
-At the 5% FDR significance threshold, there are 10579 transcripts with an overall significant model.
+At the 5% FDR significance threshold, there are 10525 transcripts with an overall significant model.
 
 
 (2) Fit linear model to overall significant transcripts; perform stepAIC to retain only significant terms, and save `lm` output to list
@@ -560,12 +423,12 @@ rm(other.lms)
 
 |    Coefficient     |  Number.significant  |
 |:------------------:|:--------------------:|
-|       Total        |        10579         |
-|       Colony       |         1479         |
-|    Temperature     |         2239         |
-| Temperature:Colony |         6861         |
+|       Total        |        10525         |
+|       Colony       |         1473         |
+|    Temperature     |         2260         |
+| Temperature:Colony |         6792         |
 
-Table: Number of transcripts of 99,861 total with expression that depends on species, temperature or their interaction at 5% FDR.
+Table: Number of transcripts with expression that depends on species, temperature or their interaction at 5% FDR  out of 98,186 total transcripts.
 
 
 ### Thermal-response functional types ###
@@ -598,21 +461,21 @@ str(Ap.response.type)
 ```
 
 ```
-## 'data.frame':	9100 obs. of  9 variables:
+## 'data.frame':	9052 obs. of  9 variables:
 ##  $ Transcript: chr  "100008|*|comp137625_c0_seq2" "100015|*|comp3543055_c0_seq1" "100067|*|comp3557646_c0_seq1" "100089|*|comp11313_c1_seq1" ...
 ##  $ A22.max   : num  38.5 0 NA 18.5 NA 0 NA 0 0 38.5 ...
-##  $ A22.min   : num  0 20.5 NA 38.5 NA 23 NA 28.5 26 10.5 ...
+##  $ A22.min   : num  0 20.5 NA 38.5 NA 23 NA 28.5 26 0 ...
 ##  $ A22.opt   : num  1.025 0.945 1 1.057 1 ...
 ##  $ A22.type  : chr  "High" "Bimodal" "NotResp" "Intermediate" ...
 ##  $ Ar.max    : num  0 38.5 0 38.5 38.5 18 0 0 NA NA ...
 ##  $ Ar.min    : num  38.5 0 20.5 13.5 18.5 38.5 38.5 38.5 NA NA ...
-##  $ Ar.opt    : num  1.199 1.004 0.934 0.962 0.897 ...
+##  $ Ar.opt    : num  1.199 1.005 0.935 0.962 0.898 ...
 ##  $ Ar.type   : chr  "Low" "High" "Bimodal" "High" ...
 ```
 
 ```r
 # save results to file
-write.table(file = paste(resultsdir, "Ap-responsive-transcripts", Sys.Date(), ".txt", sep = ""), Ap.response.type, row.names = FALSE, col.names = TRUE, quote = FALSE, sep = "\t")
+write.table(file = paste(resultsdir, "Ap_responsive_transcripts_", Sys.Date(), ".txt", sep = ""), Ap.response.type, row.names = FALSE, col.names = TRUE, quote = FALSE, sep = "\t")
 ```
 
 Next, I compare the number of thermally-responsive in each response category between the two colonies. 
@@ -628,8 +491,8 @@ Ar.type.table <- table(Ap.response.type[ , 'Ar.type'])
 
 ```
 ##                Bimodal High Intermediate  Low NotResp
-## A22.type.table    1521 1269          918 4886     506
-## Ar.type.table      866 1098         2681 3699     756
+## A22.type.table    1499 1238          909 4904     502
+## Ar.type.table      868 1089         2606 3758     731
 ```
 
 ```r
@@ -643,7 +506,7 @@ chi1
 ## 	Pearson's Chi-squared test
 ## 
 ## data:  Ap.type.table
-## X-squared = 1269, df = 4, p-value < 2.2e-16
+## X-squared = 1191, df = 4, p-value < 2.2e-16
 ```
 
 ```r
@@ -675,19 +538,19 @@ Interestingly, nearly half of the *High* genes in *AcNC* are *Low* in *ApVT*, an
 
 
 
-|   &nbsp;   |     ApVT     |  &nbsp;  |  &nbsp;  |  &nbsp;  |    &nbsp;    |  &nbsp;  |  &nbsp;  |
-|:----------:|:------------:|:--------:|:--------:|:--------:|:------------:|:--------:|:--------:|
-|  **AcNC**  |              |   High   |   Low    | Bimodal  | Intermediate | NotResp  |  Total   |
-|            |     High     |   322    |   467    |   153    |      65      |    91    |   1098   |
-|            |     Low      |   405    |   2594   |   297    |     163      |   240    |   3699   |
-|            |   Bimodal    |   166    |   181    |   297    |     114      |   108    |   866    |
-|            | Intermediate |   155    |   1350   |   551    |     558      |    67    |   2681   |
-|            |   NotResp    |   221    |   294    |   223    |      18      |    0     |   756    |
-|            |    Total     |   1269   |   4886   |   1521   |     918      |   506    |   9100   |
+|   &nbsp;   |     ApVT     |  &nbsp;  |    &nbsp;    |  &nbsp;  |  &nbsp;  |  &nbsp;  |  &nbsp;  |
+|:----------:|:------------:|:--------:|:------------:|:--------:|:--------:|:--------:|:--------:|
+|  **AcNC**  |              |   Low    | Intermediate |   High   | Bimodal  | NotResp  |  Total   |
+|            |     Low      |   2654   |     160      |   405    |   299    |   240    |   3758   |
+|            | Intermediate |   1314   |     542      |   147    |   536    |    67    |   2606   |
+|            |     High     |   466    |      69      |   312    |   153    |    89    |   1089   |
+|            |   Bimodal    |   185    |     120      |   160    |   297    |   106    |   868    |
+|            |   NotResp    |   285    |      18      |   214    |   214    |    0     |   731    |
+|            |    Total     |   4904   |     909      |   1238   |   1499   |   502    |   9052   |
 
 Table: Number of transcripts with maximum expression at high, low, intermediate, both high and low (bimodal) temperatures or are not thermally-responsivefor each species and their overlap.
 
-Table 4 shows the number of transcripts that fall into each expression type for each each species. The totals for each species include the 2239 transcripts that have consistent temperature responses between the two colonies. 
+Table 4 shows the number of transcripts that fall into each expression type for each each species. The totals for each species include the 2260 transcripts that have consistent temperature responses between the two colonies. 
 
 
 
@@ -753,13 +616,13 @@ t.test(A22.high.transcripts$A22.opt, A22.high.transcripts$Ar.opt)
 ## 	Welch Two Sample t-test
 ## 
 ## data:  A22.high.transcripts$A22.opt and A22.high.transcripts$Ar.opt
-## t = -0.149, df = 2400, p-value = 0.8814
+## t = -0.153, df = 2337, p-value = 0.878
 ## alternative hypothesis: true difference in means is not equal to 0
 ## 95 percent confidence interval:
-##  -1126   967
+##  -1159   991
 ## sample estimates:
 ## mean of x mean of y 
-##       375       455
+##       385       469
 ```
 
 ```r
@@ -778,10 +641,10 @@ t.test(log(A22.high.transcripts$A22.opt+1), log(A22.high.transcripts$Ar.opt+1))
 ## 	Welch Two Sample t-test
 ## 
 ## data:  log(A22.high.transcripts$A22.opt + 1) and log(A22.high.transcripts$Ar.opt + 1)
-## t = -3.65, df = 2523, p-value = 0.0002726
+## t = -3.66, df = 2459, p-value = 0.0002603
 ## alternative hypothesis: true difference in means is not equal to 0
 ## 95 percent confidence interval:
-##  -0.2633 -0.0791
+##  -0.2697 -0.0814
 ## sample estimates:
 ## mean of x mean of y 
 ##      1.11      1.28
@@ -793,7 +656,7 @@ boxplot(log(A22.high.transcripts$A22.opt+1), log(A22.high.transcripts$Ar.opt+1))
 
 ![plot of chunk optimum_expression_comparison](figure/optimum_expression_comparison2.png) 
 
-The `t.test` fails to account for the many orders of magnitude difference in expression among transcripts, e.g. non-equal variances. This problem is the key issue in the analysis of differential expression (<a href="http://dx.doi.org/10.1186/1471-2105-11-94">Bullard et al. 2010</a>; <a href="http://dx.doi.org/10.1038/nprot.2013.099">Anders et al. 2013</a>). As my goal is simply to determine if expression is typically greater at optimal temperatures (19.5 C) in *Ar* than *A22* for genes that are up-regulated at high temperatures in *A22*, I use a non-parametric Wilcoxon signed rank-test
+The `t.test` fails to account for the many orders of magnitude difference in expression among transcripts, e.g. non-equal variances. This problem is the key issue in the analysis of differential expression (Bullard, Purdom, Hansen, and Dudoit, 2010; Anders, McCarthy, Chen, Okoniewski, Smyth, Huber, and Robinson, 2013). As my goal is simply to determine if expression is typically greater at optimal temperatures (19.5 C) in *Ar* than *A22* for genes that are up-regulated at high temperatures in *A22*, I use a non-parametric Wilcoxon signed rank-test
 
 
 ```r
@@ -806,10 +669,10 @@ w1
 ## 	Wilcoxon signed rank test with continuity correction
 ## 
 ## data:  A22.high.transcripts$A22.opt and A22.high.transcripts$Ar.opt
-## V = 210438, p-value < 2.2e-16
+## V = 198641, p-value < 2.2e-16
 ## alternative hypothesis: true location shift is not equal to 0
 ## 95 percent confidence interval:
-##  -0.293 -0.172
+##  -0.296 -0.171
 ## sample estimates:
 ## (pseudo)median 
 ##         -0.231
@@ -833,10 +696,10 @@ t.test(log(Ar.low.transcripts$A22.opt+1), log(Ar.low.transcripts$Ar.opt+1))
 ## 	Welch Two Sample t-test
 ## 
 ## data:  log(Ar.low.transcripts$A22.opt + 1) and log(Ar.low.transcripts$Ar.opt + 1)
-## t = -6.51, df = 7387, p-value = 8.071e-11
+## t = -6.57, df = 7504, p-value = 5.21e-11
 ## alternative hypothesis: true difference in means is not equal to 0
 ## 95 percent confidence interval:
-##  -0.1710 -0.0918
+##  -0.1727 -0.0934
 ## sample estimates:
 ## mean of x mean of y 
 ##      1.26      1.39
@@ -859,13 +722,13 @@ w2
 ## 	Wilcoxon signed rank test with continuity correction
 ## 
 ## data:  Ar.low.transcripts$A22.opt and Ar.low.transcripts$Ar.opt
-## V = 2141816, p-value < 2.2e-16
+## V = 2198150, p-value < 2.2e-16
 ## alternative hypothesis: true location shift is not equal to 0
 ## 95 percent confidence interval:
-##  -0.451 -0.357
+##  -0.455 -0.362
 ## sample estimates:
 ## (pseudo)median 
-##         -0.403
+##         -0.406
 ```
 
 Counter to expectations, expression at optimal temperatures is also greater in *Ar* than *A22* for transcripts upregulated at low temperatures in *Ar*. 
@@ -885,13 +748,13 @@ t.test(log(Ap.int.transcripts$A22.opt+1), log(Ap.int.transcripts$Ar.opt+1))
 ## 	Welch Two Sample t-test
 ## 
 ## data:  log(Ap.int.transcripts$A22.opt + 1) and log(Ap.int.transcripts$Ar.opt + 1)
-## t = -6.35, df = 6074, p-value = 2.286e-10
+## t = -6.23, df = 5939, p-value = 4.935e-10
 ## alternative hypothesis: true difference in means is not equal to 0
 ## 95 percent confidence interval:
-##  -0.239 -0.126
+##  -0.237 -0.123
 ## sample estimates:
 ## mean of x mean of y 
-##      1.34      1.53
+##      1.33      1.51
 ```
 
 ```r
@@ -905,13 +768,13 @@ w3
 ## 	Wilcoxon signed rank test with continuity correction
 ## 
 ## data:  Ap.int.transcripts$A22.opt and Ap.int.transcripts$Ar.opt
-## V = 1489602, p-value < 2.2e-16
+## V = 1433484, p-value < 2.2e-16
 ## alternative hypothesis: true location shift is not equal to 0
 ## 95 percent confidence interval:
-##  -0.501 -0.379
+##  -0.485 -0.365
 ## sample estimates:
 ## (pseudo)median 
-##         -0.438
+##         -0.423
 ```
 
 The non-parametric test for both comparisions also finds greater expression in *Ar* than *A22* at the optimal temperature.
@@ -930,7 +793,7 @@ length(A22.int.lm)
 ```
 
 ```
-## [1] 918
+## [1] 909
 ```
 
 ```r
@@ -945,7 +808,7 @@ Ar.int.sd <- unlist(Map(transcriptSD, Ar.int.lm, colony = "Ar"))
 Ar.int.sd <- data.frame(colony = "Ar", exp_sd = Ar.int.sd)
 
 # T-test comparing standard deviation of expression between colonies
-(t.thermbreadth <- t.test(Ar.int.sd$exp_sd, A22.int.sd$exp_sd, alternative = "two.sided"))
+(t.varint <- t.test(Ar.int.sd$exp_sd, A22.int.sd$exp_sd, alternative = "two.sided"))
 ```
 
 ```
@@ -953,13 +816,13 @@ Ar.int.sd <- data.frame(colony = "Ar", exp_sd = Ar.int.sd)
 ## 	Welch Two Sample t-test
 ## 
 ## data:  Ar.int.sd$exp_sd and A22.int.sd$exp_sd
-## t = 9.15, df = 1314, p-value < 2.2e-16
+## t = 9.54, df = 1298, p-value < 2.2e-16
 ## alternative hypothesis: true difference in means is not equal to 0
 ## 95 percent confidence interval:
-##  0.336 0.519
+##  0.362 0.549
 ## sample estimates:
 ## mean of x mean of y 
-##     10.35      9.93
+##     10.36      9.91
 ```
 
 Consistent with our hypothesis, *Intermediate* transcripts in *Ar* are expressed over a significantly wider range of temperatures than in *A22*. 
@@ -978,7 +841,7 @@ length(A22.bim.lm)
 ```
 
 ```
-## [1] 1521
+## [1] 1499
 ```
 
 ```r
@@ -991,14 +854,14 @@ length(Ar.bim.lm)
 ```
 
 ```
-## [1] 866
+## [1] 868
 ```
 
 ```r
 Ar.bim.sd <- unlist(Map(transcriptSD, Ar.bim.lm, colony = "Ar"))
 
 # t-test to compare standard deviation of 'Bimodal' transcripts between colonies
-(t.themsens <- t.test(Ar.bim.sd, A22.bim.sd))
+(t.varbim <- t.test(Ar.bim.sd, A22.bim.sd))
 ```
 
 ```
@@ -1006,10 +869,10 @@ Ar.bim.sd <- unlist(Map(transcriptSD, Ar.bim.lm, colony = "Ar"))
 ## 	Welch Two Sample t-test
 ## 
 ## data:  Ar.bim.sd and A22.bim.sd
-## t = -0.84, df = 1538, p-value = 0.4012
+## t = -1.04, df = 1525, p-value = 0.2962
 ## alternative hypothesis: true difference in means is not equal to 0
 ## 95 percent confidence interval:
-##  -0.2103  0.0842
+##  -0.2267  0.0691
 ## sample estimates:
 ## mean of x mean of y 
 ##      12.6      12.7
@@ -1031,14 +894,14 @@ str(resp.TPM.dt.sub)
 ```
 
 ```
-## Classes 'data.table' and 'data.frame':	200200 obs. of  10 variables:
+## Classes 'data.table' and 'data.frame':	199144 obs. of  10 variables:
 ##  $ Transcript       : chr  "100008|*|comp137625_c0_seq2" "100008|*|comp137625_c0_seq2" "100008|*|comp137625_c0_seq2" "100008|*|comp137625_c0_seq2" ...
 ##  $ Length           : int  208 208 208 208 208 208 208 208 208 208 ...
-##  $ TPM              : num  0 0.3555 0 0.7348 0.0743 ...
-##  $ RPKM             : num  0 0.5963 0 1.1238 0.0925 ...
-##  $ KPKM             : num  0 0.5963 0 1.1238 0.0925 ...
-##  $ EstimatedNumReads: num  0 157.5 0 366.1 61.1 ...
-##  $ V7               : num  0 1.95 0 4.534 0.762 ...
+##  $ TPM              : num  0 0.3566 0 0.7387 0.0741 ...
+##  $ RPKM             : num  0 0.598 0 1.1258 0.0926 ...
+##  $ KPKM             : num  0 0.598 0 1.1258 0.0926 ...
+##  $ EstimatedNumKmers: num  0 157.7 0 366.2 60.9 ...
+##  $ EstimatedNumReads: num  0 1.953 0 4.537 0.759 ...
 ##  $ sample           : chr  "A22-0" "Ar-0" "A22-3" "Ar-3" ...
 ##  $ val              : num  0 0 3.5 3.5 10.5 10.5 14 14 17.5 17.5 ...
 ##  $ colony           : Factor w/ 2 levels "A22","Ar": 1 2 1 2 1 2 1 2 1 2 ...
@@ -1051,7 +914,7 @@ length(unique(resp.TPM.dt.sub$Transcript))
 ```
 
 ```
-## [1] 9100
+## [1] 9052
 ```
 
 ```r
@@ -1062,28 +925,28 @@ resp.TPM.dt.sub[,TPM.scaled:=scale(TPM), by = Transcript]
 ```
 ##                          Transcript Length    TPM   RPKM   KPKM
 ##      1: 100008|*|comp137625_c0_seq2    208 0.0000 0.0000 0.0000
-##      2: 100008|*|comp137625_c0_seq2    208 0.3555 0.5963 0.5963
+##      2: 100008|*|comp137625_c0_seq2    208 0.3566 0.5980 0.5980
 ##      3: 100008|*|comp137625_c0_seq2    208 0.0000 0.0000 0.0000
-##      4: 100008|*|comp137625_c0_seq2    208 0.7348 1.1238 1.1238
-##      5: 100008|*|comp137625_c0_seq2    208 0.0743 0.0925 0.0925
+##      4: 100008|*|comp137625_c0_seq2    208 0.7387 1.1258 1.1258
+##      5: 100008|*|comp137625_c0_seq2    208 0.0741 0.0926 0.0926
 ##     ---                                                        
-## 200196:      9|*|comp147140_c0_seq1   9030 0.7246 1.2147 1.2147
-## 200197:      9|*|comp147140_c0_seq1   9030 0.7184 0.9889 0.9889
-## 200198:      9|*|comp147140_c0_seq1   9030 0.4516 0.8023 0.8023
-## 200199:      9|*|comp147140_c0_seq1   9030 0.5661 0.7738 0.7738
-## 200200:      9|*|comp147140_c0_seq1   9030 0.4600 0.8408 0.8408
-##         EstimatedNumReads      V7 sample  val colony TPM.scaled
-##      1:               0.0   0.000  A22-0  0.0    A22     -0.566
-##      2:             157.5   1.950   Ar-0  0.0     Ar      1.124
-##      3:               0.0   0.000  A22-3  3.5    A22     -0.566
-##      4:             366.1   4.534   Ar-3  3.5     Ar      2.927
-##      5:              61.1   0.762 A22-10 10.5    A22     -0.213
-##     ---                                                        
-## 200196:           17872.1 220.982  Ar-31 31.5     Ar     -0.260
-## 200197:           23722.3 296.358 A22-35 35.0    A22     -0.280
-## 200198:            8964.3 111.016  Ar-35 35.0     Ar     -1.140
-## 200199:           23785.7 297.030 A22-38 38.5    A22     -0.771
-## 200200:           12649.4 156.296  Ar-38 38.5     Ar     -1.113
+## 199140:      9|*|comp147140_c0_seq1   9030 0.7302 1.2322 1.2322
+## 199141:      9|*|comp147140_c0_seq1   9030 0.7258 1.0074 1.0074
+## 199142:      9|*|comp147140_c0_seq1   9030 0.4534 0.8078 0.8078
+## 199143:      9|*|comp147140_c0_seq1   9030 0.5649 0.7758 0.7758
+## 199144:      9|*|comp147140_c0_seq1   9030 0.4528 0.8333 0.8333
+##         EstimatedNumKmers EstimatedNumReads sample  val colony TPM.scaled
+##      1:               0.0             0.000  A22-0  0.0    A22     -0.566
+##      2:             157.7             1.953   Ar-0  0.0     Ar      1.131
+##      3:               0.0             0.000  A22-3  3.5    A22     -0.566
+##      4:             366.2             4.537   Ar-3  3.5     Ar      2.950
+##      5:              60.9             0.759 A22-10 10.5    A22     -0.214
+##     ---                                                                  
+## 199140:           18024.7           222.869  Ar-31 31.5     Ar     -0.243
+## 199141:           23968.5           299.433 A22-35 35.0    A22     -0.258
+## 199142:            9055.4           112.144  Ar-35 35.0     Ar     -1.130
+## 199143:           23690.1           295.836 A22-38 38.5    A22     -0.773
+## 199144:           12462.4           153.987  Ar-38 38.5     Ar     -1.132
 ```
 
 ```r
@@ -1132,10 +995,10 @@ str(A22.high.TPM.dt.sub)
 ```
 
 ```
-## Classes 'data.table' and 'data.frame':	30690 obs. of  5 variables:
+## Classes 'data.table' and 'data.frame':	30107 obs. of  5 variables:
 ##  $ Transcript: chr  "100008|*|comp137625_c0_seq2" "100008|*|comp137625_c0_seq2" "100008|*|comp137625_c0_seq2" "100008|*|comp137625_c0_seq2" ...
 ##  $ colony    : Factor w/ 2 levels "A22","Ar": 1 1 1 1 1 1 1 1 1 1 ...
-##  $ TPM       : num  0 0 0.0743 0 0 ...
+##  $ TPM       : num  0 0 0.0741 0 0 ...
 ##  $ val       : num  0 3.5 10.5 14 17.5 21 24.5 28 31.5 35 ...
 ##  $ pTPM      : num  1.01 1.01 1.01 1.01 1.01 ...
 ##  - attr(*, ".internal.selfref")=<externalptr> 
@@ -1163,7 +1026,7 @@ str(Ar.high.TPM.dt.sub)
 ```
 
 ```
-## Classes 'data.table' and 'data.frame':	21604 obs. of  5 variables:
+## Classes 'data.table' and 'data.frame':	21527 obs. of  5 variables:
 ##  $ Transcript: chr  "100015|*|comp3543055_c0_seq1" "100015|*|comp3543055_c0_seq1" "100015|*|comp3543055_c0_seq1" "100015|*|comp3543055_c0_seq1" ...
 ##  $ colony    : Factor w/ 2 levels "A22","Ar": 2 2 2 2 2 2 2 2 2 2 ...
 ##  $ TPM       : num  0 0 0 0 0 ...
@@ -1194,10 +1057,10 @@ for(i in unique(Ar.high.TPM.dt.sub$Transcript)) {
 ## 	Welch Two Sample t-test
 ## 
 ## data:  Ar.high.T_on$T_on and A22.high.T_on$T_on
-## t = 5.95, df = 4138, p-value = 2.945e-09
+## t = 5.82, df = 4128, p-value = 6.166e-09
 ## alternative hypothesis: true difference in means is not equal to 0
 ## 95 percent confidence interval:
-##  0.591 1.171
+##  0.578 1.164
 ## sample estimates:
 ## mean of x mean of y 
 ##      33.8      32.9
@@ -1216,12 +1079,12 @@ str(A22.low.TPM.dt.sub)
 ```
 
 ```
-## Classes 'data.table' and 'data.frame':	70477 obs. of  5 variables:
+## Classes 'data.table' and 'data.frame':	70433 obs. of  5 variables:
 ##  $ Transcript: chr  "100015|*|comp3543055_c0_seq1" "100015|*|comp3543055_c0_seq1" "100015|*|comp3543055_c0_seq1" "100015|*|comp3543055_c0_seq1" ...
 ##  $ colony    : Factor w/ 2 levels "A22","Ar": 1 1 1 1 1 1 1 1 1 1 ...
-##  $ TPM       : num  0.749 0 0 0 0 ...
+##  $ TPM       : num  0.751 0 0 0 0 ...
 ##  $ val       : num  0 3.5 10.5 14 17.5 21 24.5 28 31.5 35 ...
-##  $ pTPM      : num  1.45 1.27 1.048 0.988 0.954 ...
+##  $ pTPM      : num  1.451 1.27 1.048 0.988 0.954 ...
 ##  - attr(*, ".internal.selfref")=<externalptr> 
 ##  - attr(*, "sorted")= chr "Transcript"
 ```
@@ -1246,10 +1109,10 @@ str(Ar.low.TPM.dt.sub)
 ```
 
 ```
-## Classes 'data.table' and 'data.frame':	50215 obs. of  5 variables:
+## Classes 'data.table' and 'data.frame':	50886 obs. of  5 variables:
 ##  $ Transcript: chr  "100008|*|comp137625_c0_seq2" "100008|*|comp137625_c0_seq2" "100008|*|comp137625_c0_seq2" "100008|*|comp137625_c0_seq2" ...
 ##  $ colony    : Factor w/ 2 levels "A22","Ar": 1 1 1 1 1 1 1 1 1 1 ...
-##  $ TPM       : num  0 0 0.0743 0 0 ...
+##  $ TPM       : num  0 0 0.0741 0 0 ...
 ##  $ val       : num  0 3.5 10.5 14 17.5 21 24.5 28 31.5 35 ...
 ##  $ pTPM      : num  1.01 1.01 1.01 1.01 1.01 ...
 ##  - attr(*, ".internal.selfref")=<externalptr> 
@@ -1275,10 +1138,10 @@ for(i in unique(Ar.low.TPM.dt.sub$Transcript)) {
 ## 	Welch Two Sample t-test
 ## 
 ## data:  Ar.low.T_on$T_on and A22.low.T_on$T_on
-## t = -2.17, df = 9939, p-value = 0.02966
+## t = -1.9, df = 10077, p-value = 0.05718
 ## alternative hypothesis: true difference in means is not equal to 0
 ## 95 percent confidence interval:
-##  -0.3263 -0.0169
+##  -0.30369  0.00456
 ## sample estimates:
 ## mean of x mean of y 
 ##      12.8      12.9
@@ -1288,22 +1151,11 @@ Genes with increased expression at *Low* temperatures are on average turned on 0
 
 Visualize T~on~ for both *Low* and *High* genes on the same plot.
 
-
-```
-## pdf 
-##   2
-```
-
-```
-## pdf 
-##   2
-```
-
 ![plot of chunk plot_T_on](figure/plot_T_on.png) 
 
 ### Evaluate the extent to which differences in thermal reaction norms are due to mean or shape
 
-For the transcripts that differed in thermal responsiveness due to temperature, was the difference primarily due to differences in the mean value of expression, slope, curvature of a higher order effect? To test this, I rougly follow <a href="http://dx.doi.org/10.1086/675302">Murren et al. (2014)</a> by defining differences among reation norms for individual genes due to changes in the overall mean, slope, curvature and all higher-order shape differences (i.e. wiggle).
+For the transcripts that differed in thermal responsiveness due to temperature, was the difference primarily due to differences in the mean value of expression, slope, curvature of a higher order effect? To test this, I rougly follow Murren, Maclean, Diamond, Steiner, Heskel, Handelsman, Ghalambor, Auld, Callahan, Pfennig, Relyea, Schlichting, and Kingsolver (2014) by defining differences among reation norms for individual genes due to changes in the overall mean, slope, curvature and all higher-order shape differences (i.e. wiggle).
 
 - *Mean, M*: overall difference in the mean expression value across all temperatures
 - *Slope, S*: difference in overall slope
@@ -1336,13 +1188,13 @@ t.mean
 ## 	Paired t-test
 ## 
 ## data:  log(varshape.out$A22.mean) and log(varshape.out$Ar.mean)
-## t = -10.7, df = 6860, p-value < 2.2e-16
+## t = -10.7, df = 6791, p-value < 2.2e-16
 ## alternative hypothesis: true difference in means is not equal to 0
 ## 95 percent confidence interval:
-##  -0.1064 -0.0733
+##  -0.1069 -0.0737
 ## sample estimates:
 ## mean of the differences 
-##                 -0.0899
+##                 -0.0903
 ```
 
 ```r
@@ -1367,13 +1219,13 @@ t.slope
 ## 	Paired t-test
 ## 
 ## data:  log(varshape.out$A22.slope + 0.1) and log(varshape.out$Ar.slope + 0.1)
-## t = 7.8, df = 6860, p-value = 7.193e-15
+## t = 7.71, df = 6791, p-value = 1.496e-14
 ## alternative hypothesis: true difference in means is not equal to 0
 ## 95 percent confidence interval:
-##  0.0215 0.0360
+##  0.0214 0.0360
 ## sample estimates:
 ## mean of the differences 
-##                  0.0288
+##                  0.0287
 ```
 
 ```r
@@ -1393,13 +1245,13 @@ t.curvature
 ## 	Paired t-test
 ## 
 ## data:  log(varshape.out$A22.curve + 0.1) and log(varshape.out$Ar.curve + 0.1)
-## t = 0.166, df = 6860, p-value = 0.8679
+## t = 0.763, df = 6791, p-value = 0.4454
 ## alternative hypothesis: true difference in means is not equal to 0
 ## 95 percent confidence interval:
-##  -0.00226  0.00268
+##  -0.00168  0.00381
 ## sample estimates:
 ## mean of the differences 
-##                 0.00021
+##                 0.00107
 ```
 
 ```r
@@ -1419,13 +1271,13 @@ t.wiggle
 ## 	Paired t-test
 ## 
 ## data:  varshape.out$A22.wiggle and varshape.out$Ar.wiggle
-## t = -0.943, df = 6860, p-value = 0.3457
+## t = -0.782, df = 6791, p-value = 0.4344
 ## alternative hypothesis: true difference in means is not equal to 0
 ## 95 percent confidence interval:
-##  -0.000809  0.000284
+##  -0.000375  0.000161
 ## sample estimates:
 ## mean of the differences 
-##               -0.000263
+##               -0.000107
 ```
 
 Reaction norms differ between species by mean and slope, but not by curvature or wiggle.
@@ -1462,7 +1314,7 @@ mean(varshape.out$prop.lmean)
 
 ```
 ##    5%   50%   95% 
-## 0.450 0.816 0.985
+## 0.448 0.817 0.985
 ```
 
 ```r
@@ -1479,10 +1331,10 @@ mean(varshape.out$prop.lslope)
 
 ```
 ##     5%    50%    95% 
-## 0.0148 0.1843 0.5505
+## 0.0154 0.1832 0.5517
 ```
 
-From this analysis, about 3/4 of the differences in reaction norms between species are due to changes in the mean, with the remainder being due to changes in slope.
+From this analysis, about 80% of the differences in reaction norms between species are due to changes in the mean, with the remainder being due to changes in slope.
 
 
 
@@ -1510,7 +1362,7 @@ str(responsive.lms.ann.type)
 ```
 
 ```
-## Classes 'data.table' and 'data.frame':	9100 obs. of  17 variables:
+## Classes 'data.table' and 'data.frame':	9052 obs. of  17 variables:
 ##  $ Transcript           : chr  "100008|*|comp137625_c0_seq2" "100015|*|comp3543055_c0_seq1" "100067|*|comp3557646_c0_seq1" "100089|*|comp11313_c1_seq1" ...
 ##  $ sequence.length      : int  208 208 208 208 1321 208 207 1320 1320 207 ...
 ##  $ best.hit.to.nr       : chr  "-" "gi|121608385|ref|YP_996192.1| transposase, IS4 family protein " "gi|493136460|ref|WP_006154899.1| tyrosyl-tRNA synthetase " "gi|497544620|ref|WP_009858818.1| lipid-A-disaccharide synthase " ...
@@ -1523,9 +1375,9 @@ str(responsive.lms.ann.type)
 ##  $ Enzyme               : chr  "-" "-" "-" "-" ...
 ##  $ Domain               : chr  "-" "-" "-" "-" ...
 ##  $ annotation.type      : chr  "" "" "" "GO only" ...
-##  $ pval                 : num  0.003741 0.000911 0.0021 0.001547 0.001616 ...
-##  $ adj.r.squared        : num  0.52 0.604 0.557 0.575 0.572 ...
-##  $ padj                 : num  0.0388 0.0135 0.0254 0.0202 0.0209 ...
+##  $ pval                 : num  0.003598 0.000917 0.0021 0.001571 0.001918 ...
+##  $ adj.r.squared        : num  0.523 0.604 0.557 0.574 0.562 ...
+##  $ padj                 : num  0.0374 0.0135 0.0252 0.0203 0.0236 ...
 ##  $ A22.type             : chr  "High" "Bimodal" "NotResp" "Intermediate" ...
 ##  $ Ar.type              : chr  "Low" "High" "Bimodal" "High" ...
 ##  - attr(*, "sorted")= chr "Transcript"
@@ -1539,7 +1391,7 @@ write.csv(responsive.lms.ann.type, file = paste(resultsdir, "Ap_responsive_genes
 
 ### Proportion of responsive transcripts annotated
 
-Of the responsive transcripts, 49.3% are annotated, while 48.7% of all transcripts are annotated.
+Of the responsive transcripts, 49% are annotated, while 48.7% of all transcripts are annotated.
 
 
 ### Candidate gene enrichment
@@ -1612,19 +1464,19 @@ GO0006950.responsive[union(with(GO0006950.responsive, grep("Low", Ar.type)), wit
 ##                      Transcript
 ##  1:   1038|*|comp150483_c5_seq3
 ##  2:  11281|*|comp146961_c0_seq1
-##  3:          19475|*|Contig1438
-##  4:  20215|*|comp145360_c0_seq1
-##  5:  23441|*|comp114823_c1_seq1
-##  6:   2604|*|comp148324_c0_seq4
-##  7:   4273|*|comp150636_c5_seq1
-##  8: 50934|*|comp3428507_c0_seq1
-##  9:    6075|*|comp92770_c0_seq1
-## 10:   6438|*|comp150878_c2_seq2
-## 11:   6689|*|comp141130_c0_seq2
-## 12:  80544|*|comp132706_c0_seq1
-## 13:           9372|*|Contig4757
-## 14:  12704|*|comp144775_c1_seq1
-## 15:     14|*|comp150262_c0_seq1
+##  3:     14|*|comp150262_c0_seq1
+##  4:          19475|*|Contig1438
+##  5:  20215|*|comp145360_c0_seq1
+##  6:  23441|*|comp114823_c1_seq1
+##  7:   2604|*|comp148324_c0_seq4
+##  8:   4273|*|comp150636_c5_seq1
+##  9: 50934|*|comp3428507_c0_seq1
+## 10:    6075|*|comp92770_c0_seq1
+## 11:   6438|*|comp150878_c2_seq2
+## 12:   6689|*|comp141130_c0_seq2
+## 13:  80544|*|comp132706_c0_seq1
+## 14:           9372|*|Contig4757
+## 15:  12704|*|comp144775_c1_seq1
 ## 16:   1656|*|comp147700_c0_seq1
 ## 17:  17710|*|comp150271_c3_seq3
 ## 18:   2087|*|comp150483_c5_seq1
@@ -1637,19 +1489,19 @@ GO0006950.responsive[union(with(GO0006950.responsive, grep("Low", Ar.type)), wit
 ##                                                                                    best.hit.to.nr
 ##  1:                              gi|332022897|gb|EGI63169.1| Protein lethal(2)essential for life 
 ##  2:                                  gi|332029692|gb|EGI69571.1| G-protein coupled receptor Mth2 
-##  3:                                  gi|322799248|gb|EFZ20646.1| hypothetical protein SINV_03807 
-##  4:                                  gi|332020393|gb|EGI60813.1| G-protein coupled receptor Mth2 
-##  5:                           gi|443696809|gb|ELT97425.1| hypothetical protein CAPTEDRAFT_194915 
-##  6:                                   gi|307176228|gb|EFN65864.1| hypothetical protein EAG_10145 
-##  7:                    gi|332026123|gb|EGI66271.1| Multiple inositol polyphosphate phosphatase 1 
-##  8:                                                          gi|15010456|gb|AAK77276.1| GH05807p 
-##  9:             gi|332030037|gb|EGI69862.1| Serine/threonine-protein kinase PINK1, mitochondrial 
-## 10:                            gi|307188496|gb|EFN73233.1| Muscarinic acetylcholine receptor DM1 
-## 11:                      gi|332016397|gb|EGI57310.1| Mitochondrial import receptor subunit TOM70 
-## 12:                                            gi|121605727|ref|YP_983056.1| OsmC family protein 
-## 13:                                  gi|332029691|gb|EGI69570.1| G-protein coupled receptor Mth2 
-## 14:         gi|380028536|ref|XP_003697954.1| PREDICTED: protein lethal(2)essential for life-like 
-## 15: gi|332019420|gb|EGI59904.1| Putative fat-like cadherin-related tumor suppressor-like protein 
+##  3: gi|332019420|gb|EGI59904.1| Putative fat-like cadherin-related tumor suppressor-like protein 
+##  4:                                  gi|322799248|gb|EFZ20646.1| hypothetical protein SINV_03807 
+##  5:                                  gi|332020393|gb|EGI60813.1| G-protein coupled receptor Mth2 
+##  6:                           gi|443696809|gb|ELT97425.1| hypothetical protein CAPTEDRAFT_194915 
+##  7:                                   gi|307176228|gb|EFN65864.1| hypothetical protein EAG_10145 
+##  8:                    gi|332026123|gb|EGI66271.1| Multiple inositol polyphosphate phosphatase 1 
+##  9:                                                          gi|15010456|gb|AAK77276.1| GH05807p 
+## 10:             gi|332030037|gb|EGI69862.1| Serine/threonine-protein kinase PINK1, mitochondrial 
+## 11:                            gi|307188496|gb|EFN73233.1| Muscarinic acetylcholine receptor DM1 
+## 12:                      gi|332016397|gb|EGI57310.1| Mitochondrial import receptor subunit TOM70 
+## 13:                                            gi|121605727|ref|YP_983056.1| OsmC family protein 
+## 14:                                  gi|332029691|gb|EGI69570.1| G-protein coupled receptor Mth2 
+## 15:         gi|380028536|ref|XP_003697954.1| PREDICTED: protein lethal(2)essential for life-like 
 ## 16:                              gi|332030522|gb|EGI70210.1| Heat shock 70 kDa protein cognate 3 
 ## 17:                                  gi|322799248|gb|EFZ20646.1| hypothetical protein SINV_03807 
 ## 18:                              gi|332022897|gb|EGI63169.1| Protein lethal(2)essential for life 
@@ -1664,17 +1516,17 @@ GO0006950.responsive[union(with(GO0006950.responsive, grep("Low", Ar.type)), wit
 ##  2:          Low          Low
 ##  3:          Low          Low
 ##  4:          Low          Low
-##  5:         High          Low
-##  6:          Low          Low
+##  5:          Low          Low
+##  6:         High          Low
 ##  7:          Low          Low
 ##  8:          Low          Low
 ##  9:          Low          Low
 ## 10:          Low          Low
 ## 11:          Low          Low
-## 12: Intermediate          Low
-## 13:          Low          Low
-## 14:          Low Intermediate
-## 15:          Low      Bimodal
+## 12:          Low          Low
+## 13: Intermediate          Low
+## 14:          Low          Low
+## 15:          Low Intermediate
 ## 16:          Low Intermediate
 ## 17:          Low Intermediate
 ## 18:          Low         High
@@ -1693,21 +1545,21 @@ GO0006950.responsive[union(with(GO0006950.responsive, grep("Bimodal", Ar.type)),
 
 ```
 ##                    Transcript
-## 1:    14|*|comp150262_c0_seq1
+## 1:  19778|*|comp97601_c0_seq1
 ## 2: 21598|*|comp142101_c0_seq1
 ## 3: 32312|*|comp933733_c0_seq1
 ## 4: 58246|*|comp109744_c0_seq1
 ## 5: 15115|*|comp132715_c0_seq1
 ## 6: 21384|*|comp149042_c0_seq3
-##                                                                                   best.hit.to.nr
-## 1: gi|332019420|gb|EGI59904.1| Putative fat-like cadherin-related tumor suppressor-like protein 
-## 2:                              gi|332018201|gb|EGI58806.1| Protein lethal(2)essential for life 
-## 3:                          gi|367054010|ref|XP_003657383.1| hypothetical protein THITE_2156506 
-## 4:                                    gi|493322437|ref|WP_006279741.1| molecular chaperone DnaK 
-## 5:                                            gi|194716766|gb|ACF93232.1| heat shock protein 90 
-## 6:                         gi|396467618|ref|XP_003837992.1| hypothetical protein LEMA_P120390.1 
+##                                                           best.hit.to.nr
+## 1:          gi|322796169|gb|EFZ18745.1| hypothetical protein SINV_07491 
+## 2:      gi|332018201|gb|EGI58806.1| Protein lethal(2)essential for life 
+## 3:  gi|367054010|ref|XP_003657383.1| hypothetical protein THITE_2156506 
+## 4:            gi|493322437|ref|WP_006279741.1| molecular chaperone DnaK 
+## 5:                    gi|194716766|gb|ACF93232.1| heat shock protein 90 
+## 6: gi|396467618|ref|XP_003837992.1| hypothetical protein LEMA_P120390.1 
 ##    A22.type Ar.type
-## 1:      Low Bimodal
+## 1:  Bimodal Bimodal
 ## 2:     High Bimodal
 ## 3:     High Bimodal
 ## 4:  NotResp Bimodal
@@ -1770,12 +1622,10 @@ GO.stress.Xsq
 ## 	Pearson's Chi-squared test with Yates' continuity correction
 ## 
 ## data:  GO.stress.table
-## X-squared = 1.7, df = 1, p-value = 0.1919
+## X-squared = 2.97, df = 1, p-value = 0.08469
 ```
 
-While 37 "response to stress" genes are in the responsive set, this is not enriched compared to the whole transcriptome. 
-
-There are also 7 heat shock related genes in the responsive transcripts, out of 130 total.
+While 38 "response to stress" genes are in the responsive set, this is not enriched compared to the whole transcriptome. 
 
 
 ```r
@@ -1816,8 +1666,11 @@ nrow(hsp_all)
 ```
 
 ```
-## [1] 130
+## [1] 122
 ```
+
+There are also 7 heat shock related genes in the responsive transcripts, out of 122 total heat shock related genes in the transcriptome annotation.
+
 
 ### Gene set enrichment analysis
 
@@ -1867,7 +1720,7 @@ Use `selectFDR` function to select transcripts with adjusted P < 0.05.
 
 Perform GSEA for all thermally-responsive transcripts.
 
-For many of the responsive categories, it appears that there is considerable redundancy in the enriched GO terms. I use the [GOSemSim](http://www.bioconductor.org/packages/release/bioc/html/GOSemSim.html) package to determine semantic similarity of enriched GO terms (<a href="http://dx.doi.org/10.1093/bioinformatics/btq064">Yu et al. 2010</a>) and then perform hierarhichal clustering based on this information distance.
+For many of the responsive categories, it appears that there is considerable redundancy in the enriched GO terms. I use the [GOSemSim](http://www.bioconductor.org/packages/release/bioc/html/GOSemSim.html) package to determine semantic similarity of enriched GO terms (Yu, Li, Qin, Bo, Wu, and Wang, 2010) and then perform hierarhichal clustering based on this information distance.
 
 
 ```r
@@ -1935,33 +1788,14 @@ plot(Ap.high.hclust)
 
 ```r
 # report items in each cluster
-GSEAReportClusters(Ap.high.hclust, h = 1)
-```
+Ap.high.hclust.report <- GSEAReportClusters(Ap.high.hclust, h = 1)
 
-```
-## $`Cluster 1`
-##          regulation of biosynthetic process 
-##                                           1 
-## regulation of cellular biosynthetic proc... 
-##                                           2 
-##             regulation of metabolic process 
-##                                           5 
-##    regulation of cellular metabolic process 
-##                                           6 
-## regulation of macromolecule biosynthetic... 
-##                                           7 
-## 
-## $`Cluster 2`
-## cytokinesis 
-##           3 
-## 
-## $`Cluster 3`
-## hindbrain development 
-##                     4
-```
+# add cluster information
+Ap.high.gsea$Cluster <- NA
 
-```r
-write.table(unlist(GSEAReportClusters(Ap.high.hclust, h = 0.6)), file = "Ap_high_hclust.txt")
+for(i in 1:length(Ap.high.hclust.report)) {
+    Ap.high.gsea[Ap.high.hclust.report[[i]], "Cluster"] <- i
+}
 ```
 
 
@@ -1993,160 +1827,15 @@ plot(Ap.low.hclust)
 ![plot of chunk gsea_Ap_low_cluster](figure/gsea_Ap_low_cluster.png) 
 
 ```r
-# report items in each cluster at height 2
-(Ap.low.hclust.report <- GSEAReportClusters(Ap.low.hclust, h = 2))
-```
+# report items in each cluster
+Ap.low.gsea.cluster <- Ap.low.hclust.report <- GSEAReportClusters(Ap.low.hclust, h = 1.5)
 
-```
-## $`Cluster 1`
-##             protein metabolic process 
-##                                     1 
-##            macromolecule modification 
-##                                     3 
-##    cellular protein metabolic process 
-##                                     5 
-##                 protein glycosylation 
-##                                     9 
-##     glycoprotein biosynthetic process 
-##                                    10 
-##        glycoprotein metabolic process 
-##                                    12 
-##              translational initiation 
-##                                    13 
-##          protein modification process 
-##                                    16 
-##       macromolecule metabolic process 
-##                                    32 
-## cellular protein modification process 
-##                                    38 
-##                   histone acetylation 
-##                                    59 
-##                  histone modification 
-##                                    60 
-## 
-## $`Cluster 2`
-##                               glycosylation 
-##                                           2 
-##            membrane lipid metabolic process 
-##                                          11 
-## chondroitin sulfate proteoglycan biosynt... 
-##                                          21 
-##    chondroitin sulfate biosynthetic process 
-##                                          22 
-##                glycolipid metabolic process 
-##                                          24 
-##              sphingolipid metabolic process 
-##                                          36 
-##                   peptide metabolic process 
-##                                          58 
-## chondroitin sulfate proteoglycan metabol... 
-##                                          62 
-##       chondroitin sulfate metabolic process 
-##                                          63 
-##               glutathione metabolic process 
-##                                          64 
-##             folic acid biosynthetic process 
-##                                          66 
-##               photosynthesis, dark reaction 
-##                                          68 
-## 
-## $`Cluster 3`
-## small GTPase mediated signal transductio... 
-##                                           4 
-## posttranscriptional regulation of gene e... 
-##                                          18 
-##                   regulation of translation 
-##                                          26 
-##             regulation of catabolic process 
-##                                          35 
-##           regulation of signal transduction 
-##                                          41 
-##              regulation of cellular process 
-##                                          49 
-##      regulation of translational initiation 
-##                                          50 
-##    regulation of cellular catabolic process 
-##                                          51 
-## regulation of phosphate metabolic proces... 
-##                                          52 
-## 
-## $`Cluster 4`
-## nucleoside triphosphate metabolic proces... 
-##                                           6 
-##            ribonucleotide metabolic process 
-##                                          14 
-##           regulation of Ras GTPase activity 
-##                                          20 
-## regulation of nucleotide metabolic proce... 
-##                                          25 
-##         purine nucleotide metabolic process 
-##                                          27 
-## regulation of nucleoside metabolic proce... 
-##                                          29 
-##                nucleotide catabolic process 
-##                                          31 
-##                       GTP metabolic process 
-##                                          33 
-##      nucleoside phosphate catabolic process 
-##                                          34 
-## guanosine-containing compound metabolic ... 
-##                                          40 
-## regulation of nucleotide catabolic proce... 
-##                                          43 
-## regulation of purine nucleotide cataboli... 
-##                                          45 
-##                       GTP catabolic process 
-##                                          46 
-## guanosine-containing compound catabolic ... 
-##                                          54 
-## regulation of purine nucleotide metaboli... 
-##                                          61 
-## 
-## $`Cluster 5`
-##                  macromolecule localization 
-##                                           7 
-##       establishment of protein localization 
-##                                           8 
-##              detection of external stimulus 
-##                                          17 
-##                  protein complex biogenesis 
-##                                          19 
-##                     protein oligomerization 
-##                                          23 
-##                     intracellular transport 
-##                                          30 
-##                           protein transport 
-##                                          42 
-##               detection of abiotic stimulus 
-##                                          44 
-## positive regulation of protein polymeriz... 
-##                                          53 
-##             macromolecular complex assembly 
-##                                          56 
-##       establishment of localization in cell 
-##                                          69 
-## 
-## $`Cluster 6`
-##                     muscle cell development 
-##                                          15 
-##                    renal tubule development 
-##                                          28 
-##                          tissue homeostasis 
-##                                          37 
-##                 muscle cell differentiation 
-##                                          39 
-##        multicellular organismal homeostasis 
-##                                          47 
-##               urogenital system development 
-##                                          48 
-## sensory perception of mechanical stimulu... 
-##                                          55 
-##               Malpighian tubule development 
-##                                          57 
-##     retina morphogenesis in camera-type eye 
-##                                          65 
-##                     embryonic morphogenesis 
-##                                          67
+# add cluster information
+Ap.low.gsea$Cluster <- NA
+
+for(i in 1:length(Ap.low.hclust.report)) {
+    Ap.low.gsea[Ap.low.hclust.report[[i]], "Cluster"] <- i
+}
 ```
 
 
@@ -2165,7 +1854,7 @@ table(Ap.geneList.bim)
 ```
 ## Ap.geneList.bim
 ##     0     1 
-## 99564   297
+## 97889   297
 ```
 
 ```r
@@ -2175,15 +1864,15 @@ Ap.bim.gsea <- gsea(genelist = Ap.geneList.bim, geneID2GO = geneID2GO)
 
 ```
 ## 
-## Building most specific GOs .....	( 5471 GO terms found. )
+## Building most specific GOs .....	( 5452 GO terms found. )
 ## 
-## Build GO DAG topology ..........	( 8953 GO terms and 19938 relations. )
+## Build GO DAG topology ..........	( 8935 GO terms and 19895 relations. )
 ## 
-## Annotating nodes ...............	( 30854 genes annotated to the GO terms. )
+## Annotating nodes ...............	( 30467 genes annotated to the GO terms. )
 ## 
 ## 			 -- Parent-Child Algorithm -- 
 ## 
-## 		 the algorithm is scoring 656 nontrivial nodes
+## 		 the algorithm is scoring 645 nontrivial nodes
 ## 		 parameters: 
 ## 			 test statistic:  fisher : joinFun = union 
 ## 
@@ -2195,29 +1884,28 @@ Ap.bim.gsea <- gsea(genelist = Ap.geneList.bim, geneID2GO = geneID2GO)
 ## 
 ## 	 Level 13:	4 nodes to be scored.
 ## 
-## 	 Level 12:	7 nodes to be scored.
+## 	 Level 12:	8 nodes to be scored.
 ## 
-## 	 Level 11:	18 nodes to be scored.
+## 	 Level 11:	19 nodes to be scored.
 ## 
-## 	 Level 10:	47 nodes to be scored.
+## 	 Level 10:	49 nodes to be scored.
 ## 
-## 	 Level 9:	70 nodes to be scored.
+## 	 Level 9:	71 nodes to be scored.
 ## 
-## 	 Level 8:	78 nodes to be scored.
+## 	 Level 8:	79 nodes to be scored.
 ## 
-## 	 Level 7:	87 nodes to be scored.
+## 	 Level 7:	84 nodes to be scored.
 ## 
-## 	 Level 6:	100 nodes to be scored.
+## 	 Level 6:	96 nodes to be scored.
 ## 
-## 	 Level 5:	112 nodes to be scored.
+## 	 Level 5:	108 nodes to be scored.
 ## 
-## 	 Level 4:	79 nodes to be scored.
+## 	 Level 4:	76 nodes to be scored.
 ## 
-## 	 Level 3:	33 nodes to be scored.
+## 	 Level 3:	30 nodes to be scored.
 ## 
 ## 	 Level 2:	15 nodes to be scored.
 ```
-
 
 
 ```r
@@ -2235,62 +1923,15 @@ plot(Ap.bim.hclust)
 ![plot of chunk gsea_Ap_bim_cluster](figure/gsea_Ap_bim_cluster.png) 
 
 ```r
-# report items in each cluster at height 1.5
-(Ap.bim.hclust.report <- GSEAReportClusters(Ap.bim.hclust, h = 1.5))
-```
+# report items in each cluster
+Ap.bim.hclust.report <- GSEAReportClusters(Ap.bim.hclust, h = 1.5)
 
-```
-## $`Cluster 1`
-##                       biological regulation 
-##                                           1 
-##              regulation of cellular process 
-##                                           2 
-##            regulation of biological process 
-##                                           3 
-##     regulation of primary metabolic process 
-##                                           5 
-##          regulation of biosynthetic process 
-##                                           6 
-##             regulation of metabolic process 
-##                                           7 
-##               regulation of gene expression 
-##                                           9 
-## regulation of nitrogen compound metaboli... 
-##                                          12 
-## regulation of macromolecule metabolic pr... 
-##                                          15 
-## 
-## $`Cluster 2`
-##    regulation of cellular metabolic process 
-##                                           4 
-## regulation of cellular biosynthetic proc... 
-##                                           8 
-## regulation of macromolecule biosynthetic... 
-##                                          11 
-## regulation of cellular macromolecule bio... 
-##                                          13 
-## regulation of nucleobase-containing comp... 
-##                                          21 
-## 
-## $`Cluster 3`
-##                transcription, DNA-templated 
-##                                          10 
-##                    RNA biosynthetic process 
-##                                          18 
-## nucleobase-containing compound biosynthe... 
-##                                          19 
-## purine-containing compound catabolic pro... 
-##                                          22 
-## 
-## $`Cluster 4`
-## single organism signaling      response to stimulus 
-##                        14                        16 
-##                 signaling        cell communication 
-##                        20                        23 
-## 
-## $`Cluster 5`
-## protein modification process 
-##                           17
+# add cluster information
+Ap.bim.gsea$Cluster <- NA
+
+for(i in 1:length(Ap.bim.hclust.report)) {
+    Ap.bim.gsea[Ap.bim.hclust.report[[i]], "Cluster"] <- i
+}
 ```
 
 
@@ -2323,20 +1964,30 @@ plot(Ap.int.hclust)
 ![plot of chunk gsea_Ap_int_cluster](figure/gsea_Ap_int_cluster.png) 
 
 ```r
-# report items in each cluster at height 1.5
+# report items in each cluster
 (Ap.int.hclust.report <- GSEAReportClusters(Ap.int.hclust, h = 1.5))
 ```
 
 ```
 ## $`Cluster 1`
-##        glycolipid metabolic process membrane lipid biosynthetic process 
-##                                   1                                   2 
-##     glycolipid biosynthetic process    membrane lipid metabolic process 
-##                                   6                                   7 
-##         macromolecule glycosylation      sphingolipid metabolic process 
-##                                  11                                  12 
-##                       glycosylation 
-##                                  14 
+##                glycolipid metabolic process 
+##                                           1 
+##         membrane lipid biosynthetic process 
+##                                           2 
+##            membrane lipid metabolic process 
+##                                           6 
+##             glycolipid biosynthetic process 
+##                                           7 
+##                 macromolecule glycosylation 
+##                                          11 
+##              sphingolipid metabolic process 
+##                                          12 
+##              carbohydrate metabolic process 
+##                                          14 
+## single-organism carbohydrate metabolic p... 
+##                                          15 
+##                               glycosylation 
+##                                          18 
 ## 
 ## $`Cluster 2`
 ##     glycoprotein metabolic process  glycoprotein biosynthetic process 
@@ -2344,9 +1995,9 @@ plot(Ap.int.hclust)
 ##              protein glycosylation            DNA conformation change 
 ##                                  5                                  8 
 ##                      DNA packaging cellular protein metabolic process 
-##                                  9                                 15 
+##                                  9                                 16 
 ##   lipoprotein biosynthetic process 
-##                                 16 
+##                                 17 
 ## 
 ## $`Cluster 3`
 ##                  nucleosome organization 
@@ -2354,6 +2005,19 @@ plot(Ap.int.hclust)
 ## protein-DNA complex subunit organization 
 ##                                       13
 ```
+
+```r
+# add cluster information
+Ap.int.gsea$Cluster <- NA
+
+for(i in 1:length(Ap.int.hclust.report)) {
+    Ap.int.gsea[Ap.int.hclust.report[[i]], "Cluster"] <- i
+}
+```
+
+
+
+GSEA for genes that are *Intermediate* in A. carolinensis and *Bimodal* in A. picea
 
 
 ```r
@@ -2367,6 +2031,8 @@ table(Ar.int.A22.bim.geneList)
 # run GSEA
 Ar.int.A22.bim.gsea <- gsea(genelist = Ar.int.A22.bim.geneList, geneID2GO = geneID2GO, plotpath = NA)
 ```
+
+Cluster by semantic similarity
 
 
 ```r
@@ -2390,7 +2056,7 @@ plot(Ar.int.A22.bim.gsea.term.sim.hclust)
 ```
 ## $`Cluster 1`
 ## phospholipid catabolic process           histone modification 
-##                              1                              5 
+##                              1                              7 
 ## 
 ## $`Cluster 2`
 ## L-amino acid transport 
@@ -2401,10 +2067,19 @@ plot(Ar.int.A22.bim.gsea.term.sim.hclust)
 ##                               3 
 ## 
 ## $`Cluster 4`
+## response to organic substance 
+##                             4 
+## 
+## $`Cluster 5`
 ## glutamate receptor signaling pathway 
-##                                    4
+##                                    5 
+## 
+## $`Cluster 6`
+## regulation of nitrogen compound metaboli... 
+##                                           6
 ```
 
+GSEA for genes that are *Intermediate* in A. carolinensis and *Low* in A. picea
 
 
 ```r
@@ -2434,91 +2109,101 @@ plot(Ar.int.A22.low.gsea.term.sim.hclust)
 ![plot of chunk gsea_Ar_int_A22_low_cluster](figure/gsea_Ar_int_A22_low_cluster.png) 
 
 ```r
-# report items in each cluster at height 1.8
-(Ar.int.A22.low.hclust.report <- GSEAReportClusters(Ar.int.A22.low.gsea.term.sim.hclust, h = 1.6))
+# report items in each cluster at height 1
+(Ar.int.A22.low.hclust.report <- GSEAReportClusters(Ar.int.A22.low.gsea.term.sim.hclust, h = 1.2))
 ```
 
 ```
 ## $`Cluster 1`
-##          cellular protein metabolic process 
-##                                           1 
-##                   protein metabolic process 
-##                                           2 
-##                               glycosylation 
-##                                          16 
-## posttranscriptional regulation of gene e... 
-##                                          22 
-##                                 translation 
-##                                          25 
-##                       protein glycosylation 
-##                                          30 
-##             macromolecule metabolic process 
-##                                          32 
+## cellular protein metabolic process          protein metabolic process 
+##                                  1                                  2 
 ## 
 ## $`Cluster 2`
-##      single-organism organelle organization 
-##                                           3 
-##                      organelle organization 
-##                                           5 
-## cellular component organization or bioge... 
-##                                          13 
-##                             membrane fusion 
-##                                          18 
-##             single-organism membrane fusion 
-##                                          26 
+## single-organism organelle organization 
+##                                      3 
+##                 organelle organization 
+##                                      5 
 ## 
 ## $`Cluster 3`
 ## membrane docking  vesicle docking 
-##                4               12 
+##                4               14 
 ## 
 ## $`Cluster 4`
-##        respiratory electron transport chain 
-##                                           6 
-##                      recombinational repair 
-##                                           7 
-##              phospholipid metabolic process 
-##                                           9 
-## ethanolamine-containing compound metabol... 
-##                                          14 
-##           phospholipid biosynthetic process 
-##                                          24 
-##    phosphatidylcholine biosynthetic process 
-##                                          27 
-##              sphingolipid catabolic process 
-##                                          33 
+## respiratory electron transport chain               recombinational repair 
+##                                    6                                   11 
+##                        glycosylation 
+##                                   13 
 ## 
 ## $`Cluster 5`
+## small GTPase mediated signal transductio... 
+##                                           7 
+## regulation of actin filament-based proce... 
+##                                          23 
+## positive regulation of biological proces... 
+##                                          34 
+## 
+## $`Cluster 6`
 ##            vesicle-mediated transport 
 ##                                     8 
 ##                 cellular localization 
-##                                    10 
+##                                     9 
 ## establishment of localization in cell 
-##                                    11 
+##                                    12 
 ##               intracellular transport 
-##                                    31 
-##                  endoderm development 
-##                                    34 
-## 
-## $`Cluster 6`
-##                       GTP catabolic process 
-##                                          15 
-##                       GTP metabolic process 
-##                                          19 
-## guanosine-containing compound catabolic ... 
-##                                          21 
-## guanosine-containing compound metabolic ... 
-##                                          28 
+##                                    29 
 ## 
 ## $`Cluster 7`
-## positive regulation of biological proces... 
+## cellular component organization or bioge... 
+##                                          10 
+##                             membrane fusion 
+##                                          19 
+##             single-organism membrane fusion 
+##                                          26 
+## 
+## $`Cluster 8`
+## ethanolamine-containing compound metabol... 
+##                                          15 
+##              phospholipid metabolic process 
+##                                          16 
+##           phospholipid biosynthetic process 
+##                                          21 
+##    phosphatidylcholine biosynthetic process 
+##                                          25 
+## 
+## $`Cluster 9`
+##                       GTP catabolic process 
 ##                                          17 
-## small GTPase mediated signal transductio... 
+##                       GTP metabolic process 
 ##                                          20 
-## regulation of actin filament-based proce... 
-##                                          23 
-##     positive regulation of cellular process 
-##                                          29
+## guanosine-containing compound catabolic ... 
+##                                          22 
+## guanosine-containing compound metabolic ... 
+##                                          31 
+## 
+## $`Cluster 10`
+##                  macromolecule modification 
+##                                          18 
+## posttranscriptional regulation of gene e... 
+##                                          24 
+##             macromolecule metabolic process 
+##                                          27 
+## 
+## $`Cluster 11`
+## endoderm development 
+##                   28 
+## 
+## $`Cluster 12`
+##             protein glycosylation                       translation 
+##                                30                                33 
+## glycoprotein biosynthetic process 
+##                                35 
+## 
+## $`Cluster 13`
+##      sphingolipid catabolic process sulfur amino acid catabolic process 
+##                                  32                                  36
 ```
+
+
 
 
 ### GSEA for each functional type in each species
@@ -2533,7 +2218,6 @@ names(A22.geneList.high) <- names(Ap.geneList)
 A22.geneList.high[(which(names(A22.geneList.high) %in% A22.high.transcripts))] <- 1
 A22.high.gsea <- gsea(genelist = A22.geneList.high, geneID2GO = geneID2GO)
 ```
-
 Clustering of enriched GO terms for *A. picea* **High** genes.
 
 
@@ -2564,7 +2248,7 @@ GSEAReportClusters(A22.high.gsea.term.sim.hclust, h = 1.2)
 ## cellular macromolecule biosynthetic proc... 
 ##                                           8 
 ##                glutamyl-tRNA aminoacylation 
-##                                          12 
+##                                           9 
 ## 
 ## $`Cluster 2`
 ## erythrose 4-phosphate/phosphoenolpyruvat... 
@@ -2576,21 +2260,23 @@ GSEAReportClusters(A22.high.gsea.term.sim.hclust, h = 1.2)
 ##    macromolecule metabolic process macromolecule biosynthetic process 
 ##                                  5                                  7 
 ##                    gene expression 
-##                                 13 
+##                                 14 
 ## 
 ## $`Cluster 4`
 ##              regulation of transport trivalent inorganic cation transport 
 ##                                    6                                   10 
 ## 
 ## $`Cluster 5`
-## organophosphate catabolic process 
-##                                 9 
+## sporulation resulting in formation of a ... 
+##                                          11 
+##           negative regulation of cell death 
+##                                          12 
+##                  osteoblast differentiation 
+##                                          16 
 ## 
 ## $`Cluster 6`
-##           negative regulation of cell death 
-##                                          11 
-## sporulation resulting in formation of a ... 
-##                                          14 
+## cellular component biogenesis 
+##                            13 
 ## 
 ## $`Cluster 7`
 ## cAMP biosynthetic process 
@@ -2631,222 +2317,222 @@ GSEAReportClusters(A22.low.gsea.term.sim.hclust, h = 2)
 
 ```
 ## $`Cluster 1`
-##                   protein metabolic process 
-##                                           1 
-##          cellular protein metabolic process 
-##                                           2 
-##             macromolecule metabolic process 
-##                                           5 
-##                  macromolecule modification 
-##                                           6 
-##           glycoprotein biosynthetic process 
-##                                          10 
-##                       protein glycosylation 
-##                                          11 
-##                    translational initiation 
-##                                          12 
-##    cellular macromolecule metabolic process 
-##                                          20 
-##              glycoprotein metabolic process 
-##                                          25 
-##                protein modification process 
-##                                          35 
-##      regulation of translational initiation 
-##                                          37 
-##                   regulation of translation 
-##                                          62 
-##       cellular protein modification process 
-##                                          77 
-## regulation of cellular protein metabolic... 
-##                                          80 
+##                protein metabolic process 
+##                                        1 
+##       cellular protein metabolic process 
+##                                        2 
+##                            glycosylation 
+##                                        3 
+##               macromolecule modification 
+##                                        6 
+##          macromolecule metabolic process 
+##                                        7 
+## cellular macromolecule metabolic process 
+##                                       12 
+##        glycoprotein biosynthetic process 
+##                                       13 
+##                    protein glycosylation 
+##                                       14 
+##                 translational initiation 
+##                                       15 
+##             protein modification process 
+##                                       16 
+##           glycoprotein metabolic process 
+##                                       26 
+##                     histone modification 
+##                                       36 
+##    cellular protein modification process 
+##                                       69 
+##              macromolecule glycosylation 
+##                                       79 
+##                      histone acetylation 
+##                                       82 
+##                  ether metabolic process 
+##                                       90 
+##                        protein acylation 
+##                                       91 
 ## 
 ## $`Cluster 2`
 ## small GTPase mediated signal transductio... 
-##                                           3 
+##                                           4 
 ##           regulation of signal transduction 
-##                                          46 
-## regulation of Rab protein signal transdu... 
-##                                          66 
-##             Rab protein signal transduction 
-##                                          69 
-## 
-## $`Cluster 3`
-##                           glycosylation 
-##                                       4 
-##            glycolipid metabolic process 
-##                                      38 
-##                    histone modification 
-##                                      43 
-##        membrane lipid metabolic process 
-##                                      52 
-##          sphingolipid metabolic process 
-##                                      55 
-##              cell cycle DNA replication 
-##                                      63 
-## hexachlorocyclohexane metabolic process 
-##                                      64 
-##          phospholipid metabolic process 
-##                                      70 
-##             macromolecule glycosylation 
-##                                      71 
-##                 ether metabolic process 
-##                                      82 
-##                     histone acetylation 
-##                                      92 
-## 
-## $`Cluster 4`
-##      single-organism organelle organization 
-##                                           7 
-##                      organelle organization 
-##                                          13 
-##                            membrane docking 
-##                                          24 
-##                   hair cell differentiation 
-##                                          31 
-##                     muscle cell development 
-##                                          48 
-##                             vesicle docking 
-##                                          56 
-##             mechanoreceptor differentiation 
-##                                          60 
-##                       inner ear development 
-##                                          72 
-##             epithelial cell differentiation 
-##                                          76 
-## regulation of actin cytoskeleton organiz... 
-##                                          81 
-##      vesicle docking involved in exocytosis 
-##                                          85 
-##                 muscle cell differentiation 
-##                                          94 
-## imaginal disc-derived wing hair organiza... 
-##                                          98 
-## 
-## $`Cluster 5`
-## nucleoside triphosphate metabolic proces... 
-##                                           8 
-##                       GTP metabolic process 
-##                                          14 
-##            ribonucleotide metabolic process 
-##                                          16 
-## regulation of purine nucleotide metaboli... 
-##                                          18 
-##                       GTP catabolic process 
-##                                          19 
-## regulation of nucleotide metabolic proce... 
-##                                          21 
-## regulation of nucleoside metabolic proce... 
-##                                          22 
-##                nucleotide catabolic process 
-##                                          23 
-## regulation of nucleotide catabolic proce... 
-##                                          26 
-## guanosine-containing compound catabolic ... 
-##                                          27 
-## regulation of purine nucleotide cataboli... 
-##                                          28 
-## guanosine-containing compound metabolic ... 
-##                                          29 
-##      nucleoside phosphate catabolic process 
-##                                          36 
-## positive regulation of Rab GTPase activi... 
-##                                          45 
-##           regulation of Ras GTPase activity 
-##                                          54 
-##         purine nucleotide metabolic process 
-##                                          65 
-## purine-containing compound catabolic pro... 
-##                                          73 
-## 
-## $`Cluster 6`
-##                     intracellular transport 
-##                                           9 
-##       establishment of localization in cell 
-##                                          15 
-##                       cellular localization 
-##                                          17 
-##                  vesicle-mediated transport 
 ##                                          41 
-##                  macromolecule localization 
-##                                          44 
-##              detection of external stimulus 
-##                                          51 
-##                regulation of blood pressure 
-##                                          53 
-##       establishment of protein localization 
-##                                          58 
-##                          chloride transport 
+##              regulation of cellular process 
+##                                          52 
+##                       biological regulation 
+##                                          61 
+##            regulation of biological process 
+##                                          63 
+##          regulation of response to stimulus 
+##                                          66 
+## regulation of Rab protein signal transdu... 
+##                                          68 
+##             Rab protein signal transduction 
 ##                                          75 
-## sensory perception of mechanical stimulu... 
-##                                          84 
-##               regulation of anion transport 
-##                                          88 
-##                           protein transport 
-##                                          96 
-##               detection of abiotic stimulus 
+## regulation of intracellular signal trans... 
+##                                          93 
+##                     regulation of signaling 
+##                                          94 
+##            regulation of cell communication 
 ##                                          97 
 ## 
-## $`Cluster 7`
-## posttranscriptional regulation of gene e... 
-##                                          30 
-## regulation of phosphate metabolic proces... 
+## $`Cluster 3`
+## single-organism organelle organization 
+##                                      5 
+##                 organelle organization 
+##                                      8 
+##                       membrane docking 
+##                                     10 
+##                        vesicle docking 
+##                                     39 
+## vesicle docking involved in exocytosis 
+##                                     59 
+## 
+## $`Cluster 4`
+## nucleoside triphosphate metabolic proces... 
+##                                           9 
+##      nucleoside phosphate catabolic process 
+##                                          17 
+##            ribonucleotide metabolic process 
+##                                          22 
+##                nucleotide catabolic process 
+##                                          24 
+##                       GTP metabolic process 
+##                                          25 
+## regulation of purine nucleotide metaboli... 
+##                                          27 
+##                       GTP catabolic process 
+##                                          28 
+## regulation of nucleotide metabolic proce... 
+##                                          31 
+## regulation of nucleoside metabolic proce... 
 ##                                          32 
-##             regulation of catabolic process 
-##                                          39 
-##    regulation of cellular catabolic process 
+## guanosine-containing compound catabolic ... 
+##                                          33 
+## guanosine-containing compound metabolic ... 
+##                                          34 
+## regulation of nucleotide catabolic proce... 
+##                                          37 
+## regulation of purine nucleotide cataboli... 
 ##                                          40 
+## positive regulation of Rab GTPase activi... 
+##                                          46 
+##           regulation of Ras GTPase activity 
+##                                          53 
+## purine-containing compound catabolic pro... 
+##                                          73 
+##         purine nucleotide metabolic process 
+##                                          81 
+##                nucleoside catabolic process 
+##                                          85 
+## 
+## $`Cluster 5`
+##               intracellular transport 
+##                                    11 
+##                 cellular localization 
+##                                    19 
+##            vesicle-mediated transport 
+##                                    20 
+## establishment of localization in cell 
+##                                    23 
+##            macromolecule localization 
+##                                    45 
+## establishment of protein localization 
+##                                    57 
+##                    chloride transport 
+##                                    78 
+##         regulation of anion transport 
+##                                    86 
+##                     protein transport 
+##                                    87 
+## 
+## $`Cluster 6`
+##                glycolipid metabolic process 
+##                                          18 
+##            membrane lipid metabolic process 
+##                                          21 
+## serine family amino acid metabolic proce... 
+##                                          30 
+##              sphingolipid metabolic process 
+##                                          44 
+##                      recombinational repair 
+##                                          47 
+## flavin-containing compound metabolic pro... 
+##                                          50 
+##                riboflavin metabolic process 
+##                                          51 
+##                  cell cycle DNA replication 
+##                                          62 
+##     hexachlorocyclohexane metabolic process 
+##                                          64 
+##                   styrene metabolic process 
+##                                          65 
+##           phospholipid biosynthetic process 
+##                                          80 
+##              phospholipid metabolic process 
+##                                          84 
+##              sphingolipid catabolic process 
+##                                          96 
+##                       amino acid activation 
+##                                          98 
+## 
+## $`Cluster 7`
+## regulation of phosphate metabolic proces... 
+##                                          29 
+##      regulation of translational initiation 
+##                                          35 
+## posttranscriptional regulation of gene e... 
+##                                          38 
+##             regulation of catabolic process 
+##                                          42 
+##    regulation of cellular catabolic process 
+##                                          48 
 ## regulation of phosphorus metabolic proce... 
 ##                                          49 
-##              regulation of cellular process 
-##                                          59 
-##          regulation of response to stimulus 
-##                                          74 
-##                       biological regulation 
-##                                          78 
-##            regulation of biological process 
-##                                          89 
-## regulation of actin filament-based proce... 
-##                                          90 
-##                     regulation of signaling 
-##                                          99 
+##                   regulation of translation 
+##                                          77 
+## regulation of cellular protein metabolic... 
+##                                          92 
 ## 
 ## $`Cluster 8`
-## serine family amino acid metabolic proce... 
-##                                          33 
-##                      recombinational repair 
-##                                          42 
-## flavin-containing compound metabolic pro... 
-##                                          47 
-##                riboflavin metabolic process 
-##                                          50 
-##               glutathione metabolic process 
-##                                          79 
-##                       amino acid activation 
-##                                          83 
-## chondroitin sulfate proteoglycan biosynt... 
-##                                          86 
-##    chondroitin sulfate biosynthetic process 
-##                                          87 
-##                   peptide metabolic process 
-##                                          91 
-##             folic acid biosynthetic process 
-##                                          95 
-##                      mRNA metabolic process 
-##                                         100 
-## 
-## $`Cluster 9`
 ##                  protein complex biogenesis 
-##                                          34 
-##             macromolecular complex assembly 
-##                                          57 
-##                    protein complex assembly 
-##                                          61 
+##                                          43 
 ## positive regulation of protein polymeriz... 
 ##                                          67 
 ##        regulation of protein polymerization 
-##                                          68 
-##      regulation of protein complex assembly 
-##                                          93
+##                                          71 
+##                    protein complex assembly 
+##                                          72 
+##             macromolecular complex assembly 
+##                                          83 
+## 
+## $`Cluster 9`
+##                     muscle cell development 
+##                                          54 
+##                regulation of blood pressure 
+##                                          55 
+##                   hair cell differentiation 
+##                                          56 
+##                           megagametogenesis 
+##                                          58 
+##                      embryo sac development 
+##                                          60 
+##         embryo sac egg cell differentiation 
+##                                          70 
+##    regulation of unidimensional cell growth 
+##                                          74 
+##              detection of external stimulus 
+##                                          76 
+## imaginal disc-derived wing hair organiza... 
+##                                          99 
+## 
+## $`Cluster 10`
+## chondroitin sulfate proteoglycan biosynt... 
+##                                          88 
+##    chondroitin sulfate biosynthetic process 
+##                                          89 
+##             folic acid biosynthetic process 
+##                                          95
 ```
 
 GO enrichment for *A. picea* **Bimodal** genes.
@@ -2886,31 +2572,37 @@ GSEAReportClusters(A22.bim.gsea.term.sim.hclust, h = 1)
 ##                   glycine catabolic process 
 ##                                           1 
 ## serine family amino acid catabolic proce... 
-##                                          10 
+##                                          12 
 ## 
 ## $`Cluster 2`
-## regulation of intracellular signal trans... 
-##                                           2 
-##         I-kappaB kinase/NF-kappaB signaling 
-##                                           5 
-##        glutamate receptor signaling pathway 
-##                                           9 
+## protein modification process   macromolecule modification 
+##                            2                            4 
 ## 
 ## $`Cluster 3`
-##                  protein phosphorylation 
-##                                        3 
-##             protein modification process 
-##                                        4 
-##               macromolecule modification 
-##                                        6 
-##    cellular protein modification process 
-##                                        8 
-## cellular macromolecule metabolic process 
-##                                       11 
+##               protein phosphorylation 
+##                                     3 
+## cellular protein modification process 
+##                                     5 
+##                  histone modification 
+##                                    13 
 ## 
 ## $`Cluster 4`
-## intracellular protein transport 
-##                               7
+## regulation of intracellular signal trans... 
+##                                           6 
+## protein kinase C-activating G-protein co... 
+##                                           7 
+##         I-kappaB kinase/NF-kappaB signaling 
+##                                           9 
+##        glutamate receptor signaling pathway 
+##                                          10 
+## 
+## $`Cluster 5`
+## porphyrin-containing compound biosynthet... 
+##                                           8 
+## 
+## $`Cluster 6`
+## phospholipid catabolic process 
+##                             11
 ```
 
 GO enrichment for *A. picea* **Intermediate** genes.
@@ -2958,15 +2650,17 @@ GSEAReportClusters(A22.int.gsea.term.sim.hclust, h = 1.3)
 ##    glycoprotein metabolic process             protein glycosylation 
 ##                                 5                                 6 
 ##       macromolecule glycosylation glycoprotein biosynthetic process 
-##                                 7                                11 
+##                                 7                                 9 
+##                     DNA packaging 
+##                                13 
 ## 
 ## $`Cluster 3`
 ##    nitric oxide metabolic process nitric oxide biosynthetic process 
-##                                 9                                10 
+##                                10                                11 
 ## 
 ## $`Cluster 4`
-## embryo sac egg cell differentiation 
-##                                  12
+## nucleosome organization 
+##                      12
 ```
 
 GO enrichment for *A. carolinensis* **High** genes.
@@ -3003,10 +2697,10 @@ GSEAReportClusters(Ar.high.gsea.term.sim.hclust, h = 1.2)
 
 ```
 ## $`Cluster 1`
-##                 ossification regulation of blood pressure 
-##                            1                            4 
-##            tissue remodeling 
-##                           10 
+##              ossification mammary gland development 
+##                         1                         6 
+##      pancreas development         tissue remodeling 
+##                         7                         8 
 ## 
 ## $`Cluster 2`
 ## microtubule anchoring 
@@ -3017,26 +2711,18 @@ GSEAReportClusters(Ar.high.gsea.term.sim.hclust, h = 1.2)
 ##                               3 
 ## 
 ## $`Cluster 4`
-## negative regulation of transmembrane rec... 
-##                                           5 
-## negative regulation of cellular response... 
-##                                           6 
+## regulation of blood pressure            hormone transport 
+##                            4                           11 
 ## 
 ## $`Cluster 5`
-##           mammary gland development                pancreas development 
-##                                   7                                   8 
-## developmental programmed cell death          osteoblast differentiation 
-##                                  13                                  14 
+## negative regulation of transmembrane rec... 
+##                                           5 
+##        cellular response to biotic stimulus 
+##                                          12 
 ## 
 ## $`Cluster 6`
-## nitrogen compound transport           hormone transport 
-##                           9                          15 
-## 
-## $`Cluster 7`
-##     cellular response to biotic stimulus 
-##                                       11 
-## response to endoplasmic reticulum stress 
-##                                       12
+##          osteoblast differentiation developmental programmed cell death 
+##                                   9                                  10
 ```
 GO enrichment for *A. carolinensis* **Low** genes.
 
@@ -3072,162 +2758,154 @@ GSEAReportClusters(Ar.low.gsea.term.sim.hclust, h = 2)
 
 ```
 ## $`Cluster 1`
-##                   protein metabolic process 
-##                                           1 
-##                    translational initiation 
-##                                           7 
-##                  macromolecule modification 
-##                                           9 
-##          cellular protein metabolic process 
-##                                          11 
-##                           protein acylation 
-##                                          13 
-##                       protein glycosylation 
-##                                          14 
-##             macromolecule metabolic process 
-##                                          25 
-##           glycoprotein biosynthetic process 
-##                                          35 
-##              glycoprotein metabolic process 
-##                                          36 
-##      regulation of translational initiation 
-##                                          38 
-## regulation of cellular protein metabolic... 
-##                                          56 
-##    cellular macromolecule metabolic process 
-##                                          57 
-##                protein modification process 
-##                                          60 
-##                   regulation of translation 
-##                                          67 
-##       cellular protein modification process 
-##                                          71 
+##                protein metabolic process 
+##                                        1 
+##                 translational initiation 
+##                                        7 
+##               macromolecule modification 
+##                                       13 
+##       cellular protein metabolic process 
+##                                       14 
+##                        protein acylation 
+##                                       18 
+##                    protein glycosylation 
+##                                       19 
+##          macromolecule metabolic process 
+##                                       33 
+##        glycoprotein biosynthetic process 
+##                                       39 
+##           glycoprotein metabolic process 
+##                                       43 
+##             protein modification process 
+##                                       59 
+## cellular macromolecule metabolic process 
+##                                       65 
 ## 
 ## $`Cluster 2`
 ##                               glycosylation 
 ##                                           2 
-##                         histone acetylation 
-##                                          15 
-##            membrane lipid metabolic process 
-##                                          30 
+##                   styrene metabolic process 
+##                                          10 
 ##           organophosphate catabolic process 
-##                                          31 
+##                                          23 
+##            membrane lipid metabolic process 
+##                                          25 
 ##         glycosyl compound catabolic process 
-##                                          44 
+##                                          29 
+##                         histone acetylation 
+##                                          31 
 ##             folic acid biosynthetic process 
-##                                          46 
-##                  cell cycle DNA replication 
-##                                          49 
-##    DNA replication, synthesis of RNA primer 
-##                                          62 
+##                                          44 
 ## chondroitin sulfate proteoglycan biosynt... 
-##                                          63 
+##                                          61 
 ##    chondroitin sulfate biosynthetic process 
+##                                          62 
+##    DNA replication, synthesis of RNA primer 
+##                                          63 
+## folic acid-containing compound metabolic... 
 ##                                          64 
-##       tetrahydrobiopterin metabolic process 
-##                                          69 
-## regulation of sequence-specific DNA bind... 
-##                                          70 
 ##                    malate metabolic process 
-##                                          73 
+##                                          67 
 ## 
 ## $`Cluster 3`
 ## nucleoside triphosphate metabolic proces... 
 ##                                           3 
-##            ribonucleotide metabolic process 
-##                                           6 
 ##      nucleoside phosphate catabolic process 
-##                                           8 
+##                                           4 
+##            ribonucleotide metabolic process 
+##                                           5 
 ##                nucleotide catabolic process 
-##                                          12 
-##                nucleoside catabolic process 
-##                                          23 
+##                                          11 
 ## regulation of nucleotide metabolic proce... 
-##                                          28 
-##                       GTP metabolic process 
-##                                          29 
+##                                          22 
+##                nucleoside catabolic process 
+##                                          27 
 ## purine-containing compound catabolic pro... 
-##                                          33 
-## guanosine-containing compound metabolic ... 
-##                                          40 
+##                                          36 
+##                       GTP metabolic process 
+##                                          38 
 ##         purine nucleotide metabolic process 
-##                                          43 
+##                                          41 
 ## regulation of nucleoside metabolic proce... 
-##                                          50 
+##                                          42 
 ##           regulation of Ras GTPase activity 
-##                                          52 
+##                                          51 
+## guanosine-containing compound metabolic ... 
+##                                          53 
 ## positive regulation of Rab GTPase activi... 
 ##                                          55 
 ## regulation of purine nucleotide metaboli... 
-##                                          74 
+##                                          66 
 ## 
 ## $`Cluster 4`
 ## small GTPase mediated signal transductio... 
-##                                           4 
-##       establishment of protein localization 
-##                                           5 
-##                  macromolecule localization 
-##                                          10 
-##                           protein transport 
-##                                          18 
+##                                           6 
 ##                 regulation of ion transport 
-##                                          21 
+##                                           8 
+##           regulation of signal transduction 
+##                                          16 
 ##     regulation of muscle tissue development 
 ##                                          32 
-##           regulation of signal transduction 
-##                                          41 
-##              detection of external stimulus 
-##                                          51 
-##                     intracellular transport 
-##                                          65 
+##               regulation of anion transport 
+##                                          50 
+##                     regulation of signaling 
+##                                          68 
 ## 
 ## $`Cluster 5`
-##                          limb morphogenesis 
-##                                          16 
-##                     muscle cell development 
-##                                          17 
-##                            limb development 
-##                                          20 
-##                    renal tubule development 
-##                                          26 
+## establishment of protein localization 
+##                                     9 
+##                     protein transport 
+##                                    20 
+##            macromolecule localization 
+##                                    21 
+##              protein complex assembly 
+##                                    40 
+##            protein complex biogenesis 
+##                                    45 
+##               protein oligomerization 
+##                                    46 
+##        detection of external stimulus 
+##                                    49 
+##               intracellular transport 
+##                                    57 
+## 
+## $`Cluster 6`
 ##                       muscle system process 
-##                                          27 
-##                          embryo development 
-##                                          37 
+##                                          12 
+##                          limb morphogenesis 
+##                                          17 
+##                    renal tubule development 
+##                                          24 
+##                     muscle cell development 
+##                                          26 
+##                            limb development 
+##                                          28 
+##                 skeletal system development 
+##                                          34 
 ##        multicellular organismal homeostasis 
 ##                                          47 
 ##                          photomorphogenesis 
-##                                          48 
-##                          tissue homeostasis 
+##                                          52 
+##                          embryo development 
 ##                                          54 
 ## sensory perception of mechanical stimulu... 
-##                                          59 
-##      regulation of muscle organ development 
-##                                          61 
-##          reproductive structure development 
-##                                          66 
-##            anatomical structure arrangement 
-##                                          72 
-## 
-## $`Cluster 6`
-##        protein complex assembly      protein complex biogenesis 
-##                              19                              22 
-## macromolecular complex assembly         protein oligomerization 
-##                              39                              58 
+##                                          56 
 ## 
 ## $`Cluster 7`
 ## regulation of phosphate metabolic proces... 
-##                                          24 
-## posttranscriptional regulation of gene e... 
-##                                          34 
-##                           metabolic process 
-##                                          42 
+##                                          15 
 ## regulation of phosphorus metabolic proce... 
-##                                          45 
-##              regulation of cellular process 
-##                                          53 
+##                                          30 
+## posttranscriptional regulation of gene e... 
+##                                          35 
+##      regulation of translational initiation 
+##                                          37 
 ##             regulation of catabolic process 
-##                                          68
+##                                          48 
+## regulation of cellular protein metabolic... 
+##                                          58 
+##    regulation of cellular catabolic process 
+##                                          60
 ```
 
 GO enrichment for *A. carolinensis* **Bimodal** genes.
@@ -3272,26 +2950,28 @@ GSEAReportClusters(Ar.bim.gsea.term.sim.hclust, h = 1)
 ##                           2 
 ## 
 ## $`Cluster 3`
-## nucleobase-containing compound metabolic... 
+## cellular aromatic compound metabolic pro... 
 ##                                           3 
-## pyrimidine nucleoside monophosphate bios... 
+##    cellular macromolecule metabolic process 
 ##                                           6 
 ## 
 ## $`Cluster 4`
-## cellular aromatic compound metabolic pro... 
+## pyrimidine nucleoside monophosphate bios... 
 ##                                           4 
-## organic cyclic compound metabolic proces... 
+## nucleobase-containing compound metabolic... 
 ##                                           5 
-##    cellular macromolecule metabolic process 
-##                                          10 
 ## 
 ## $`Cluster 5`
-##      regulation of gene expression regulation of biosynthetic process 
-##                                  7                                  9 
+##      cellular potassium ion transport 
+##                                     7 
+## potassium ion transmembrane transport 
+##                                     9 
 ## 
 ## $`Cluster 6`
-## cellular potassium ion transport 
-##                                8
+## organic cyclic compound metabolic proces... 
+##                                           8 
+##             macromolecule metabolic process 
+##                                          10
 ```
 
 GO enrichment for *A. carolinensis* **Intermediate** genes.
@@ -3328,9 +3008,9 @@ GSEAReportClusters(Ar.int.gsea.term.sim.hclust, h = 1.8)
 
 ```
 ## $`Cluster 1`
-##                protein metabolic process 
-##                                        1 
 ##       cellular protein metabolic process 
+##                                        1 
+##                protein metabolic process 
 ##                                        2 
 ##                            glycosylation 
 ##                                        3 
@@ -3338,127 +3018,105 @@ GSEAReportClusters(Ar.int.gsea.term.sim.hclust, h = 1.8)
 ##                                        4 
 ##        glycoprotein biosynthetic process 
 ##                                        6 
-##           glycoprotein metabolic process 
-##                                        8 
 ##          macromolecule metabolic process 
+##                                        7 
+##               macromolecule modification 
+##                                       10 
+##           glycoprotein metabolic process 
 ##                                       11 
 ##              macromolecule glycosylation 
-##                                       17 
-##               macromolecule modification 
-##                                       18 
+##                                       19 
 ## cellular macromolecule metabolic process 
-##                                       28 
+##                                       24 
+##             protein modification process 
+##                                       40 
 ##   regulation of translational initiation 
-##                                       51 
-##                              translation 
-##                                       52 
+##                                       49 
 ## 
 ## $`Cluster 2`
-##        respiratory electron transport chain 
-##                                           5 
-##              phospholipid metabolic process 
-##                                          10 
-##                glycolipid metabolic process 
-##                                          12 
-##                    electron transport chain 
-##                                          20 
-##    phosphatidylcholine biosynthetic process 
-##                                          23 
-##                            membrane docking 
-##                                          32 
-##                     lipid metabolic process 
-##                                          33 
-## ethanolamine-containing compound metabol... 
-##                                          38 
-##              sphingolipid metabolic process 
-##                                          43 
-##              phospholipid catabolic process 
-##                                          48 
-##           phospholipid biosynthetic process 
-##                                          49 
-##            cellular lipid metabolic process 
-##                                          54 
-##             glycolipid biosynthetic process 
-##                                          55 
+##         glycolipid metabolic process respiratory electron transport chain 
+##                                    5                                   15 
+##       phospholipid metabolic process             electron transport chain 
+##                                   17                                   30 
+##       sphingolipid metabolic process     membrane lipid metabolic process 
+##                                   32                                   34 
+##                     membrane docking      glycolipid biosynthetic process 
+##                                   35                                   37 
+##  membrane lipid biosynthetic process              lipid metabolic process 
+##                                   47                                   51 
 ## 
 ## $`Cluster 3`
 ##                       GTP catabolic process 
-##                                           7 
+##                                           8 
 ## guanosine-containing compound catabolic ... 
-##                                           9 
+##                                          12 
 ##                       GTP metabolic process 
 ##                                          16 
 ## guanosine-containing compound metabolic ... 
-##                                          22 
+##                                          23 
 ## regulation of purine nucleotide metaboli... 
-##                                          25 
+##                                          28 
 ## regulation of purine nucleotide cataboli... 
-##                                          30 
+##                                          33 
 ## regulation of nucleotide catabolic proce... 
-##                                          39 
+##                                          42 
 ##      positive regulation of GTPase activity 
-##                                          40 
+##                                          43 
 ## 
 ## $`Cluster 4`
 ## small GTPase mediated signal transductio... 
-##                                          13 
+##                                           9 
 ##      single-organism organelle organization 
-##                                          14 
+##                                          13 
 ##                      organelle organization 
-##                                          15 
+##                                          14 
 ## regulation of actin cytoskeleton organiz... 
-##                                          21 
+##                                          22 
 ## regulation of actin filament-based proce... 
-##                                          26 
+##                                          27 
 ## 
 ## $`Cluster 5`
-##                  nucleosome organization 
-##                                       19 
-## protein-DNA complex subunit organization 
-##                                       24 
-##     regulation of protein polymerization 
-##                                       47 
-## 
-## $`Cluster 6`
 ##               response to organic substance 
-##                                          27 
+##                                          18 
 ##                  vesicle-mediated transport 
-##                                          29 
+##                                          20 
 ## cellular component organization or bioge... 
-##                                          31 
+##                                          21 
 ##                       cellular localization 
 ##                                          36 
 ##                     intracellular transport 
-##                                          42 
+##                                          39 
 ##       establishment of localization in cell 
-##                                          53 
+##                                          44 
+## 
+## $`Cluster 6`
+##                  nucleosome organization 
+##                                       25 
+## protein-DNA complex subunit organization 
+##                                       29 
+##     regulation of protein polymerization 
+##                                       48 
 ## 
 ## $`Cluster 7`
-##                          chromatin assembly 
-##                                          34 
-## tRNA splicing, via endonucleolytic cleav... 
-##                                          35 
 ##                                RNA splicing 
-##                                          37 
+##                                          26 
+## tRNA splicing, via endonucleolytic cleav... 
+##                                          31 
+##                          chromatin assembly 
+##                                          38 
 ##               regulation of mRNA processing 
 ##                                          41 
 ##                         nucleosome assembly 
-##                                          46 
-##                     DNA conformation change 
 ##                                          50 
 ## 
 ## $`Cluster 8`
 ##         glycosaminoglycan catabolic process 
-##                                          44 
+##                                          45 
 ## positive regulation of hydrolase activit... 
-##                                          45
+##                                          46
 ```
 
-
-
-
-
-
+Combine gene set enrichment analysis for each species and category into single table.
 
 
 ```r
@@ -3478,44 +3136,21 @@ Ar.gsea <- rbind(Ar.high.gsea, Ar.low.gsea, Ar.int.gsea, Ar.bim.gsea)
 Ar.gsea$Species <- "AcNC"
 
 # combine
-Ap.setdiff.gsea <- rbind(A22.gsea, Ar.gsea)
+Ap.gsea.union <- rbind(A22.gsea, Ar.gsea)
 # reorder
-Ap.setdiff.gsea <- Ap.setdiff.gsea[,c("Species", "Type", "GO.ID", "Term", "Annotated", "Significant", "Expected", "parentchild")]
-colnames(Ap.setdiff.gsea)[8] <- "P"
+Ap.gsea.union <- Ap.gsea.union[,c("Species", "Type", "GO.ID", "Term", "Annotated", "Significant", "Expected", "parentchild")]
+colnames(Ap.gsea.union)[8] <- "P"
 
-write.csv(Ap.setdiff.gsea, file = paste(resultsdir, "Ap_setdiff_GSEA_", Sys.Date(), ".csv", sep = ""), row.names = FALSE)
+write.csv(Ap.gsea.union, file = paste(resultsdir, "Ap_gsea_union", Sys.Date(), ".csv", sep = ""), row.names = FALSE)
 ```
 
-
-
-
-
-
-
-```r
-# similarity among enriched GO terms
-A22.low.GO.term.sim <- termSim(A22.low.gsea$GO.ID, A22.low.gsea$GO.ID, ont = "BP", organism = "fly")
-# distance matrix
-dist.A22.low.GO.term.sim <- dist(A22.low.GO.term.sim)
-plot(hclust(dist(A22.low.GO.term.sim)))
-```
-
-![plot of chunk GOSemSim](figure/GOSemSim1.png) 
-
-```r
-A22.high.GO.term.sim <- termSim(A22.high.gsea$GO.ID, A22.high.gsea$GO.ID, ont = "BP", organism = "fly")
-# distance matrix
-plot(hclust(dist(A22.high.GO.term.sim)))
-```
-
-![plot of chunk GOSemSim](figure/GOSemSim2.png) 
 
 
 ## Visualize responsive transcripts
 
-Make plots for all genes expressed at *High* temps in GO category "GO:0006950: response to stress"
+Plots for all genes expressed at *High* temps in GO category "GO:0006950: response to stress"
 
-
+![plot of chunk plot_GOstress](figure/plot_GOstress1.png) ![plot of chunk plot_GOstress](figure/plot_GOstress2.png) 
 
 Make plots for all genes expressed at *Low* temps in GO category "GO:0006950: response to stress"
 
@@ -3535,43 +3170,23 @@ print(trp_A22_high)
 ![plot of chunk ggplot_high](figure/ggplot_high1.png) 
 
 ```r
-trp_A22_poslinear <- ggplot(resp.TPM.dt.sub[A22.poslinear.transcripts][1:220,], aes(x=val, y=TPM.scaled, group=Transcript)) +
-  geom_smooth(method = "lm", formula = y ~ poly(x, 2)) + 
-  facet_grid(. ~ colony2) + 
-  scale_y_continuous(name="Expression (scaled)") +
-  scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
-```
-
-```
-## Error: object 'A22.poslinear.transcripts' not found
-```
-
-```r
-print(trp_A22_poslinear)
-```
-
-```
-## Error: error in evaluating the argument 'x' in selecting a method for function 'print': Error: object 'trp_A22_poslinear' not found
-```
-
-```r
 ### predicted values
 resp.TPM.dt.sub.pred[,pTPM.scaled:=scale(pTPM), by = Transcript]
 ```
 
 ```
 ##                          Transcript    TPM  val colony pTPM pTPM.scaled
-##      1: 100008|*|comp137625_c0_seq2 0.0000  0.0    A22 1.01      -0.610
-##      2: 100008|*|comp137625_c0_seq2 0.0000  3.5    A22 1.01      -0.640
-##      3: 100008|*|comp137625_c0_seq2 0.0743 10.5    A22 1.01      -0.663
-##      4: 100008|*|comp137625_c0_seq2 0.0000 14.0    A22 1.01      -0.656
-##      5: 100008|*|comp137625_c0_seq2 0.0000 17.5    A22 1.01      -0.636
+##      1: 100008|*|comp137625_c0_seq2 0.0000  0.0    A22 1.01      -0.609
+##      2: 100008|*|comp137625_c0_seq2 0.0000  3.5    A22 1.01      -0.639
+##      3: 100008|*|comp137625_c0_seq2 0.0741 10.5    A22 1.01      -0.662
+##      4: 100008|*|comp137625_c0_seq2 0.0000 14.0    A22 1.01      -0.655
+##      5: 100008|*|comp137625_c0_seq2 0.0000 17.5    A22 1.01      -0.635
 ##     ---                                                                
-## 200196:      9|*|comp147140_c0_seq1 0.6444 24.5     Ar 1.67      -0.494
-## 200197:      9|*|comp147140_c0_seq1 0.5862 28.0     Ar 1.64      -0.629
-## 200198:      9|*|comp147140_c0_seq1 0.7246 31.5     Ar 1.59      -0.813
-## 200199:      9|*|comp147140_c0_seq1 0.4516 35.0     Ar 1.53      -1.040
-## 200200:      9|*|comp147140_c0_seq1 0.4600 38.5     Ar 1.47      -1.306
+## 199140:      9|*|comp147140_c0_seq1 0.6310 24.5     Ar 1.67      -0.510
+## 199141:      9|*|comp147140_c0_seq1 0.5952 28.0     Ar 1.63      -0.643
+## 199142:      9|*|comp147140_c0_seq1 0.7302 31.5     Ar 1.59      -0.822
+## 199143:      9|*|comp147140_c0_seq1 0.4534 35.0     Ar 1.53      -1.042
+## 199144:      9|*|comp147140_c0_seq1 0.4528 38.5     Ar 1.47      -1.300
 ```
 
 ```r
@@ -3584,26 +3199,6 @@ print(pred_A22_high)
 ```
 
 ![plot of chunk ggplot_high](figure/ggplot_high2.png) 
-
-```r
-pred_A22_poslinear <- ggplot(resp.TPM.dt.sub.pred[A22.poslinear.transcripts][1:220,], aes(x=val, y=pTPM.scaled, group=Transcript)) +
-  geom_line() + 
-  facet_grid(. ~ colony) + 
-  scale_y_continuous(name="Expression (scaled)") +
-  scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
-```
-
-```
-## Error: object 'A22.poslinear.transcripts' not found
-```
-
-```r
-print(pred_A22_poslinear)
-```
-
-```
-## Error: error in evaluating the argument 'x' in selecting a method for function 'print': Error: object 'pred_A22_poslinear' not found
-```
 
 ```r
 png("RxN_example.png")
@@ -3620,110 +3215,6 @@ dev.off()
 ##   2
 ```
 
-### Overlap between *Ar* Intermediate and *A22* Low genes
-
-An observation from GO analysis is that there is an overlap between enriched terms in the *Low* group for *A22* and the *Intermediate* group for *Ar*. A potential explanation for this pattern is if the *Low* genes in *A22* shut down at high temperatures, but not low temperatures, rather than are up-regulated at low temperatures.
-
-
-```r
-# transcripts where TPM increases at low temps & decreases at high temps
-A22.low.Ar.int.TPM.dt.sub <- resp.TPM.dt.sub.pred[J(intersect(A22.low,Ar.int), "A22")]
-
-for(i in unique(A22.low.Ar.int.TPM.dt.sub$Transcript)[1:10]) {
-    s <- A22.low.Ar.int.TPM.dt.sub[i]
-    X11()
-    plot(s$val, s$pTPM, ylim = c(0, max(s$pTPM)+.1))
-    points(s$val, s$TPM, pch = 8, col = "red")
-    if(s[which(s$val == 38.5) , pTPM] == min(s$pTPM)) print("OffHigh") else {
-        print("OnLow")
-    }
-}
-```
-
-```
-## [1] "OnLow"
-```
-
-```
-## [1] "OffHigh"
-```
-
-```
-## [1] "OffHigh"
-```
-
-```
-## [1] "OnLow"
-```
-
-```
-## [1] "OffHigh"
-```
-
-```
-## [1] "OffHigh"
-```
-
-```
-## [1] "OnLow"
-```
-
-```
-## [1] "OnLow"
-```
-
-```
-## [1] "OnLow"
-```
-
-![plot of chunk gene_overlap](figure/gene_overlap.png) 
-
-```
-## [1] "OnLow"
-```
-
-```r
-# tabulate the number of transcripts that have lowest expression at maximum temperature "OffHigh"
-A22.low.Ar.int.low.type <- ddply(A22.low.Ar.int.TPM.dt.sub, .(Transcript), summarise, lt = ifelse(pTPM[which(val == 38.5)] == min(pTPM), "OffHigh", "OnLow"))
-
-table(A22.low.Ar.int.low.type$lt)
-```
-
-```
-## 
-## OffHigh   OnLow 
-##     560     790
-```
-
-```r
-# A22 low Ar low
-A22.low.Ar.low.TPM.dt.sub <- resp.TPM.dt.sub.pred[J(intersect(A22.low, Ar.low), "A22")]
-
-A22.low.Ar.low.low.type <- ddply(A22.low.Ar.low.TPM.dt.sub, .(Transcript), summarise, lt = ifelse(pTPM[which(val == 38.5)] == min(pTPM), "OffHigh", "OnLow"))
-
-# table results and perform chi-square test
-low.table <- rbind(LowInt = table(A22.low.Ar.int.low.type$lt), LowLow = table(A22.low.Ar.low.low.type$lt))
-low.table
-```
-
-```
-##        OffHigh OnLow
-## LowInt     560   790
-## LowLow    1540  1054
-```
-
-```r
-chisq.test(low.table)
-```
-
-```
-## 
-## 	Pearson's Chi-squared test with Yates' continuity correction
-## 
-## data:  low.table
-## X-squared = 113, df = 1, p-value < 2.2e-16
-```
-
 ## Shiny interactive web-app
 
 To assist visualization of specific transcripts, I made a interactive web-app using the [shiny](http://www.rstudio.com/shiny/) package. The scripts for this app are in the sub-directory `.\ApRxN-shinyapp`.
@@ -3736,7 +3227,7 @@ Export data for interactive shiny app.
 
 
 
-## Session information ##
+## Session information
 
 
 ```r
@@ -3752,57 +3243,128 @@ sessionInfo()
 ```
 
 ```
-## R version 3.1.0 (2014-04-10)
+## R version 3.1.1 (2014-07-10)
 ## Platform: x86_64-pc-linux-gnu (64-bit)
 ## 
 ## locale:
-##  [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              
-##  [3] LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8    
-##  [5] LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8   
-##  [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                 
-##  [9] LC_ADDRESS=C               LC_TELEPHONE=C            
-## [11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
+##  [1] LC_CTYPE=en_US.UTF-8 LC_NUMERIC=C         LC_TIME=C           
+##  [4] LC_COLLATE=C         LC_MONETARY=C        LC_MESSAGES=C       
+##  [7] LC_PAPER=C           LC_NAME=C            LC_ADDRESS=C        
+## [10] LC_TELEPHONE=C       LC_MEASUREMENT=C     LC_IDENTIFICATION=C 
 ## 
 ## attached base packages:
-## [1] grid      parallel  methods   stats     graphics  grDevices utils    
-## [8] datasets  base     
+## [1] grid      parallel  stats     graphics  grDevices utils     datasets 
+## [8] methods   base     
 ## 
 ## other attached packages:
-##  [1] GOSemSim_1.22.0        Rcpp_0.11.1            RDAVIDWebService_1.2.0
-##  [4] GOstats_2.30.0         Category_2.30.0        Matrix_1.1-3          
-##  [7] Rgraphviz_2.8.1        topGO_2.16.0           SparseM_1.03          
-## [10] GO.db_2.14.0           RSQLite_0.11.4         DBI_0.2-7             
-## [13] AnnotationDbi_1.26.0   GenomeInfoDb_1.0.2     Biobase_2.24.0        
-## [16] BiocGenerics_0.10.0    graph_1.42.0           reshape2_1.4          
-## [19] xtable_1.7-3           MASS_7.3-33            plyr_1.8.1            
-## [22] RCurl_1.95-4.1         bitops_1.0-6           data.table_1.9.2      
-## [25] stringr_0.6.2          pander_0.3.8           knitcitations_0.5-0   
-## [28] bibtex_0.3-6           ggplot2_1.0.0          R.utils_1.32.4        
-## [31] R.oo_1.18.0            R.methodsS3_1.6.1      knitr_1.6             
+##  [1] GOSemSim_1.22.0      Rcpp_0.11.2          Rgraphviz_2.8.1     
+##  [4] topGO_2.16.0         SparseM_1.05         GO.db_2.14.0        
+##  [7] RSQLite_0.11.4       DBI_0.3.0            AnnotationDbi_1.26.0
+## [10] GenomeInfoDb_1.0.2   Biobase_2.24.0       BiocGenerics_0.10.0 
+## [13] graph_1.42.0         RColorBrewer_1.0-5   reshape2_1.4        
+## [16] xtable_1.7-3         MASS_7.3-34          plyr_1.8.1          
+## [19] RCurl_1.95-4.3       bitops_1.0-6         data.table_1.9.2    
+## [22] stringr_0.6.2        pander_0.3.8         knitcitations_1.0-1 
+## [25] ggplot2_1.0.0        R.utils_1.33.0       R.oo_1.18.0         
+## [28] R.methodsS3_1.6.1    knitr_1.6           
 ## 
 ## loaded via a namespace (and not attached):
-##  [1] annotate_1.42.0       AnnotationForge_1.6.1 codetools_0.2-8      
-##  [4] colorspace_1.2-4      digest_0.6.4          evaluate_0.5.5       
-##  [7] formatR_0.10          genefilter_1.46.1     GSEABase_1.26.0      
-## [10] gtable_0.1.2          httr_0.3              IRanges_1.22.7       
-## [13] labeling_0.2          lattice_0.20-29       munsell_0.4.2        
-## [16] proto_0.3-10          RBGL_1.40.0           rJava_0.9-6          
-## [19] scales_0.2.4          splines_3.1.0         stats4_3.1.0         
-## [22] survival_2.37-7       tools_3.1.0           XML_3.98-1.1
+##  [1] IRanges_1.22.10   RJSONIO_1.3-0     RefManageR_0.8.34
+##  [4] XML_3.98-1.1      bibtex_0.3-6      codetools_0.2-8  
+##  [7] colorspace_1.2-4  digest_0.6.4      evaluate_0.5.5   
+## [10] formatR_1.0       gtable_0.1.2      httr_0.5         
+## [13] labeling_0.3      lattice_0.20-29   lubridate_1.3.3  
+## [16] memoise_0.2.1     munsell_0.4.2     proto_0.3-10     
+## [19] scales_0.2.4      stats4_3.1.1      tools_3.1.1
 ```
 
 ## References
 
 
-- Simon Anders, Davis J McCarthy, Yunshun Chen, Michal Okoniewski, Gordon K Smyth, Wolfgang Huber, Mark D Robinson,   (2013) Count-Based Differential Expression Analysis of Rna Sequencing Data Using R And Bioconductor.  *Nature Protocols*  **8**  1765-1786  [10.1038/nprot.2013.099](http://dx.doi.org/10.1038/nprot.2013.099)
-- James H Bullard, Elizabeth Purdom, Kasper D Hansen, Sandrine Dudoit,   (2010) Evaluation of Statistical Methods For Normalization And Differential Expression in Mrna-Seq Experiments.  *Bmc Bioinformatics*  **11**  94-NA  [10.1186/1471-2105-11-94](http://dx.doi.org/10.1186/1471-2105-11-94)
-- Manfred G Grabherr, Brian J Haas, Moran Yassour, Joshua Z Levin, Dawn A Thompson, Ido Amit, Xian Adiconis, Lin Fan, Raktima Raychowdhury, Qiandong Zeng, Zehua Chen, Evan Mauceli, Nir Hacohen, Andreas Gnirke, Nicholas Rhind, Federica di Palma, Bruce W Birren, Chad Nusbaum, Kerstin Lindblad-Toh, Nir Friedman, Aviv Regev,   (2011) Full-Length Transcriptome Assembly From Rna-Seq Data Without A Reference Genome.  *Nature Biotechnology*  **29**  644-652  [10.1038/nbt.1883](http://dx.doi.org/10.1038/nbt.1883)
-- X. Huang,   (1999) Cap3: A Dna Sequence Assembly Program.  *Genome Research*  **9**  868-877  [10.1101/gr.9.9.868](http://dx.doi.org/10.1101/gr.9.9.868)
-- B. Li, V. Ruotti, R. M. Stewart, J. A. Thomson, C. N. Dewey,   (2009) Rna-Seq Gene Expression Estimation With Read Mapping Uncertainty.  *Bioinformatics*  **26**  493-500  [10.1093/bioinformatics/btp692](http://dx.doi.org/10.1093/bioinformatics/btp692)
-- M. Lohse, A. M. Bolger, A. Nagel, A. R. Fernie, J. E. Lunn, M. Stitt, B. Usadel,   (2012) Robina: A User-Friendly, Integrated Software Solution For Rna-Seq-Based Transcriptomics.  *Nucleic Acids Research*  **40**  W622-W627  [10.1093/nar/gks540](http://dx.doi.org/10.1093/nar/gks540)
-- David Lubertazzi,   (2012) The Biology And Natural History of Aphaenogaster Rudis.  *Psyche: A Journal of Entomology*  **2012**  1-11  [10.1155/2012/752815](http://dx.doi.org/10.1155/2012/752815)
-- Courtney J. Murren, Heidi J. Maclean, Sarah E. Diamond, Ulrich K. Steiner, Mary A. Heskel, Corey A. Handelsman, Cameron K. Ghalambor, Josh R. Auld, Hilary S. Callahan, David W. Pfennig, Rick A. Relyea, Carl D. Schlichting, Joel Kingsolver,   (2014) Evolutionary Change in Continuous Reaction Norms.  *The American Naturalist*  **183**  453-467  [10.1086/675302](http://dx.doi.org/10.1086/675302)
-- Robert Schmieder, Robert Edwards, Francisco Rodriguez-Valera,   (2011) Fast Identification And Removal of Sequence Contamination From Genomic And Metagenomic Datasets.  *Plos One*  **6**  e17288-NA  [10.1371/journal.pone.0017288](http://dx.doi.org/10.1371/journal.pone.0017288)
-- unknown unknown,   (unknown) Unknown.  *Unknown*
-- Ya Yang, Stephen A Smith,   (2013) Optimizing de Novo Assembly of Short-Read Rna-Seq Data For Phylogenomics.  *Bmc Genomics*  **14**  328-NA  [10.1186/1471-2164-14-328](http://dx.doi.org/10.1186/1471-2164-14-328)
-- G. Yu, F. Li, Y. Qin, X. Bo, Y. Wu, S. Wang,   (2010) Gosemsim: an R Package For Measuring Semantic Similarity Among go Terms And Gene Products.  *Bioinformatics*  **26**  976-978  [10.1093/bioinformatics/btq064](http://dx.doi.org/10.1093/bioinformatics/btq064)
+```
+## Warning: <connection>:3: unknown macro '\lbrace'
+## Warning: <connection>:3: unknown macro '\rbrace'
+## Warning: <connection>:3: unknown macro '\lbrace'
+## Warning: <connection>:3: unknown macro '\rbrace'
+## Warning: <connection>:4: unknown macro '\lbrace'
+## Warning: <connection>:4: unknown macro '\rbrace'
+## Warning: <connection>:3: unknown macro '\lbrace'
+## Warning: <connection>:3: unknown macro '\rbrace'
+## Warning: <connection>:3: unknown macro '\lbrace'
+## Warning: <connection>:3: unknown macro '\rbrace'
+## Warning: <connection>:3: unknown macro '\lbrace'
+## Warning: <connection>:3: unknown macro '\rbrace'
+## Warning: <connection>:3: unknown macro '\lbrace'
+## Warning: <connection>:3: unknown macro '\rbrace'
+## Warning: <connection>:3: unknown macro '\lbrace'
+## Warning: <connection>:3: unknown macro '\rbrace'
+## Warning: <connection>:3: unknown macro '\lbrace'
+## Warning: <connection>:3: unknown macro '\rbrace'
+## Warning: <connection>:3: unknown macro '\lbrace'
+## Warning: <connection>:3: unknown macro '\rbrace'
+## Warning: <connection>:4: unknown macro '\lbrace'
+## Warning: <connection>:4: unknown macro '\rbrace'
+## Warning: <connection>:3: unknown macro '\lbrace'
+## Warning: <connection>:3: unknown macro '\rbrace'
+## Warning: <connection>:3: unknown macro '\lbrace'
+## Warning: <connection>:3: unknown macro '\rbrace'
+```
+
+[1] S. Anders, D. J. McCarthy, Y. Chen, et al. "Count-based
+differential expression analysis of $\lbrace$RNA$\rbrace$
+sequencing data using R and Bioconductor". In: _Nature Protocols_
+8.9 (Aug. 2013), pp. 1765-1786. DOI: 10.1038/nprot.2013.099. <URL:
+http://dx.doi.org/10.1038/nprot.2013.099>.
+
+[2] J. H. Bullard, E. Purdom, K. D. Hansen, et al. "Evaluation of
+statistical methods for normalization and differential expression
+in $\lbrace$mRNA$\rbrace$-Seq experiments". In:
+_$\lbrace$BMC$\rbrace$ Bioinformatics_ 11.1 (2010), p. 94. DOI:
+10.1186/1471-2105-11-94. <URL:
+http://dx.doi.org/10.1186/1471-2105-11-94>.
+
+[3] M. G. Grabherr, B. J. Haas, M. Yassour, et al. "Full-length
+transcriptome assembly from $\lbrace$RNA$\rbrace$-Seq data without
+a reference genome". In: _Nat Biotechnol_ 29.7 (May. 2011), pp.
+644-652. DOI: 10.1038/nbt.1883. <URL:
+http://dx.doi.org/10.1038/nbt.1883>.
+
+[4] X. Huang. "$\lbrace$CAP$\rbrace$3: A $\lbrace$DNA$\rbrace$
+Sequence Assembly Program". In: _Genome Research_ 9.9 (Sep. 1999),
+pp. 868-877. DOI: 10.1101/gr.9.9.868. <URL:
+http://dx.doi.org/10.1101/gr.9.9.868>.
+
+[5] B. Li, V. Ruotti, R. M. Stewart, et al.
+"$\lbrace$RNA$\rbrace$-Seq gene expression estimation with read
+mapping uncertainty". In: _Bioinformatics_ 26.4 (Dec. 2009), pp.
+493-500. DOI: 10.1093/bioinformatics/btp692. <URL:
+http://dx.doi.org/10.1093/bioinformatics/btp692>.
+
+[6] M. Lohse, A. M. Bolger, A. Nagel, et al.
+"$\lbrace$RobiNA$\rbrace$: a user-friendly, integrated software
+solution for $\lbrace$RNA$\rbrace$-Seq-based transcriptomics". In:
+_Nucleic Acids Research_ 40.W1 (Jun. 2012), pp. W622-W627. DOI:
+10.1093/nar/gks540. <URL: http://dx.doi.org/10.1093/nar/gks540>.
+
+[7] D. Lubertazzi. " The Biology and Natural History of
+Aphaenogaster rudis ". In: _Psyche: A Journal of Entomology_ 2012
+(2012), pp. 1-11. DOI: 10.1155/2012/752815. <URL:
+http://dx.doi.org/10.1155/2012/752815>.
+
+[8] C. J. Murren, H. J. Maclean, S. E. Diamond, et al.
+"Evolutionary Change in Continuous Reaction Norms". In: _The
+American Naturalist_ 183.4 (Apr. 2014), pp. 453-467. DOI:
+10.1086/675302. <URL: http://dx.doi.org/10.1086/675302>.
+
+[9] Y. Yang and S. A. Smith. "Optimizing de novo assembly of
+short-read $\lbrace$RNA$\rbrace$-seq data for phylogenomics". In:
+_$\lbrace$BMC$\rbrace$ Genomics_ 14.1 (2013), p. 328. DOI:
+10.1186/1471-2164-14-328. <URL:
+http://dx.doi.org/10.1186/1471-2164-14-328>.
+
+[10] G. Yu, F. Li, Y. Qin, et al. "$\lbrace$GOSemSim$\rbrace$: an
+R package for measuring semantic similarity among
+$\lbrace$GO$\rbrace$ terms and gene products". In:
+_Bioinformatics_ 26.7 (Feb. 2010), pp. 976-978. DOI:
+10.1093/bioinformatics/btq064. <URL:
+http://dx.doi.org/10.1093/bioinformatics/btq064>.
