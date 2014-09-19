@@ -16,7 +16,7 @@ read.sailfish.quant <- function(filein, outname, samp, trtval) {
     #  outname: name for data.frame in R
     
     file.df <- read.table(filein, header=FALSE, sep="\t", stringsAsFactors = FALSE)
-    colnames(file.df) <- c("Transcript", "Length", "TPM", "RPKM", "KPKM", "EstimatedNumReads")
+    colnames(file.df) <- c("Transcript", "Length", "TPM", "RPKM", "KPKM", "EstimatedNumKmers", "EstimatedNumReads")
     #head(file.df)
     # add columns with sample ID and treatment
     file.df$sample <- samp
