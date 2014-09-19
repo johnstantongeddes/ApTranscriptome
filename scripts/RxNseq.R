@@ -16,7 +16,8 @@ read.sailfish.quant <- function(filein, outname, samp, trtval) {
     #  outname: name for data.frame in R
     
     file.df <- read.table(filein, header=FALSE, sep="\t", stringsAsFactors = FALSE)
-    colnames(file.df) <- c("Transcript", "Length", "TPM", "RPKM", "KPKM", "EstimatedNumKmers", "EstimatedNumReads")
+    colnames(file.df) <- c("Transcript", "Length", "TPM", "RPKM", "KPKM", "EstimatedNumKmers", 
+                           "EstimatedNumReads")
     #head(file.df)
     # add columns with sample ID and treatment
     file.df$sample <- samp
@@ -24,6 +25,25 @@ read.sailfish.quant <- function(filein, outname, samp, trtval) {
     assign(outname, file.df, envir = .GlobalEnv)
 }
 
+
+############################################################################################
+## grepFunc
+############################################################################################
+
+grepFunc <- function(lmitem, term = NA) {
+  # Function to identify models (after stepwise AIC selection) that contain a specific term
+  #
+  # Arguments:
+  #  lmitem: object of class `lm`
+  #  term: term to grep if in model
+  #
+  # Returns
+  #   TRUE/FALSE list of linear models that do or do not include term
+  
+  coefs <- coefficients(lmitem)
+  coef.names <- names(coefs)
+  keep <- if(length(grep(term, coef.names)) > 0) TRUE else FALSE
+}
 
 
 ############################################################################################
@@ -294,7 +314,7 @@ RxNvarshape <- function(lmitem) {
 ## geneid2GOmap
 ############################################################################################
 
-geneid2GOmap <- function(annotmat) {
+geneid2GOmap <- function(annotmat, ontology = c("BP", "CC", "MF"), mapname = "geneid2go.map") {
   # Create geneid2go.map file from AnnotationTable.txt produced by FastAnnotator 
   #
   # Args:
@@ -306,24 +326,35 @@ geneid2GOmap <- function(annotmat) {
   # requires
   require(stringr)
   
+  # check that mapname doesn't already exist
+  if(file.exists(mapname)) stop(paste("File ", mapname, " already exists!", sep =""))
+  
   # Extract all GO terms and combine, write to file
   for(r in 1:nrow(annotmat)) {
-    GO.BP.list <- str_split(annotmat[r,"GO.Biological.Process"], " ")
-    GO.BP.terms <- grep('GO', unlist(GO.BP.list), value = TRUE)
-    GO.CC.list <- str_split(annotmat[r,"GO.Cellular.Component"], " ")
-    GO.CC.terms <- grep('GO', unlist(GO.CC.list), value = TRUE)
-    GO.MF.list <- str_split(annotmat[r,"GO.Molecular.Function"], " ")
-    GO.MF.terms <- grep('GO', unlist(GO.MF.list), value = TRUE)
-    
-    
-    (all.GO.terms <- paste(c(GO.BP.terms, GO.CC.terms, GO.MF.terms), collapse = ", "))
-    cat(annotmat[r, "Sequence.Name"], '\t', all.GO.terms, '\n', file = "geneid2go.map", append = TRUE)    
+    all.GO.terms <- vector(length=0)
+    if("BP" %in% ontology) {
+      GO.BP.list <- str_split(annotmat[r,"GO.Biological.Process"], " ")
+      GO.BP.terms <- grep('GO', unlist(GO.BP.list), value = TRUE)
+      all.GO.terms <- paste(c(all.GO.terms, GO.BP.terms), collapse = ", ")
+    }
+    if("CC" %in% ontology) {
+      GO.CC.list <- str_split(annotmat[r,"GO.Cellular.Component"], " ")
+      GO.CC.terms <- grep('GO', unlist(GO.CC.list), value = TRUE)
+      all.GO.terms <- paste(c(all.GO.terms, GO.CC.terms), collapse = ", ")
+    }
+    if("MF" %in% ontology) {
+      GO.MF.list <- str_split(annotmat[r,"GO.Molecular.Function"], " ")
+      GO.MF.terms <- grep('GO', unlist(GO.MF.list), value = TRUE)
+      all.GO.terms <- paste(c(all.GO.terms, GO.MF.terms), collapse = ", ")
+    }
+          
+    cat(annotmat[r, "Sequence.Name"], '\t', all.GO.terms, '\n', file = mapname, append = TRUE)
   } # end for loop
 } # end function
 
 
 ############################################################################################
-## geneid2GOmap
+## gsea
 ############################################################################################
 
 gsea <- function(genelist, geneID2GO, plotpath=NA) {
@@ -364,3 +395,29 @@ gsea <- function(genelist, geneID2GO, plotpath=NA) {
   # result table
   resTable <- GenTable(GOdata, parentchild = resultParentChild, topNodes = numsignodes)
 }
+
+
+
+############################################################################################
+## GSEAReportClusters
+############################################################################################
+
+GSEAReportClusters <- function(hclustobj, h) {
+  # Identify members of cluster from `hclust` object
+  #                                    
+  # Args:
+  #   hclustobj: hclust() object
+  #   h: height, determined visually from looking at plot(hclustobj), to split clusters
+  #
+  # Returns:
+  #   list of terms in each cluster
+      
+  clusters <- cutree(hclustobj, h = h)
+  clustlist <- list()
+  for(i in 1:max(clusters)) {
+    li <- list(which(clusters == i))
+    names(li) <- paste("Cluster", i)
+    clustlist <- c(clustlist, li)
+  } # end loop
+  return(clustlist)
+} # end function
