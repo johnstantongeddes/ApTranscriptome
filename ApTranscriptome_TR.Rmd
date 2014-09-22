@@ -399,7 +399,7 @@ siglist <- c(length(RxNlmAIC),
 
 sigtable <- data.frame(Coefficient = clist, "Number significant" = siglist)
 
-pandoc.table(sigtable, style="rmarkdown", caption = "Number of transcripts with expression that depends on species, temperature or their interaction at 5% FDR  out of 98,186 total transcripts.")
+pandoc.table(sigtable, style="rmarkdown", big.mark = ",", caption = "Number of transcripts with expression that depends on species, temperature or their interaction at 5% FDR  out of 98,186 total transcripts.")
 ```
 
 
@@ -448,7 +448,7 @@ chi1 <- chisq.test(Ap.type.table)
 chi1
 
 # Reorganize for plotting to show overlap among categories between colonies
-type.table <- table(Ap.response.type[ , 'Ar.type'], Ap.response.type[ , 'A22.type'])
+type.table <- table(Acar = Ap.response.type[ , 'Ar.type'], Apic = Ap.response.type[ , 'A22.type'])
 # reorder
 tt2 <- type.table[c("Low", "Intermediate", "High", "Bimodal", "NotResp"), c("Low", "Intermediate", "High", "Bimodal", "NotResp")]
 
@@ -462,6 +462,50 @@ text(c(.1,.5,.75,.85,.99), par("usr")[3] - 0.05, srt = 45, adj = 1, labels = lab
 text(.5, par("usr")[4], "A. carolinensis", xpd = TRUE, font = 3)
 legend(1.05, .75, fill = mosaic.colors, c("Low", "Intermediate", "High", "Bimodal", "NotResp"), xpd=TRUE)
 dev.off()
+```
+
+The question of biological interest is whether the marginal frequencies differ between the two species. Statistically, this can be addressed using the generalized [McNemar's test](http://en.wikipedia.org/wiki/McNemar's_test) of marginal homogeneity. 
+
+```{r mh_test}
+mh.test <- mh_test(tt2)
+
+# calculate contribution of each off-diagonal to Z~0~
+d1 <- sum(tt2[1,2:5]) - sum(tt2[2:5,1])
+d2 <- sum(tt2[2,c(1,3:5)]) - sum(tt2[c(1,3:5),2])
+d3 <- sum(tt2[3,c(1:2,4:5)]) - sum(tt2[c(1:2,4:5),3])
+d4 <- sum(tt2[4,c(1:3,5)]) - sum(tt2[c(1:3,5),4])
+d5 <- sum(tt2[5,1:4]) - sum(tt2[1:4,5])
+
+# proportion of test statistic due to off-diagonals
+dsum <- sum(abs(d1), abs(d2), abs(d3), abs(d4), abs(d5))
+d1/dsum
+d2/dsum
+d3/dsum
+d4/dsum
+d5/dsum
+
+# e2 (Acar Intermediate) contributes ~44% to Z~0~
+```
+
+```{r mh_plot}
+# overall mean for each class
+rs <- rowSums(tt2)
+cs <- colSums(tt2)
+(gm <- (rs + cs) / sum(tt2 * 2))
+
+# calculate observed values for each cell using overall mean for each expression type
+Ec <- outer(gm, gm, "*") * sum(tt2)
+
+# get deviations of observed from expected
+Ec.dev <- tt2 - Ec
+
+# calculate chi-squared deviation 
+Ec.cells <- sign(tt2 - Ec) * (tt2 - Ec)^2 / Ec
+
+md <- melt(Ec.cells)
+
+qplot(x=Apic, y=Acar, data=md, fill=value, geom="tile", ylim = rev(levels(md$Acar))) + 
+  scale_fill_gradient2(limits=c(-600, 600)) 
 ```
 
 The number of thermally-responsive in each response category differs between the colonies, with the msot transcripts expressed at *Low* temperatures in both colonies. For *ApVT*, an equal number of transcripts are expressed at *High* and *Bimodal*, followed by *Intermediate* transcripts. For *AcNC*, transcripts expressed at *Intermediate* temperatures are next most common, followed by *High* and *Bimodal*. 
@@ -1533,7 +1577,7 @@ write.csv(shiny.dt, file = "ApRxN-shinyapp/responsive.lms.TPM.csv", quote = TRUE
 
 ```{r rData, echo=FALSE}
 # save RData for manuscript file
-save(TPM.dt.sub, RxNpval, sigtable, chi1, resp.TPM.dt.sub, Ap.type.table, tt2, tt3, qlslope, qlmean, GO.stress.Xsq, GO0006950.responsive, Ap.df, w1, w2, w3, Ap.T_on, Ap.BP.resultParentChild, resp.stress.responsive.count, t.mean, t.slope, t.curvature, t.wiggle, t.varint, t.varbim, T_on.high.ttest, T_on.low.ttest, Ap.gsea.union, Ap.gsea.intersect, Ar.int.A22.bim.gsea, Ar.int.A22.low.gsea, file = "ms.RData")
+save(TPM.dt.sub, RxNpval, sigtable, chi1, resp.TPM.dt.sub, Ap.type.table, tt2, tt3, md, qlslope, qlmean, GO.stress.Xsq, GO0006950.responsive, Ap.df, w1, w2, w3, Ap.T_on, Ap.BP.resultParentChild, resp.stress.responsive.count, t.mean, t.slope, t.curvature, t.wiggle, t.varint, t.varbim, T_on.high.ttest, T_on.low.ttest, Ap.gsea.union, Ap.gsea.intersect, Ar.int.A22.bim.gsea, Ar.int.A22.low.gsea, file = "ms.RData")
 ```
 
 
