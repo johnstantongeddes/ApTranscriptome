@@ -148,17 +148,16 @@ Running Trinity and subsequent programs is time and memory-intensive so the fina
 
 ~~~
 # download filtered Trinity assembly, uncompress and move
-wget http://johnstantongeddes.org/assets/files/Aphaenogaster_transcriptome.tar
+wget http://johnstantongeddes.org/assets/files/ApTranscriptome/Aphaenogaster_transcriptome.tar
 # check md5sum
 md5sum Aphaenogaster_transcriptome.tar
 # fd6dbb0b3e88e1c797c9e74611b245b2
 
-# uncompress and move
-tar -xvf Aphaenogaster_transcriptome.tar
+# move and extract
 mkdir -p results/
 mkdir -p results/trinity-full/
-mv Trinity_cap3_uclust.fasta results/trinity-full/.
-mv Trinity_cap3_uclust_clean.fasta results/trinity-full/.
+mv Aphaenogaster_transcriptome.tar results/trinity-full/.
+tar -xvf Aphaenogaster_transcriptome.tar
 ~~~
 
 To examine the species distribution of BLAST hits in the transcriptome assembly, I used the program [Krona](http://sourceforge.net/p/krona/home/krona/) r citep("doi:10.1186/1471-2105-12-385"). I ... 
@@ -180,7 +179,7 @@ This annotation file can be read directly to R:
 
 ```{r download, echo = TRUE}
 # URL for annotation file
-annotation.URL <- getURL("http://johnstantongeddes.org/assets/files/ApTranscriptome_AnnotationTable_20140113.txt")
+annotation.URL <- getURL("http://johnstantongeddes.org/assets/files/ApTranscriptome/ApTranscriptome_AnnotationTable_20140113.txt")
 # load 
 annotation.file <- read.csv(textConnection(annotation.URL), header = TRUE, sep = "\t", stringsAsFactors = FALSE)
 str(annotation.file)
@@ -228,10 +227,16 @@ While it is possible to separately specify the paired-end and orphaned single-en
 These files are downloaded for convenience:
 
 ~~~
-wget ...
+# download gene expression quantification
+wget http://johnstantongeddes.org/assets/files/ApTranscriptome/sailfish_quant_20140916.tar
+# check md5sum
+md5sum sailfish_quant_20140916.tar
+# 26102c7ef86cf30b5f8e923640378185
+
+# move and extract
 mkdir -p /results/trinity-full/sailfish-expression-Trinity-cap3-uclust
-mv .. /results/trinity-full/sailfish-expression-Trinity-cap3-uclust
-tar -zxvf ...
+mv sailfish_quant_20140916.tar results/trinity-full/.
+tar -xvf sailfish_quant_20140916.tar
 ~~~
 
 For each sample, there is a directory containting a file *quant_bias_corrected.sf*. This file has the following columns, following a number of header lines:
@@ -729,7 +734,8 @@ Ar.int.transcripts <- Ap.response.type[which(Ap.response.type$Ar.type == "Interm
 ```
 
 
-Calculate T~on~ for *High* genes in each species.
+Calculate T~on~ for *High* genes in each species. I use the observed (rather than predicted) values for each species as by nature of fitting a quadratic function, the maximum change tends to be at the extremes (38.5 or 0) for the predicted values.
+
 
 ```{r T_on_high}
 # transcripts expressed at *High* and *Bimodal* temperatures in A22
@@ -831,6 +837,66 @@ T_on_plot <- ggplot(Ap.T_on, aes(x = T_on, y = ..density.., colour = Species, gr
 #    theme(legend.position = "none")
 print(T_on_plot)
 ```
+
+
+Repeat analysis for when **Intermediate** genes are turned *off*.
+
+```{r T_int_off}
+# transcripts expressed at *Intermediate* temperatures in A22
+A22.int.TPM.dt.sub <- resp.TPM.dt.sub.pred[J(A22.int.transcripts, "A22")]
+setkey(A22.int.TPM.dt.sub, Transcript)
+str(A22.int.TPM.dt.sub)
+
+# make data.frame for results
+l5 <- length(unique(A22.int.TPM.dt.sub$Transcript))
+A22.int.T_off <- data.frame(Transcript = unique(A22.int.TPM.dt.sub$Transcript), colony = rep("ApVT", length = l5), type = rep("Low", length = l5), T_off_high = NA, T_off_low = NA)
+
+# loop across transcripts, calculating T_off at both high and low temperatures
+for(i in unique(A22.int.TPM.dt.sub$Transcript)) {
+    subdf <- A22.int.TPM.dt.sub[i]
+    
+    subdf.high <- subdf[which(subdf$val >= 21), ]
+    T_off_high <- subdf.high[median(which(diff(subdf.high$TPM) == min(diff(subdf.high$TPM)))), val]
+    A22.int.T_off[which(A22.int.T_off$Transcript == i), "T_off_high"] <- T_off_high
+    
+    subdf.low <- subdf[which(subdf$val <= 21), ]
+    T_off_low <- subdf.low[median(which(diff(subdf.low$TPM) == min(diff(subdf.low$TPM)))), val]
+    A22.int.T_off[which(A22.int.T_off$Transcript == i), "T_off_low"] <- T_off_low
+}   
+
+# repeat for Ar
+Ar.int.TPM.dt.sub <- resp.TPM.dt.sub.pred[J(Ar.int.transcripts, "Ar")]
+setkey(Ar.int.TPM.dt.sub, Transcript)
+str(Ar.int.TPM.dt.sub)
+
+# make data.frame for results
+l6 <- length(unique(Ar.int.TPM.dt.sub$Transcript))
+Ar.int.T_off <- data.frame(Transcript = unique(Ar.int.TPM.dt.sub$Transcript), colony = rep("ApVT", length = l6), type = rep("Low", length = l6), T_off_high = NA, T_off_low = NA)
+
+# loop across transcripts, calculating T_off at both high and low temperatures
+for(i in unique(Ar.int.TPM.dt.sub$Transcript)) {
+    subdf <- Ar.int.TPM.dt.sub[i]
+    
+    subdf.high <- subdf[which(subdf$val >= 21), ]
+    T_off_high <- subdf.high[median(which(diff(subdf.high$TPM) == min(diff(subdf.high$TPM)))), val]
+    Ar.int.T_off[which(Ar.int.T_off$Transcript == i), "T_off_high"] <- T_off_high
+    
+    subdf.low <- subdf[which(subdf$val <= 21), ]
+    T_off_low <- subdf.low[median(which(diff(subdf.low$TPM) == min(diff(subdf.low$TPM)))), val]
+    Ar.int.T_off[which(Ar.int.T_off$Transcript == i), "T_off_low"] <- T_off_low
+}
+
+# compare T_off among species
+(T_off.int.high.ttest <- t.test(Ar.int.T_off$T_off_high, A22.int.T_off$T_off_high))
+
+(T_off.int.low.ttest <- t.test(Ar.int.T_off$T_off_low, A22.int.T_off$T_off_low))
+
+
+```
+
+As with genes turned on at high temperatures, *A. carolinensis* **Intermediate** genes are down-regulated on average at 1.2C higher temperatures than *A. picea* **Intermediate** genes. 
+
+
 
 ### Evaluate the extent to which differences in thermal reaction norms are due to mean or shape
 
@@ -1577,7 +1643,7 @@ write.csv(shiny.dt, file = "ApRxN-shinyapp/responsive.lms.TPM.csv", quote = TRUE
 
 ```{r rData, echo=FALSE}
 # save RData for manuscript file
-save(TPM.dt.sub, RxNpval, sigtable, chi1, resp.TPM.dt.sub, Ap.type.table, tt2, tt3, md, qlslope, qlmean, GO.stress.Xsq, GO0006950.responsive, Ap.df, w1, w2, w3, Ap.T_on, Ap.BP.resultParentChild, resp.stress.responsive.count, t.mean, t.slope, t.curvature, t.wiggle, t.varint, t.varbim, T_on.high.ttest, T_on.low.ttest, Ap.gsea.union, Ap.gsea.intersect, Ar.int.A22.bim.gsea, Ar.int.A22.low.gsea, file = "ms.RData")
+save(TPM.dt.sub, RxNpval, sigtable, chi1, resp.TPM.dt.sub, Ap.type.table, tt2, tt3, md, qlslope, qlmean, GO.stress.Xsq, GO0006950.responsive, Ap.df, w1, w2, w3, Ap.T_on, Ap.BP.resultParentChild, resp.stress.responsive.count, T_on.high.ttest, T_on.low.ttest, T_off.int.high.ttest, T_off.int.low.ttest, Ap.gsea.union, Ap.gsea.intersect, Ar.int.A22.bim.gsea, Ar.int.A22.low.gsea, file = "ms.RData")
 ```
 
 
