@@ -64,9 +64,6 @@ This script is completely reproducible assuming that R, `knitr` and the other re
     Rscript -e "library(knitr); knit('ApTranscriptome_TR.Rmd')"
 
 
-
-
-
 ## Data ##
 
 The raw Illumina fastq files are available from the NCBI short read archive [link tbd]. The assembled transcriptome, annotation and expression values are downloaded rather than re-run due to the computational demands, but the exact commands for each of these steps are documented below.
@@ -529,7 +526,7 @@ tt3 <- rbind(rownames(tt3), tt3)
 tt3 <- cbind(rownames(tt3), tt3)
 # name col/row by species
 rownames(tt3) <- c("AcNC", "", "", "", "", "", "")
-colnames(tt3) <- c("ApVT", "", "", "", "", "", "")
+colnames(tt3) <- c("**ApVT**", "", "", "", "", "", "")
 
 pandoc.table(tt3, style="rmarkdown", caption = "Number of transcripts with maximum expression at high, low, intermediate, both high and low (bimodal) temperatures or are not thermally-responsivefor each species and their overlap.", split.tables = "Inf")
 ```
@@ -890,8 +887,6 @@ for(i in unique(Ar.int.TPM.dt.sub$Transcript)) {
 (T_off.int.high.ttest <- t.test(Ar.int.T_off$T_off_high, A22.int.T_off$T_off_high))
 
 (T_off.int.low.ttest <- t.test(Ar.int.T_off$T_off_low, A22.int.T_off$T_off_low))
-
-
 ```
 
 As with genes turned on at high temperatures, *A. carolinensis* **Intermediate** genes are down-regulated on average at 1.2C higher temperatures than *A. picea* **Intermediate** genes. 
@@ -1096,7 +1091,7 @@ Ap.BP.resultParentChild <- runTest(Ap.BP.GOdata, statistic = 'fisher', algorithm
 Ap.BP.resultParentChild
 
 # table results
-Ap.BP.ResTable <- GenTable(Ap.BP.GOdata, parentchild = Ap.BP.resultParentChild, topNodes = 10)
+Ap.BP.ResTable <- GenTable(Ap.BP.GOdata, parentchild = Ap.BP.resultParentChild, topNodes = 132)
 Ap.BP.ResTable
 ```
 
@@ -1312,6 +1307,33 @@ plot(Ar.int.A22.low.gsea.term.sim.hclust)
 ```
 
 
+
+GSEA for genes that are *Intermediate* in A. carolinensis and *Low* or *Bimodal* in A. picea
+
+```{r gsea_Ar_int_A22_lowbim, results = 'hide'}
+# genes with *Intermediate* expression in Ar and *Low* in A22
+Ar.int.A22.lowbim <- c(Ar.int.A22.low, Ar.int.A22.bim)
+Ar.int.A22.lowbim.geneList <- rep(0, length = length(Ap.geneList))
+names(Ar.int.A22.lowbim.geneList) <- names(Ap.geneList)
+Ar.int.A22.lowbim.geneList[(which(names(Ar.int.A22.lowbim.geneList) %in% Ar.int.A22.lowbim))] <- 1
+# check correct number of values set to 1
+table(Ar.int.A22.lowbim.geneList)
+# run GSEA
+Ar.int.A22.lowbim.gsea <- gsea(genelist = Ar.int.A22.lowbim.geneList, geneID2GO = geneID2GO, plotpath = NA)
+```
+
+```{r gsea_Ar_int_A22_lowbim_cluster}
+# similarity among enriched GO terms
+Ar.int.A22.lowbim.gsea.term.sim <- termSim(Ar.int.A22.lowbim.gsea$GO.ID, Ar.int.A22.lowbim.gsea$GO.ID, ont = "BP", organism = 'fly')
+# replace GO IDs with terms
+rownames(Ar.int.A22.lowbim.gsea.term.sim) <- Ar.int.A22.lowbim.gsea$Term
+colnames(Ar.int.A22.lowbim.gsea.term.sim) <- Ar.int.A22.lowbim.gsea$Term
+# distance matrix
+Ar.int.A22.lowbim.gsea.term.sim.hclust <- hclust(dist(Ar.int.A22.lowbim.gsea.term.sim))
+plot(Ar.int.A22.lowbim.gsea.term.sim.hclust)
+# report items in each cluster at height 1
+(Ar.int.A22.lowbim.hclust.report <- GSEAReportClusters(Ar.int.A22.lowbim.gsea.term.sim.hclust, h = 1.2))
+```
 
 
 ### GSEA for each functional type in each species
@@ -1643,7 +1665,7 @@ write.csv(shiny.dt, file = "ApRxN-shinyapp/responsive.lms.TPM.csv", quote = TRUE
 
 ```{r rData, echo=FALSE}
 # save RData for manuscript file
-save(TPM.dt.sub, RxNpval, sigtable, chi1, resp.TPM.dt.sub, Ap.type.table, tt2, tt3, md, qlslope, qlmean, GO.stress.Xsq, GO0006950.responsive, Ap.df, w1, w2, w3, Ap.T_on, Ap.BP.resultParentChild, resp.stress.responsive.count, T_on.high.ttest, T_on.low.ttest, T_off.int.high.ttest, T_off.int.low.ttest, Ap.gsea.union, Ap.gsea.intersect, Ar.int.A22.bim.gsea, Ar.int.A22.low.gsea, file = "ms.RData")
+save(TPM.dt.sub, RxNpval, sigtable, chi1, resp.TPM.dt.sub, Ap.type.table, tt2, tt3, GO.stress.Xsq, GO0006950.responsive, Ap.df, w1, w2, w3, Ap.T_on, hsp_responsive, hsp_all, Ap.BP.resultParentChild, resp.stress.responsive.count, T_on.high.ttest, T_on.low.ttest, T_off.int.high.ttest, T_off.int.low.ttest, Ap.gsea.intersect, Ar.int.A22.bim.gsea, Ar.int.A22.low.gsea, Ar.int.A22.lowbim.gsea, file = "doc/ms.RData")
 ```
 
 
