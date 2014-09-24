@@ -27,9 +27,6 @@ This script is completely reproducible assuming that R, `knitr` and the other re
     Rscript -e "library(knitr); knit('ApTranscriptome_TR.Rmd')"
 
 
-
-
-
 ## Data ##
 
 The raw Illumina fastq files are available from the NCBI short read archive [link tbd]. The assembled transcriptome, annotation and expression values are downloaded rather than re-run due to the computational demands, but the exact commands for each of these steps are documented below.
@@ -116,17 +113,16 @@ Running Trinity and subsequent programs is time and memory-intensive so the fina
 
 ~~~
 # download filtered Trinity assembly, uncompress and move
-wget http://johnstantongeddes.org/assets/files/Aphaenogaster_transcriptome.tar
+wget http://johnstantongeddes.org/assets/files/ApTranscriptome/Aphaenogaster_transcriptome.tar
 # check md5sum
 md5sum Aphaenogaster_transcriptome.tar
 # fd6dbb0b3e88e1c797c9e74611b245b2
 
-# uncompress and move
-tar -xvf Aphaenogaster_transcriptome.tar
+# move and extract
 mkdir -p results/
 mkdir -p results/trinity-full/
-mv Trinity_cap3_uclust.fasta results/trinity-full/.
-mv Trinity_cap3_uclust_clean.fasta results/trinity-full/.
+mv Aphaenogaster_transcriptome.tar results/trinity-full/.
+tar -xvf Aphaenogaster_transcriptome.tar
 ~~~
 
 To examine the species distribution of BLAST hits in the transcriptome assembly, I used the program [Krona](http://sourceforge.net/p/krona/home/krona/) r citep("doi:10.1186/1471-2105-12-385"). I ... 
@@ -149,7 +145,7 @@ This annotation file can be read directly to R:
 
 ```r
 # URL for annotation file
-annotation.URL <- getURL("http://johnstantongeddes.org/assets/files/ApTranscriptome_AnnotationTable_20140113.txt")
+annotation.URL <- getURL("http://johnstantongeddes.org/assets/files/ApTranscriptome/ApTranscriptome_AnnotationTable_20140113.txt")
 # load 
 annotation.file <- read.csv(textConnection(annotation.URL), header = TRUE, sep = "\t", stringsAsFactors = FALSE)
 str(annotation.file)
@@ -232,10 +228,16 @@ While it is possible to separately specify the paired-end and orphaned single-en
 These files are downloaded for convenience:
 
 ~~~
-wget ...
+# download gene expression quantification
+wget http://johnstantongeddes.org/assets/files/ApTranscriptome/sailfish_quant_20140916.tar
+# check md5sum
+md5sum sailfish_quant_20140916.tar
+# 26102c7ef86cf30b5f8e923640378185
+
+# move and extract
 mkdir -p /results/trinity-full/sailfish-expression-Trinity-cap3-uclust
-mv .. /results/trinity-full/sailfish-expression-Trinity-cap3-uclust
-tar -zxvf ...
+mv sailfish_quant_20140916.tar results/trinity-full/.
+tar -xvf sailfish_quant_20140916.tar
 ~~~
 
 For each sample, there is a directory containting a file *quant_bias_corrected.sf*. This file has the following columns, following a number of header lines:
@@ -423,10 +425,10 @@ rm(other.lms)
 
 |    Coefficient     |  Number.significant  |
 |:------------------:|:--------------------:|
-|       Total        |        10525         |
-|       Colony       |         1473         |
-|    Temperature     |         2260         |
-| Temperature:Colony |         6792         |
+|       Total        |        10,525        |
+|       Colony       |        1,473         |
+|    Temperature     |        2,260         |
+| Temperature:Colony |        6,792         |
 
 Table: Number of transcripts with expression that depends on species, temperature or their interaction at 5% FDR  out of 98,186 total transcripts.
 
@@ -511,7 +513,7 @@ chi1
 
 ```r
 # Reorganize for plotting to show overlap among categories between colonies
-type.table <- table(Ap.response.type[ , 'Ar.type'], Ap.response.type[ , 'A22.type'])
+type.table <- table(Acar = Ap.response.type[ , 'Ar.type'], Apic = Ap.response.type[ , 'A22.type'])
 # reorder
 tt2 <- type.table[c("Low", "Intermediate", "High", "Bimodal", "NotResp"), c("Low", "Intermediate", "High", "Bimodal", "NotResp")]
 
@@ -532,13 +534,108 @@ dev.off()
 ##   2
 ```
 
+The question of biological interest is whether the marginal frequencies differ between the two species. Statistically, this can be addressed using the generalized [McNemar's test](http://en.wikipedia.org/wiki/McNemar's_test) of marginal homogeneity. 
+
+
+```r
+mh.test <- mh_test(tt2)
+```
+
+```
+## Error: could not find function "mh_test"
+```
+
+```r
+# calculate contribution of each off-diagonal to Z~0~
+d1 <- sum(tt2[1,2:5]) - sum(tt2[2:5,1])
+d2 <- sum(tt2[2,c(1,3:5)]) - sum(tt2[c(1,3:5),2])
+d3 <- sum(tt2[3,c(1:2,4:5)]) - sum(tt2[c(1:2,4:5),3])
+d4 <- sum(tt2[4,c(1:3,5)]) - sum(tt2[c(1:3,5),4])
+d5 <- sum(tt2[5,1:4]) - sum(tt2[1:4,5])
+
+# proportion of test statistic due to off-diagonals
+dsum <- sum(abs(d1), abs(d2), abs(d3), abs(d4), abs(d5))
+d1/dsum
+```
+
+```
+## [1] -0.298
+```
+
+```r
+d2/dsum
+```
+
+```
+## [1] 0.441
+```
+
+```r
+d3/dsum
+```
+
+```
+## [1] -0.0387
+```
+
+```r
+d4/dsum
+```
+
+```
+## [1] -0.164
+```
+
+```r
+d5/dsum
+```
+
+```
+## [1] 0.0594
+```
+
+```r
+# e2 (Acar Intermediate) contributes ~44% to Z~0~
+```
+
+
+```r
+# overall mean for each class
+rs <- rowSums(tt2)
+cs <- colSums(tt2)
+(gm <- (rs + cs) / sum(tt2 * 2))
+```
+
+```
+##          Low Intermediate         High      Bimodal      NotResp 
+##       0.4785       0.1942       0.1285       0.1307       0.0681
+```
+
+```r
+# calculate observed values for each cell using overall mean for each expression type
+Ec <- outer(gm, gm, "*") * sum(tt2)
+
+# get deviations of observed from expected
+Ec.dev <- tt2 - Ec
+
+# calculate chi-squared deviation 
+Ec.cells <- sign(tt2 - Ec) * (tt2 - Ec)^2 / Ec
+
+md <- melt(Ec.cells)
+
+qplot(x=Apic, y=Acar, data=md, fill=value, geom="tile", ylim = rev(levels(md$Acar))) + 
+  scale_fill_gradient2(limits=c(-600, 600)) 
+```
+
+![plot of chunk mh_plot](figure/mh_plot.png) 
+
 The number of thermally-responsive in each response category differs between the colonies, with the msot transcripts expressed at *Low* temperatures in both colonies. For *ApVT*, an equal number of transcripts are expressed at *High* and *Bimodal*, followed by *Intermediate* transcripts. For *AcNC*, transcripts expressed at *Intermediate* temperatures are next most common, followed by *High* and *Bimodal*. 
 
 Interestingly, nearly half of the *High* genes in *AcNC* are *Low* in *ApVT*, and vice versa. In contrast, most of the *Low* genes in one species are also *Low* in the other species.
 
 
 
-|   &nbsp;   |     ApVT     |  &nbsp;  |    &nbsp;    |  &nbsp;  |  &nbsp;  |  &nbsp;  |  &nbsp;  |
+|   &nbsp;   |   **ApVT**   |  &nbsp;  |    &nbsp;    |  &nbsp;  |  &nbsp;  |  &nbsp;  |  &nbsp;  |
 |:----------:|:------------:|:--------:|:------------:|:--------:|:--------:|:--------:|:--------:|
 |  **AcNC**  |              |   Low    | Intermediate |   High   | Bimodal  | NotResp  |  Total   |
 |            |     Low      |   2654   |     160      |   405    |   299    |   240    |   3758   |
@@ -589,6 +686,13 @@ print(maxexplot)
 # Figure for presentation
 png("results/temp_max_expression.png")
 maxexplot + theme(legend.position = "none")
+```
+
+```
+## Error: could not open file 'results/temp_max_expression.png'
+```
+
+```r
 dev.off()
 ```
 
@@ -816,10 +920,10 @@ Ar.int.sd <- data.frame(colony = "Ar", exp_sd = Ar.int.sd)
 ## 	Welch Two Sample t-test
 ## 
 ## data:  Ar.int.sd$exp_sd and A22.int.sd$exp_sd
-## t = 9.54, df = 1298, p-value < 2.2e-16
+## t = 9.55, df = 1299, p-value < 2.2e-16
 ## alternative hypothesis: true difference in means is not equal to 0
 ## 95 percent confidence interval:
-##  0.362 0.549
+##  0.360 0.546
 ## sample estimates:
 ## mean of x mean of y 
 ##     10.36      9.91
@@ -869,10 +973,10 @@ Ar.bim.sd <- unlist(Map(transcriptSD, Ar.bim.lm, colony = "Ar"))
 ## 	Welch Two Sample t-test
 ## 
 ## data:  Ar.bim.sd and A22.bim.sd
-## t = -1.04, df = 1525, p-value = 0.2962
+## t = -0.855, df = 1528, p-value = 0.3925
 ## alternative hypothesis: true difference in means is not equal to 0
 ## 95 percent confidence interval:
-##  -0.2267  0.0691
+##  -0.2126  0.0835
 ## sample estimates:
 ## mean of x mean of y 
 ##      12.6      12.7
@@ -984,7 +1088,8 @@ Ar.int.transcripts <- Ap.response.type[which(Ap.response.type$Ar.type == "Interm
 ```
 
 
-Calculate T~on~ for *High* genes in each species.
+Calculate T~on~ for *High* genes in each species. I use the observed (rather than predicted) values for each species as by nature of fitting a quadratic function, the maximum change tends to be at the extremes (38.5 or 0) for the predicted values.
+
 
 
 ```r
@@ -1152,6 +1257,121 @@ Genes with increased expression at *Low* temperatures are on average turned on 0
 Visualize T~on~ for both *Low* and *High* genes on the same plot.
 
 ![plot of chunk plot_T_on](figure/plot_T_on.png) 
+
+
+Repeat analysis for when **Intermediate** genes are turned *off*.
+
+
+```r
+# transcripts expressed at *Intermediate* temperatures in A22
+A22.int.TPM.dt.sub <- resp.TPM.dt.sub.pred[J(A22.int.transcripts, "A22")]
+setkey(A22.int.TPM.dt.sub, Transcript)
+str(A22.int.TPM.dt.sub)
+```
+
+```
+## Classes 'data.table' and 'data.frame':	9999 obs. of  5 variables:
+##  $ Transcript: chr  "100089|*|comp11313_c1_seq1" "100089|*|comp11313_c1_seq1" "100089|*|comp11313_c1_seq1" "100089|*|comp11313_c1_seq1" ...
+##  $ colony    : Factor w/ 2 levels "A22","Ar": 1 1 1 1 1 1 1 1 1 1 ...
+##  $ TPM       : num  0 0 0 0 0.264 ...
+##  $ val       : num  0 3.5 10.5 14 17.5 21 24.5 28 31.5 35 ...
+##  $ pTPM      : num  0.987 1.011 1.044 1.053 1.057 ...
+##  - attr(*, ".internal.selfref")=<externalptr> 
+##  - attr(*, "sorted")= chr "Transcript"
+```
+
+```r
+# make data.frame for results
+l5 <- length(unique(A22.int.TPM.dt.sub$Transcript))
+A22.int.T_off <- data.frame(Transcript = unique(A22.int.TPM.dt.sub$Transcript), colony = rep("ApVT", length = l5), type = rep("Low", length = l5), T_off_high = NA, T_off_low = NA)
+
+# loop across transcripts, calculating T_off at both high and low temperatures
+for(i in unique(A22.int.TPM.dt.sub$Transcript)) {
+    subdf <- A22.int.TPM.dt.sub[i]
+    
+    subdf.high <- subdf[which(subdf$val >= 21), ]
+    T_off_high <- subdf.high[median(which(diff(subdf.high$TPM) == min(diff(subdf.high$TPM)))), val]
+    A22.int.T_off[which(A22.int.T_off$Transcript == i), "T_off_high"] <- T_off_high
+    
+    subdf.low <- subdf[which(subdf$val <= 21), ]
+    T_off_low <- subdf.low[median(which(diff(subdf.low$TPM) == min(diff(subdf.low$TPM)))), val]
+    A22.int.T_off[which(A22.int.T_off$Transcript == i), "T_off_low"] <- T_off_low
+}   
+
+# repeat for Ar
+Ar.int.TPM.dt.sub <- resp.TPM.dt.sub.pred[J(Ar.int.transcripts, "Ar")]
+setkey(Ar.int.TPM.dt.sub, Transcript)
+str(Ar.int.TPM.dt.sub)
+```
+
+```
+## Classes 'data.table' and 'data.frame':	28666 obs. of  5 variables:
+##  $ Transcript: chr  "100148|*|comp125464_c0_seq1" "100148|*|comp125464_c0_seq1" "100148|*|comp125464_c0_seq1" "100148|*|comp125464_c0_seq1" ...
+##  $ colony    : Factor w/ 2 levels "A22","Ar": 2 2 2 2 2 2 2 2 2 2 ...
+##  $ TPM       : num  0 0 0 0 0.0644 ...
+##  $ val       : num  0 3.5 10.5 14 17.5 21 24.5 28 31.5 35 ...
+##  $ pTPM      : num  0.998 1.003 1.01 1.012 1.012 ...
+##  - attr(*, ".internal.selfref")=<externalptr> 
+##  - attr(*, "sorted")= chr "Transcript"
+```
+
+```r
+# make data.frame for results
+l6 <- length(unique(Ar.int.TPM.dt.sub$Transcript))
+Ar.int.T_off <- data.frame(Transcript = unique(Ar.int.TPM.dt.sub$Transcript), colony = rep("ApVT", length = l6), type = rep("Low", length = l6), T_off_high = NA, T_off_low = NA)
+
+# loop across transcripts, calculating T_off at both high and low temperatures
+for(i in unique(Ar.int.TPM.dt.sub$Transcript)) {
+    subdf <- Ar.int.TPM.dt.sub[i]
+    
+    subdf.high <- subdf[which(subdf$val >= 21), ]
+    T_off_high <- subdf.high[median(which(diff(subdf.high$TPM) == min(diff(subdf.high$TPM)))), val]
+    Ar.int.T_off[which(Ar.int.T_off$Transcript == i), "T_off_high"] <- T_off_high
+    
+    subdf.low <- subdf[which(subdf$val <= 21), ]
+    T_off_low <- subdf.low[median(which(diff(subdf.low$TPM) == min(diff(subdf.low$TPM)))), val]
+    Ar.int.T_off[which(Ar.int.T_off$Transcript == i), "T_off_low"] <- T_off_low
+}
+
+# compare T_off among species
+(T_off.int.high.ttest <- t.test(Ar.int.T_off$T_off_high, A22.int.T_off$T_off_high))
+```
+
+```
+## 
+## 	Welch Two Sample t-test
+## 
+## data:  Ar.int.T_off$T_off_high and A22.int.T_off$T_off_high
+## t = 7.02, df = 1655, p-value = 3.325e-12
+## alternative hypothesis: true difference in means is not equal to 0
+## 95 percent confidence interval:
+##  0.871 1.547
+## sample estimates:
+## mean of x mean of y 
+##      28.3      27.1
+```
+
+```r
+(T_off.int.low.ttest <- t.test(Ar.int.T_off$T_off_low, A22.int.T_off$T_off_low))
+```
+
+```
+## 
+## 	Welch Two Sample t-test
+## 
+## data:  Ar.int.T_off$T_off_low and A22.int.T_off$T_off_low
+## t = 2.17, df = 1574, p-value = 0.02979
+## alternative hypothesis: true difference in means is not equal to 0
+## 95 percent confidence interval:
+##  0.0501 0.9722
+## sample estimates:
+## mean of x mean of y 
+##      11.1      10.6
+```
+
+As with genes turned on at high temperatures, *A. carolinensis* **Intermediate** genes are down-regulated on average at 1.2C higher temperatures than *A. picea* **Intermediate** genes. 
+
+
 
 ### Evaluate the extent to which differences in thermal reaction norms are due to mean or shape
 
@@ -1752,7 +1972,7 @@ Ap.BP.resultParentChild <- runTest(Ap.BP.GOdata, statistic = 'fisher', algorithm
 Ap.BP.resultParentChild
 
 # table results
-Ap.BP.ResTable <- GenTable(Ap.BP.GOdata, parentchild = Ap.BP.resultParentChild, topNodes = 10)
+Ap.BP.ResTable <- GenTable(Ap.BP.GOdata, parentchild = Ap.BP.resultParentChild, topNodes = 132)
 Ap.BP.ResTable
 ```
 
@@ -2202,6 +2422,161 @@ plot(Ar.int.A22.low.gsea.term.sim.hclust)
 ##      sphingolipid catabolic process sulfur amino acid catabolic process 
 ##                                  32                                  36
 ```
+
+
+
+GSEA for genes that are *Intermediate* in A. carolinensis and *Low* or *Bimodal* in A. picea
+
+
+```r
+# genes with *Intermediate* expression in Ar and *Low* in A22
+Ar.int.A22.lowbim <- c(Ar.int.A22.low, Ar.int.A22.bim)
+Ar.int.A22.lowbim.geneList <- rep(0, length = length(Ap.geneList))
+names(Ar.int.A22.lowbim.geneList) <- names(Ap.geneList)
+Ar.int.A22.lowbim.geneList[(which(names(Ar.int.A22.lowbim.geneList) %in% Ar.int.A22.lowbim))] <- 1
+# check correct number of values set to 1
+table(Ar.int.A22.lowbim.geneList)
+# run GSEA
+Ar.int.A22.lowbim.gsea <- gsea(genelist = Ar.int.A22.lowbim.geneList, geneID2GO = geneID2GO, plotpath = NA)
+```
+
+
+```r
+# similarity among enriched GO terms
+Ar.int.A22.lowbim.gsea.term.sim <- termSim(Ar.int.A22.lowbim.gsea$GO.ID, Ar.int.A22.lowbim.gsea$GO.ID, ont = "BP", organism = 'fly')
+# replace GO IDs with terms
+rownames(Ar.int.A22.lowbim.gsea.term.sim) <- Ar.int.A22.lowbim.gsea$Term
+colnames(Ar.int.A22.lowbim.gsea.term.sim) <- Ar.int.A22.lowbim.gsea$Term
+# distance matrix
+Ar.int.A22.lowbim.gsea.term.sim.hclust <- hclust(dist(Ar.int.A22.lowbim.gsea.term.sim))
+plot(Ar.int.A22.lowbim.gsea.term.sim.hclust)
+```
+
+![plot of chunk gsea_Ar_int_A22_lowbim_cluster](figure/gsea_Ar_int_A22_lowbim_cluster.png) 
+
+```r
+# report items in each cluster at height 1
+(Ar.int.A22.lowbim.hclust.report <- GSEAReportClusters(Ar.int.A22.lowbim.gsea.term.sim.hclust, h = 1.2))
+```
+
+```
+## $`Cluster 1`
+##       cellular protein metabolic process 
+##                                        1 
+##                protein metabolic process 
+##                                        2 
+##          macromolecule metabolic process 
+##                                        9 
+##               macromolecule modification 
+##                                       16 
+## cellular macromolecule metabolic process 
+##                                       38 
+## 
+## $`Cluster 2`
+##            vesicle-mediated transport 
+##                                     3 
+## establishment of localization in cell 
+##                                    18 
+##                 cellular localization 
+##                                    21 
+##               intracellular transport 
+##                                    25 
+## 
+## $`Cluster 3`
+## small GTPase mediated signal transductio... 
+##                                           4 
+## regulation of actin filament-based proce... 
+##                                          27 
+## regulation of actin cytoskeleton organiz... 
+##                                          42 
+## 
+## $`Cluster 4`
+## single-organism organelle organization 
+##                                      5 
+##                 organelle organization 
+##                                      7 
+##                   vacuole organization 
+##                                     44 
+## 
+## $`Cluster 5`
+##              phospholipid metabolic process 
+##                                           6 
+## ethanolamine-containing compound metabol... 
+##                                          30 
+##    phosphatidylcholine biosynthetic process 
+##                                          37 
+##           phospholipid biosynthetic process 
+##                                          41 
+## 
+## $`Cluster 6`
+##                        glycosylation respiratory electron transport chain 
+##                                    8                                   12 
+##               recombinational repair                 histone modification 
+##                                   32                                   39 
+## 
+## $`Cluster 7`
+##                       GTP catabolic process 
+##                                          10 
+## guanosine-containing compound catabolic ... 
+##                                          14 
+##                       GTP metabolic process 
+##                                          17 
+## guanosine-containing compound metabolic ... 
+##                                          22 
+## 
+## $`Cluster 8`
+## cellular component organization or bioge... 
+##                                          11 
+##                             membrane fusion 
+##                                          15 
+##             single-organism membrane fusion 
+##                                          19 
+## 
+## $`Cluster 9`
+## membrane docking  vesicle docking 
+##               13               35 
+## 
+## $`Cluster 10`
+## response to organic substance 
+##                            20 
+## 
+## $`Cluster 11`
+## regulation of purine nucleotide metaboli... 
+##                                          23 
+## regulation of purine nucleotide cataboli... 
+##                                          26 
+## regulation of nucleotide catabolic proce... 
+##                                          36 
+## regulation of nucleoside metabolic proce... 
+##                                          43 
+## 
+## $`Cluster 12`
+##             protein glycosylation glycoprotein biosynthetic process 
+##                                24                                28 
+## 
+## $`Cluster 13`
+## L-amino acid transport 
+##                     29 
+## 
+## $`Cluster 14`
+##               regulation of mRNA processing 
+##                                          31 
+## tRNA splicing, via endonucleolytic cleav... 
+##                                          34 
+## 
+## $`Cluster 15`
+## positive regulation of hydrolase activit... 
+##                                          33 
+## 
+## $`Cluster 16`
+## regulation of protein polymerization 
+##                                   40 
+## 
+## $`Cluster 17`
+## regulation of cellular catabolic process 
+##                                       45
+```
+
 
 
 
@@ -3225,6 +3600,14 @@ Export data for interactive shiny app.
 
 
 
+```
+## Warning: cannot open compressed file 'ms.RData', probable reason
+## 'Permission denied'
+```
+
+```
+## Error: cannot open the connection
+```
 
 
 ## Session information
@@ -3280,71 +3663,38 @@ sessionInfo()
 
 ## References
 
-
-```
-## Warning: <connection>:3: unknown macro '\lbrace'
-## Warning: <connection>:3: unknown macro '\rbrace'
-## Warning: <connection>:3: unknown macro '\lbrace'
-## Warning: <connection>:3: unknown macro '\rbrace'
-## Warning: <connection>:4: unknown macro '\lbrace'
-## Warning: <connection>:4: unknown macro '\rbrace'
-## Warning: <connection>:3: unknown macro '\lbrace'
-## Warning: <connection>:3: unknown macro '\rbrace'
-## Warning: <connection>:3: unknown macro '\lbrace'
-## Warning: <connection>:3: unknown macro '\rbrace'
-## Warning: <connection>:3: unknown macro '\lbrace'
-## Warning: <connection>:3: unknown macro '\rbrace'
-## Warning: <connection>:3: unknown macro '\lbrace'
-## Warning: <connection>:3: unknown macro '\rbrace'
-## Warning: <connection>:3: unknown macro '\lbrace'
-## Warning: <connection>:3: unknown macro '\rbrace'
-## Warning: <connection>:3: unknown macro '\lbrace'
-## Warning: <connection>:3: unknown macro '\rbrace'
-## Warning: <connection>:3: unknown macro '\lbrace'
-## Warning: <connection>:3: unknown macro '\rbrace'
-## Warning: <connection>:4: unknown macro '\lbrace'
-## Warning: <connection>:4: unknown macro '\rbrace'
-## Warning: <connection>:3: unknown macro '\lbrace'
-## Warning: <connection>:3: unknown macro '\rbrace'
-## Warning: <connection>:3: unknown macro '\lbrace'
-## Warning: <connection>:3: unknown macro '\rbrace'
-```
-
 [1] S. Anders, D. J. McCarthy, Y. Chen, et al. "Count-based
-differential expression analysis of $\lbrace$RNA$\rbrace$
-sequencing data using R and Bioconductor". In: _Nature Protocols_
-8.9 (Aug. 2013), pp. 1765-1786. DOI: 10.1038/nprot.2013.099. <URL:
+differential expression analysis of RNA sequencing data using R
+and Bioconductor". In: _Nature Protocols_ 8.9 (Aug. 2013), pp.
+1765-1786. DOI: 10.1038/nprot.2013.099. <URL:
 http://dx.doi.org/10.1038/nprot.2013.099>.
 
 [2] J. H. Bullard, E. Purdom, K. D. Hansen, et al. "Evaluation of
 statistical methods for normalization and differential expression
-in $\lbrace$mRNA$\rbrace$-Seq experiments". In:
-_$\lbrace$BMC$\rbrace$ Bioinformatics_ 11.1 (2010), p. 94. DOI:
-10.1186/1471-2105-11-94. <URL:
+in mRNA-Seq experiments". In: _BMC Bioinformatics_ 11.1 (2010), p.
+94. DOI: 10.1186/1471-2105-11-94. <URL:
 http://dx.doi.org/10.1186/1471-2105-11-94>.
 
 [3] M. G. Grabherr, B. J. Haas, M. Yassour, et al. "Full-length
-transcriptome assembly from $\lbrace$RNA$\rbrace$-Seq data without
-a reference genome". In: _Nat Biotechnol_ 29.7 (May. 2011), pp.
-644-652. DOI: 10.1038/nbt.1883. <URL:
-http://dx.doi.org/10.1038/nbt.1883>.
+transcriptome assembly from RNA-Seq data without a reference
+genome". In: _Nat Biotechnol_ 29.7 (May. 2011), pp. 644-652. DOI:
+10.1038/nbt.1883. <URL: http://dx.doi.org/10.1038/nbt.1883>.
 
-[4] X. Huang. "$\lbrace$CAP$\rbrace$3: A $\lbrace$DNA$\rbrace$
-Sequence Assembly Program". In: _Genome Research_ 9.9 (Sep. 1999),
-pp. 868-877. DOI: 10.1101/gr.9.9.868. <URL:
-http://dx.doi.org/10.1101/gr.9.9.868>.
+[4] X. Huang. "CAP3: A DNA Sequence Assembly Program". In: _Genome
+Research_ 9.9 (Sep. 1999), pp. 868-877. DOI: 10.1101/gr.9.9.868.
+<URL: http://dx.doi.org/10.1101/gr.9.9.868>.
 
-[5] B. Li, V. Ruotti, R. M. Stewart, et al.
-"$\lbrace$RNA$\rbrace$-Seq gene expression estimation with read
-mapping uncertainty". In: _Bioinformatics_ 26.4 (Dec. 2009), pp.
-493-500. DOI: 10.1093/bioinformatics/btp692. <URL:
+[5] B. Li, V. Ruotti, R. M. Stewart, et al. "RNA-Seq gene
+expression estimation with read mapping uncertainty". In:
+_Bioinformatics_ 26.4 (Dec. 2009), pp. 493-500. DOI:
+10.1093/bioinformatics/btp692. <URL:
 http://dx.doi.org/10.1093/bioinformatics/btp692>.
 
-[6] M. Lohse, A. M. Bolger, A. Nagel, et al.
-"$\lbrace$RobiNA$\rbrace$: a user-friendly, integrated software
-solution for $\lbrace$RNA$\rbrace$-Seq-based transcriptomics". In:
-_Nucleic Acids Research_ 40.W1 (Jun. 2012), pp. W622-W627. DOI:
-10.1093/nar/gks540. <URL: http://dx.doi.org/10.1093/nar/gks540>.
+[6] M. Lohse, A. M. Bolger, A. Nagel, et al. "RobiNA: a
+user-friendly, integrated software solution for RNA-Seq-based
+transcriptomics". In: _Nucleic Acids Research_ 40.W1 (Jun. 2012),
+pp. W622-W627. DOI: 10.1093/nar/gks540. <URL:
+http://dx.doi.org/10.1093/nar/gks540>.
 
 [7] D. Lubertazzi. " The Biology and Natural History of
 Aphaenogaster rudis ". In: _Psyche: A Journal of Entomology_ 2012
@@ -3357,14 +3707,12 @@ American Naturalist_ 183.4 (Apr. 2014), pp. 453-467. DOI:
 10.1086/675302. <URL: http://dx.doi.org/10.1086/675302>.
 
 [9] Y. Yang and S. A. Smith. "Optimizing de novo assembly of
-short-read $\lbrace$RNA$\rbrace$-seq data for phylogenomics". In:
-_$\lbrace$BMC$\rbrace$ Genomics_ 14.1 (2013), p. 328. DOI:
-10.1186/1471-2164-14-328. <URL:
+short-read RNA-seq data for phylogenomics". In: _BMC Genomics_
+14.1 (2013), p. 328. DOI: 10.1186/1471-2164-14-328. <URL:
 http://dx.doi.org/10.1186/1471-2164-14-328>.
 
-[10] G. Yu, F. Li, Y. Qin, et al. "$\lbrace$GOSemSim$\rbrace$: an
-R package for measuring semantic similarity among
-$\lbrace$GO$\rbrace$ terms and gene products". In:
-_Bioinformatics_ 26.7 (Feb. 2010), pp. 976-978. DOI:
+[10] G. Yu, F. Li, Y. Qin, et al. "GOSemSim: an R package for
+measuring semantic similarity among GO terms and gene products".
+In: _Bioinformatics_ 26.7 (Feb. 2010), pp. 976-978. DOI:
 10.1093/bioinformatics/btq064. <URL:
 http://dx.doi.org/10.1093/bioinformatics/btq064>.
