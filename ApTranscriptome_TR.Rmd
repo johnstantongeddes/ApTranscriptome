@@ -30,9 +30,10 @@ library(xtable)
 library(methods) # required by `knitcitations` when file is `knit` from command-line
 library(reshape2)
 library(RColorBrewer)
+library(coin)
 
 # Load Bioconductor libraries
-#source("http://bioconductor.org/biocLite.R")
+source("http://bioconductor.org/biocLite.R")
 #biocLite("topGO")
 #biocLite("Rgraphviz")
 #biocLite("GOSemSim")
@@ -389,7 +390,10 @@ temperature.lms <- other.lms[which(Map(grepFunc, other.lms, term = "val") == TRU
 colony.lms <- other.lms[setdiff(names(other.lms), names(temperature.lms))]
 responsive.lms <- c(temperature.lms, interaction.lms)
 rm(other.lms)
+
+quadratic.lms <- RxNlmAIC[which(Map(grepFunc, RxNlmAIC, term = "2") == TRUE)]
 ```
+
 
 ```{r table_results, echo=FALSE, results='asis'}
 clist <- c('Total', 'Colony', 'Temperature', 'Temperature:Colony')
@@ -469,7 +473,7 @@ dev.off()
 The question of biological interest is whether the marginal frequencies differ between the two species. Statistically, this can be addressed using the generalized [McNemar's test](http://en.wikipedia.org/wiki/McNemar's_test) of marginal homogeneity. 
 
 ```{r mh_test}
-mh.test <- mh_test(tt2)
+mh.test <- mh_test(as.table(tt2))
 
 # calculate contribution of each off-diagonal to Z~0~
 d1 <- sum(tt2[1,2:5]) - sum(tt2[2:5,1])
@@ -480,11 +484,11 @@ d5 <- sum(tt2[5,1:4]) - sum(tt2[1:4,5])
 
 # proportion of test statistic due to off-diagonals
 dsum <- sum(abs(d1), abs(d2), abs(d3), abs(d4), abs(d5))
-d1/dsum
-d2/dsum
-d3/dsum
-d4/dsum
-d5/dsum
+abs(d1)/dsum
+abs(d2)/dsum
+abs(d3)/dsum
+abs(d4)/dsum
+abs(d5)/dsum
 
 # e2 (Acar Intermediate) contributes ~44% to Z~0~
 ```
@@ -506,8 +510,9 @@ Ec.cells <- sign(tt2 - Ec) * (tt2 - Ec)^2 / Ec
 
 md <- melt(Ec.cells)
 
-qplot(x=Apic, y=Acar, data=md, fill=value, geom="tile", ylim = rev(levels(md$Acar))) + 
+mh_plot <- qplot(x=Apic, y=Acar, data=md, fill=value, geom="tile", ylim = rev(levels(md$Acar))) + 
   scale_fill_gradient2(limits=c(-600, 600)) 
+mh_plot
 ```
 
 The number of thermally-responsive in each response category differs between the colonies, with the msot transcripts expressed at *Low* temperatures in both colonies. For *ApVT*, an equal number of transcripts are expressed at *High* and *Bimodal*, followed by *Intermediate* transcripts. For *AcNC*, transcripts expressed at *Intermediate* temperatures are next most common, followed by *High* and *Bimodal*. 
@@ -533,9 +538,42 @@ pandoc.table(tt3, style="rmarkdown", caption = "Number of transcripts with maxim
 
 Table 4 shows the number of transcripts that fall into each expression type for each each species. The totals for each species include the `r length(temperature.lms)` transcripts that have consistent temperature responses between the two colonies. 
 
+An interesting observation from the matched observations plot (Fig. ...) is that for **NotResp** genes in *A. carolinensis* the **High** and **Bimodal** categories in *A. picea* are over-represented. Finding that the mean expression level of these genes in *A. carolinensis* is greater than the expression level at the optimum temperature (19.5°C) in *A. picea* would be consistent with genetic assimilation.
 
+```{r gen_assimilation_high}
+Ap.high.Ac.nr <- Ap.response.type[which(Ap.response.type$A22.type == "High" & Ap.response.type$Ar.type == "NotResp"), ]
 
-## Species comparison
+# get mean expression level for Ar transcripts
+Ap.high.Ac.nr.TPM <- TPM.dt.sub[Ap.high.Ac.nr$Transcript]
+Ap.high.Ac.nr.mean.exp.NR <- ddply(Ap.high.Ac.nr.TPM, .(Transcript), summarize, meanTPM = mean(TPM))
+
+# get expression at optimum for A22 transcripts
+
+Ap.high.Ac.nr.opt.exp <- Ap.high.Ac.nr$A22.opt
+
+t.test(Ap.high.Ac.nr.mean.exp.NR$meanTPM, Ap.high.Ac.nr.opt.exp)
+```
+
+Contrary to expectations, mean expression of the non-responsive *A. carolinensis* genes is less than expression of the **High** genes in *A. picea*.
+
+Next, I check the same for the **Bimodal** genes in *A. picea*.
+
+```{r gen_assimilation_bim}
+Ap.bim.Ac.nr <- Ap.response.type[which(Ap.response.type$A22.type == "Bimodal" & Ap.response.type$Ar.type == "NotResp"), ]
+
+# get mean expression level for Ar transcripts
+Ap.bim.Ac.nr.TPM <- TPM.dt.sub[Ap.bim.Ac.nr$Transcript]
+Ap.bim.Ac.nr.mean.exp.NR <- ddply(Ap.bim.Ac.nr.TPM, .(Transcript), summarize, meanTPM = mean(TPM))
+
+# get expression at optimum for A22 transcripts
+Ap.bim.Ac.nr.opt.exp <- Ap.bim.Ac.nr$A22.opt
+
+t.test(Ap.bim.Ac.nr.mean.exp.NR$meanTPM, Ap.bim.Ac.nr.opt.exp)
+```
+
+As with the **High** transcripts, expression much higher for the responsive *A. picea* transcripts than for the non-responsive *A. carolinensis* transcripts.
+
+## Species comparisons
 
 In this section, I perform a number of comparisons of the thermal reactionomes between the *Ar* and *A22* species. Specifically, I:
 
@@ -984,7 +1022,7 @@ write.csv(responsive.lms.ann.type, file = paste(resultsdir, "Ap_responsive_genes
 
 ### Proportion of responsive transcripts annotated
 
-Of the responsive transcripts, `r prettyNum(length(which(responsive.lms.ann.type$best.hit.to.nr == "-"))/length(responsive.lms.ann.type$best.hit.to.nr)*100)`% are annotated, while `r prettyNum(length(which(annotation.table$best.hit.to.nr == "-"))/nrow(annotation.table) * 100)`% of all transcripts are annotated.
+Of the responsive transcripts, `r round(length(which(responsive.lms.ann.type$best.hit.to.nr != "-"))/length(responsive.lms.ann.type$best.hit.to.nr)*100, 0)`% are annotated, while `r round(length(which(annotation.table$best.hit.to.nr != "-"))/nrow(annotation.table) * 100, 0)`% of all transcripts are annotated.
 
 
 ### Candidate gene enrichment
@@ -1665,7 +1703,7 @@ write.csv(shiny.dt, file = "ApRxN-shinyapp/responsive.lms.TPM.csv", quote = TRUE
 
 ```{r rData, echo=FALSE}
 # save RData for manuscript file
-save(TPM.dt.sub, RxNpval, sigtable, chi1, resp.TPM.dt.sub, Ap.type.table, tt2, tt3, GO.stress.Xsq, GO0006950.responsive, Ap.df, w1, w2, w3, Ap.T_on, hsp_responsive, hsp_all, Ap.BP.resultParentChild, resp.stress.responsive.count, T_on.high.ttest, T_on.low.ttest, T_off.int.high.ttest, T_off.int.low.ttest, Ap.gsea.intersect, Ar.int.A22.bim.gsea, Ar.int.A22.low.gsea, Ar.int.A22.lowbim.gsea, file = "doc/ms.RData")
+save(TPM.dt.sub, RxNpval, sigtable, chi1, resp.TPM.dt.sub, Ap.type.table, tt2, tt3, GO.stress.Xsq, GO0006950.responsive, Ap.df, w1, w2, w3, Ap.T_on, hsp_responsive, hsp_all, mh_plot, Ap.BP.resultParentChild, resp.stress.responsive.count, T_on.high.ttest, T_on.low.ttest, T_off.int.high.ttest, T_off.int.low.ttest, Ap.gsea.intersect, Ar.int.A22.bim.gsea, Ar.int.A22.low.gsea, Ar.int.A22.lowbim.gsea, quadratic.lms, file = paste("doc/ms_", Sys.Date(), ".RData", sep = ""))
 ```
 
 
