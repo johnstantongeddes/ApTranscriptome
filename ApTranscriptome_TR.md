@@ -420,7 +420,10 @@ temperature.lms <- other.lms[which(Map(grepFunc, other.lms, term = "val") == TRU
 colony.lms <- other.lms[setdiff(names(other.lms), names(temperature.lms))]
 responsive.lms <- c(temperature.lms, interaction.lms)
 rm(other.lms)
+
+quadratic.lms <- RxNlmAIC[which(Map(grepFunc, RxNlmAIC, term = "2") == TRUE)]
 ```
+
 
 
 |    Coefficient     |  Number.significant  |
@@ -538,14 +541,8 @@ The question of biological interest is whether the marginal frequencies differ b
 
 
 ```r
-mh.test <- mh_test(tt2)
-```
+mh.test <- mh_test(as.table(tt2))
 
-```
-## Error: could not find function "mh_test"
-```
-
-```r
 # calculate contribution of each off-diagonal to Z~0~
 d1 <- sum(tt2[1,2:5]) - sum(tt2[2:5,1])
 d2 <- sum(tt2[2,c(1,3:5)]) - sum(tt2[c(1,3:5),2])
@@ -555,15 +552,15 @@ d5 <- sum(tt2[5,1:4]) - sum(tt2[1:4,5])
 
 # proportion of test statistic due to off-diagonals
 dsum <- sum(abs(d1), abs(d2), abs(d3), abs(d4), abs(d5))
-d1/dsum
+abs(d1)/dsum
 ```
 
 ```
-## [1] -0.298
+## [1] 0.298
 ```
 
 ```r
-d2/dsum
+abs(d2)/dsum
 ```
 
 ```
@@ -571,23 +568,23 @@ d2/dsum
 ```
 
 ```r
-d3/dsum
+abs(d3)/dsum
 ```
 
 ```
-## [1] -0.0387
-```
-
-```r
-d4/dsum
-```
-
-```
-## [1] -0.164
+## [1] 0.0387
 ```
 
 ```r
-d5/dsum
+abs(d4)/dsum
+```
+
+```
+## [1] 0.164
+```
+
+```r
+abs(d5)/dsum
 ```
 
 ```
@@ -623,8 +620,9 @@ Ec.cells <- sign(tt2 - Ec) * (tt2 - Ec)^2 / Ec
 
 md <- melt(Ec.cells)
 
-qplot(x=Apic, y=Acar, data=md, fill=value, geom="tile", ylim = rev(levels(md$Acar))) + 
+mh_plot <- qplot(x=Apic, y=Acar, data=md, fill=value, geom="tile", ylim = rev(levels(md$Acar))) + 
   scale_fill_gradient2(limits=c(-600, 600)) 
+mh_plot
 ```
 
 ![plot of chunk mh_plot](figure/mh_plot.png) 
@@ -649,9 +647,72 @@ Table: Number of transcripts with maximum expression at high, low, intermediate,
 
 Table 4 shows the number of transcripts that fall into each expression type for each each species. The totals for each species include the 2260 transcripts that have consistent temperature responses between the two colonies. 
 
+An interesting observation from the matched observations plot (Fig. ...) is that for **NotResp** genes in *A. carolinensis* the **High** and **Bimodal** categories in *A. picea* are over-represented. Finding that the mean expression level of these genes in *A. carolinensis* is greater than the expression level at the optimum temperature (19.5°C) in *A. picea* would be consistent with genetic assimilation.
 
 
-## Species comparison
+```r
+Ap.high.Ac.nr <- Ap.response.type[which(Ap.response.type$A22.type == "High" & Ap.response.type$Ar.type == "NotResp"), ]
+
+# get mean expression level for Ar transcripts
+Ap.high.Ac.nr.TPM <- TPM.dt.sub[Ap.high.Ac.nr$Transcript]
+Ap.high.Ac.nr.mean.exp.NR <- ddply(Ap.high.Ac.nr.TPM, .(Transcript), summarize, meanTPM = mean(TPM))
+
+# get expression at optimum for A22 transcripts
+
+Ap.high.Ac.nr.opt.exp <- Ap.high.Ac.nr$A22.opt
+
+t.test(Ap.high.Ac.nr.mean.exp.NR$meanTPM, Ap.high.Ac.nr.opt.exp)
+```
+
+```
+## 
+## 	Welch Two Sample t-test
+## 
+## data:  Ap.high.Ac.nr.mean.exp.NR$meanTPM and Ap.high.Ac.nr.opt.exp
+## t = -55, df = 340, p-value < 2.2e-16
+## alternative hypothesis: true difference in means is not equal to 0
+## 95 percent confidence interval:
+##  -0.975 -0.907
+## sample estimates:
+## mean of x mean of y 
+##    0.0824    1.0234
+```
+
+Contrary to expectations, mean expression of the non-responsive *A. carolinensis* genes is less than expression of the **High** genes in *A. picea*.
+
+Next, I check the same for the **Bimodal** genes in *A. picea*.
+
+
+```r
+Ap.bim.Ac.nr <- Ap.response.type[which(Ap.response.type$A22.type == "Bimodal" & Ap.response.type$Ar.type == "NotResp"), ]
+
+# get mean expression level for Ar transcripts
+Ap.bim.Ac.nr.TPM <- TPM.dt.sub[Ap.bim.Ac.nr$Transcript]
+Ap.bim.Ac.nr.mean.exp.NR <- ddply(Ap.bim.Ac.nr.TPM, .(Transcript), summarize, meanTPM = mean(TPM))
+
+# get expression at optimum for A22 transcripts
+Ap.bim.Ac.nr.opt.exp <- Ap.bim.Ac.nr$A22.opt
+
+t.test(Ap.bim.Ac.nr.mean.exp.NR$meanTPM, Ap.bim.Ac.nr.opt.exp)
+```
+
+```
+## 
+## 	Welch Two Sample t-test
+## 
+## data:  Ap.bim.Ac.nr.mean.exp.NR$meanTPM and Ap.bim.Ac.nr.opt.exp
+## t = -55.2, df = 375, p-value < 2.2e-16
+## alternative hypothesis: true difference in means is not equal to 0
+## 95 percent confidence interval:
+##  -0.966 -0.900
+## sample estimates:
+## mean of x mean of y 
+##     0.105     1.038
+```
+
+As with the **High** transcripts, expression much higher for the responsive *A. picea* transcripts than for the non-responsive *A. carolinensis* transcripts.
+
+## Species comparisons
 
 In this section, I perform a number of comparisons of the thermal reactionomes between the *Ar* and *A22* species. Specifically, I:
 
@@ -1611,7 +1672,7 @@ write.csv(responsive.lms.ann.type, file = paste(resultsdir, "Ap_responsive_genes
 
 ### Proportion of responsive transcripts annotated
 
-Of the responsive transcripts, 49% are annotated, while 48.7% of all transcripts are annotated.
+Of the responsive transcripts, 51% are annotated, while 51% of all transcripts are annotated.
 
 
 ### Candidate gene enrichment
@@ -2576,9 +2637,6 @@ plot(Ar.int.A22.lowbim.gsea.term.sim.hclust)
 ## regulation of cellular catabolic process 
 ##                                       45
 ```
-
-
-
 
 
 ### GSEA for each functional type in each species
@@ -3600,14 +3658,6 @@ Export data for interactive shiny app.
 
 
 
-```
-## Warning: cannot open compressed file 'ms.RData', probable reason
-## 'Permission denied'
-```
-
-```
-## Error: cannot open the connection
-```
 
 
 ## Session information
