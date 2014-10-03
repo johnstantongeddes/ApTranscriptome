@@ -470,6 +470,12 @@ legend(1.05, .75, fill = mosaic.colors, c("Low", "Intermediate", "High", "Bimoda
 dev.off()
 ```
 
+Table with 'Total Transcripts' category
+
+```{r total_table}
+
+```
+
 The question of biological interest is whether the marginal frequencies differ between the two species. Statistically, this can be addressed using the generalized [McNemar's test](http://en.wikipedia.org/wiki/McNemar's_test) of marginal homogeneity. 
 
 ```{r mh_test}
@@ -752,6 +758,38 @@ resp.TPM.dt.sub.pred <- data.table(resp.TPM.dt.sub.pred)
 setkey(resp.TPM.dt.sub.pred, Transcript, colony)
 ```
 
+
+Does the mean expression level for all responsive genes differ among colonies?
+
+```{r mean_exp}
+t.test(log(Ap.response.type$A22.opt), log(Ap.response.type$Ar.opt))
+# expression level at optimum temp greater in Ar than A22
+
+# non-parametric test
+w4 = wilcox.test(Ap.response.type$A22.opt, 
+                 Ap.response.type$Ar.opt,
+                 alternative = "two.sided", paired = TRUE, conf.int = TRUE)
+
+
+mean.exp <- ddply(resp.TPM.dt.sub.pred, .(colony, Transcript), summarise,
+                  mean.TPM = mean(pTPM))
+
+t.test(log(mean.exp[which(mean.exp$colony == "A22"), "mean.TPM"]), 
+       log(mean.exp[which(mean.exp$colony == "Ar"), "mean.TPM"]))
+
+# non-parametric test
+w5 = wilcox.test(mean.exp[which(mean.exp$colony == "A22"), "mean.TPM"],
+                 mean.exp[which(mean.exp$colony == "Ar"), "mean.TPM"],
+                 alternative = "two.sided", paired = TRUE, conf.int = TRUE)
+
+
+plot(log(mean.exp[which(mean.exp$colony == "A22"), "mean.TPM"]), 
+     log(mean.exp[which(mean.exp$colony == "Ar"), "mean.TPM"]))
+```
+
+
+
+
 For next analyses, extract list of gene names by response type.
 
 ```{r extract_Transcripts}
@@ -1024,6 +1062,10 @@ write.csv(responsive.lms.ann.type, file = paste(resultsdir, "Ap_responsive_genes
 
 Of the responsive transcripts, `r round(length(which(responsive.lms.ann.type$best.hit.to.nr != "-"))/length(responsive.lms.ann.type$best.hit.to.nr)*100, 0)`% are annotated, while `r round(length(which(annotation.table$best.hit.to.nr != "-"))/nrow(annotation.table) * 100, 0)`% of all transcripts are annotated.
 
+
+length(which(responsive.lms.ann.type$Transcript %in% annotation.table[which(annotation.table$best.hit.to.nr != "-"), "Sequence.Name"]))
+
+best.hit.to.nr != "-")
 
 ### Candidate gene enrichment
 
@@ -1703,7 +1745,7 @@ write.csv(shiny.dt, file = "ApRxN-shinyapp/responsive.lms.TPM.csv", quote = TRUE
 
 ```{r rData, echo=FALSE}
 # save RData for manuscript file
-save(TPM.dt.sub, RxNpval, sigtable, chi1, resp.TPM.dt.sub, Ap.type.table, tt2, tt3, GO.stress.Xsq, GO0006950.responsive, Ap.df, w1, w2, w3, Ap.T_on, hsp_responsive, hsp_all, mh.test, mh_plot, Ap.BP.resultParentChild, resp.stress.responsive.count, T_on.high.ttest, T_on.low.ttest, T_off.int.high.ttest, T_off.int.low.ttest, Ap.gsea.intersect, Ar.int.A22.bim.gsea, Ar.int.A22.low.gsea, Ar.int.A22.lowbim.gsea, quadratic.lms, file = paste("doc/ms_", Sys.Date(), ".RData", sep = ""))
+save(TPM.dt.sub, RxNpval, sigtable, chi1, resp.TPM.dt.sub, Ap.type.table, tt2, tt3, GO.stress.Xsq, GO0006950.responsive, Ap.df, w1, w2, w3, Ap.T_on, hsp_responsive, hsp_all, mh.test, mh_plot, Ap.BP.resultParentChild, resp.stress.responsive.count, T_on.high.ttest, T_on.low.ttest, T_off.int.high.ttest, T_off.int.low.ttest, Ap.gsea.intersect, Ar.int.A22.bim.gsea, Ar.int.A22.low.gsea, Ar.int.A22.lowbim.gsea, quadratic.lms, resp.TPM.dt.sub.pred, file = paste("doc/ms_", Sys.Date(), ".RData", sep = ""))
 ```
 
 
