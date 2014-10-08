@@ -537,6 +537,10 @@ dev.off()
 ##   2
 ```
 
+Table with 'Total Transcripts' category
+
+
+
 The question of biological interest is whether the marginal frequencies differ between the two species. Statistically, this can be addressed using the generalized [McNemar's test](http://en.wikipedia.org/wiki/McNemar's_test) of marginal homogeneity. 
 
 
@@ -1131,6 +1135,74 @@ resp.TPM.dt.sub.pred <- data.table(resp.TPM.dt.sub.pred)
 setkey(resp.TPM.dt.sub.pred, Transcript, colony)
 ```
 
+
+Does the mean expression level for all responsive genes differ among colonies?
+
+
+```r
+t.test(log(Ap.response.type$A22.opt), log(Ap.response.type$Ar.opt))
+```
+
+```
+## 
+## 	Welch Two Sample t-test
+## 
+## data:  log(Ap.response.type$A22.opt) and log(Ap.response.type$Ar.opt)
+## t = -9.09, df = 18041, p-value < 2.2e-16
+## alternative hypothesis: true difference in means is not equal to 0
+## 95 percent confidence interval:
+##  -0.185 -0.120
+## sample estimates:
+## mean of x mean of y 
+##     0.708     0.861
+```
+
+```r
+# expression level at optimum temp greater in Ar than A22
+
+# non-parametric test
+w4 = wilcox.test(Ap.response.type$A22.opt, 
+                 Ap.response.type$Ar.opt,
+                 alternative = "two.sided", paired = TRUE, conf.int = TRUE)
+
+
+mean.exp <- ddply(resp.TPM.dt.sub.pred, .(colony, Transcript), summarise,
+                  mean.TPM = mean(pTPM))
+
+t.test(log(mean.exp[which(mean.exp$colony == "A22"), "mean.TPM"]), 
+       log(mean.exp[which(mean.exp$colony == "Ar"), "mean.TPM"]))
+```
+
+```
+## 
+## 	Welch Two Sample t-test
+## 
+## data:  log(mean.exp[which(mean.exp$colony == "A22"), "mean.TPM"]) and log(mean.exp[which(mean.exp$colony == "Ar"), "mean.TPM"])
+## t = -6.53, df = 18077, p-value = 6.938e-11
+## alternative hypothesis: true difference in means is not equal to 0
+## 95 percent confidence interval:
+##  -0.1399 -0.0753
+## sample estimates:
+## mean of x mean of y 
+##     0.747     0.855
+```
+
+```r
+# non-parametric test
+w5 = wilcox.test(mean.exp[which(mean.exp$colony == "A22"), "mean.TPM"],
+                 mean.exp[which(mean.exp$colony == "Ar"), "mean.TPM"],
+                 alternative = "two.sided", paired = TRUE, conf.int = TRUE)
+
+
+plot(log(mean.exp[which(mean.exp$colony == "A22"), "mean.TPM"]), 
+     log(mean.exp[which(mean.exp$colony == "Ar"), "mean.TPM"]))
+```
+
+![plot of chunk mean_exp](figure/mean_exp.png) 
+
+
+
+
 For next analyses, extract list of gene names by response type.
 
 
@@ -1675,6 +1747,10 @@ write.csv(responsive.lms.ann.type, file = paste(resultsdir, "Ap_responsive_genes
 Of the responsive transcripts, 51% are annotated, while 51% of all transcripts are annotated.
 
 
+length(which(responsive.lms.ann.type$Transcript %in% annotation.table[which(annotation.table$best.hit.to.nr != "-"), "Sequence.Name"]))
+
+best.hit.to.nr != "-")
+
 ### Candidate gene enrichment
 
 First, I explore of candidate genes with the GO term "response to stress" are enriched in the responsive data set. 
@@ -2033,7 +2109,7 @@ Ap.BP.resultParentChild <- runTest(Ap.BP.GOdata, statistic = 'fisher', algorithm
 Ap.BP.resultParentChild
 
 # table results
-Ap.BP.ResTable <- GenTable(Ap.BP.GOdata, parentchild = Ap.BP.resultParentChild, topNodes = 132)
+Ap.BP.ResTable <- GenTable(Ap.BP.GOdata, parentchild = Ap.BP.resultParentChild, topNodes = 131)
 Ap.BP.ResTable
 ```
 
