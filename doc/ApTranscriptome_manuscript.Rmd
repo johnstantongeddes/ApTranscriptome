@@ -4,7 +4,6 @@ title: Thermal reactionomes reveal adaptive responses to thermal extremes in war
 author: ' '
 csl: ecology.csl
 output:
-  word_document: default
   pdf_document:
     fig_caption: yes
     includes:
@@ -14,6 +13,7 @@ output:
     number_sections: no
     toc_depth: 2
   html_document: null
+  word_document: default
 includes: header.tex
 bibliography: ApTranscriptome.bib
 ---
