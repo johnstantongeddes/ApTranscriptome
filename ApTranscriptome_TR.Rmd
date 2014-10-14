@@ -31,6 +31,7 @@ library(methods) # required by `knitcitations` when file is `knit` from command-
 library(reshape2)
 library(RColorBrewer)
 library(coin)
+library(gridExtra)
 
 # Load Bioconductor libraries
 source("http://bioconductor.org/biocLite.R")
@@ -733,7 +734,7 @@ No difference in the standard deviation of expression for bimodally-expressed tr
 
 ### Compare the temperature at which gene expression increases, T~on~, for *High* and *Low* genes
 
-Thermally-responsive genes could also differ in the temperatures at which they have increased or decreased expression in response to temperature changes. To examine this, I determine the temperature at which each responsive gene has the greated increase or decrease in expression.
+Thermally-responsive genes could also differ in the critical temperature of gene induction. To examine this, I determine the temperature at which each responsive gene has the greatest increase or decrease in expression.
 
 ```{r responsive_TPM}
 # extract TPM data for thermally-responsive transcripts
@@ -757,37 +758,6 @@ resp.TPM.dt.sub.pred <- ddply(resp.TPM.dt.sub, .(Transcript), .inform="TRUE", pr
 resp.TPM.dt.sub.pred <- data.table(resp.TPM.dt.sub.pred)
 setkey(resp.TPM.dt.sub.pred, Transcript, colony)
 ```
-
-
-Does the mean expression level for all responsive genes differ among colonies?
-
-```{r mean_exp}
-t.test(log(Ap.response.type$A22.opt), log(Ap.response.type$Ar.opt))
-# expression level at optimum temp greater in Ar than A22
-
-# non-parametric test
-w4 = wilcox.test(Ap.response.type$A22.opt, 
-                 Ap.response.type$Ar.opt,
-                 alternative = "two.sided", paired = TRUE, conf.int = TRUE)
-
-
-mean.exp <- ddply(resp.TPM.dt.sub.pred, .(colony, Transcript), summarise,
-                  mean.TPM = mean(pTPM))
-
-t.test(log(mean.exp[which(mean.exp$colony == "A22"), "mean.TPM"]), 
-       log(mean.exp[which(mean.exp$colony == "Ar"), "mean.TPM"]))
-
-# non-parametric test
-w5 = wilcox.test(mean.exp[which(mean.exp$colony == "A22"), "mean.TPM"],
-                 mean.exp[which(mean.exp$colony == "Ar"), "mean.TPM"],
-                 alternative = "two.sided", paired = TRUE, conf.int = TRUE)
-
-
-plot(log(mean.exp[which(mean.exp$colony == "A22"), "mean.TPM"]), 
-     log(mean.exp[which(mean.exp$colony == "Ar"), "mean.TPM"]))
-```
-
-
 
 
 For next analyses, extract list of gene names by response type.
@@ -922,19 +892,19 @@ str(A22.int.TPM.dt.sub)
 
 # make data.frame for results
 l5 <- length(unique(A22.int.TPM.dt.sub$Transcript))
-A22.int.T_off <- data.frame(Transcript = unique(A22.int.TPM.dt.sub$Transcript), colony = rep("ApVT", length = l5), type = rep("Low", length = l5), T_off_high = NA, T_off_low = NA)
+A22.int.T_off <- data.frame(Transcript = unique(A22.int.TPM.dt.sub$Transcript), colony = rep("ApVT", length = l5), type = rep("Intermediate", length = l5), High = NA, Low = NA)
 
 # loop across transcripts, calculating T_off at both high and low temperatures
 for(i in unique(A22.int.TPM.dt.sub$Transcript)) {
     subdf <- A22.int.TPM.dt.sub[i]
     
     subdf.high <- subdf[which(subdf$val >= 21), ]
-    T_off_high <- subdf.high[median(which(diff(subdf.high$TPM) == min(diff(subdf.high$TPM)))), val]
-    A22.int.T_off[which(A22.int.T_off$Transcript == i), "T_off_high"] <- T_off_high
+    High <- subdf.high[median(which(diff(subdf.high$TPM) == min(diff(subdf.high$TPM)))), val]
+    A22.int.T_off[which(A22.int.T_off$Transcript == i), "High"] <- High
     
     subdf.low <- subdf[which(subdf$val <= 21), ]
-    T_off_low <- subdf.low[median(which(diff(subdf.low$TPM) == min(diff(subdf.low$TPM)))), val]
-    A22.int.T_off[which(A22.int.T_off$Transcript == i), "T_off_low"] <- T_off_low
+    Low <- subdf.low[median(which(diff(subdf.low$TPM) == min(diff(subdf.low$TPM)))), val]
+    A22.int.T_off[which(A22.int.T_off$Transcript == i), "Low"] <- Low
 }   
 
 # repeat for Ar
@@ -944,28 +914,116 @@ str(Ar.int.TPM.dt.sub)
 
 # make data.frame for results
 l6 <- length(unique(Ar.int.TPM.dt.sub$Transcript))
-Ar.int.T_off <- data.frame(Transcript = unique(Ar.int.TPM.dt.sub$Transcript), colony = rep("ApVT", length = l6), type = rep("Low", length = l6), T_off_high = NA, T_off_low = NA)
+Ar.int.T_off <- data.frame(Transcript = unique(Ar.int.TPM.dt.sub$Transcript), colony = rep("AcNC", length = l6), type = rep("Intermediate", length = l6), High = NA, Low = NA)
 
 # loop across transcripts, calculating T_off at both high and low temperatures
 for(i in unique(Ar.int.TPM.dt.sub$Transcript)) {
     subdf <- Ar.int.TPM.dt.sub[i]
     
     subdf.high <- subdf[which(subdf$val >= 21), ]
-    T_off_high <- subdf.high[median(which(diff(subdf.high$TPM) == min(diff(subdf.high$TPM)))), val]
-    Ar.int.T_off[which(Ar.int.T_off$Transcript == i), "T_off_high"] <- T_off_high
+    High <- subdf.high[median(which(diff(subdf.high$TPM) == min(diff(subdf.high$TPM)))), val]
+    Ar.int.T_off[which(Ar.int.T_off$Transcript == i), "High"] <- High
     
     subdf.low <- subdf[which(subdf$val <= 21), ]
-    T_off_low <- subdf.low[median(which(diff(subdf.low$TPM) == min(diff(subdf.low$TPM)))), val]
-    Ar.int.T_off[which(Ar.int.T_off$Transcript == i), "T_off_low"] <- T_off_low
+    Low <- subdf.low[median(which(diff(subdf.low$TPM) == min(diff(subdf.low$TPM)))), val]
+    Ar.int.T_off[which(Ar.int.T_off$Transcript == i), "Low"] <- Low
 }
 
 # compare T_off among species
-(T_off.int.high.ttest <- t.test(Ar.int.T_off$T_off_high, A22.int.T_off$T_off_high))
+(T_off.int.high.ttest <- t.test(Ar.int.T_off$High, A22.int.T_off$High))
 
-(T_off.int.low.ttest <- t.test(Ar.int.T_off$T_off_low, A22.int.T_off$T_off_low))
+(T_off.int.low.ttest <- t.test(Ar.int.T_off$Low, A22.int.T_off$Low))
 ```
 
-As with genes turned on at high temperatures, *A. carolinensis* **Intermediate** genes are down-regulated on average at 1.2C higher temperatures than *A. picea* **Intermediate** genes. 
+As with genes turned on at high temperatures, *A. carolinensis* **Intermediate** genes are down-regulated on average at 2.7°C higher temperatures than *A. picea* **Intermediate** genes. In contrast, towards low temperatures, the temperature of mean temperature of downregulation was higher for *A. picea* (10.6°) than *A. carolinensis* (9.75°).
+
+Visualize T~off~ for both *Low* and *High* genes on the same plot.
+
+```{r activation_plot, echo=FALSE, eval=TRUE}
+# reshape data
+Ar.T_off.df <- melt(Ar.int.T_off, id.vars = c("Transcript", "colony", "type"), 
+                 measure.vars = c("High", "Low"),
+                 variable.name = "class",
+                 value.name = "T_off")
+
+A22.T_off.df <- melt(A22.int.T_off, id.vars = c("Transcript", "colony", "type"), 
+                 measure.vars = c("High", "Low"),
+                 variable.name = "class",
+                 value.name = "T_off")
+
+
+# merge data for plotting
+Ap.T_off <- rbind(Ar.T_off.df, A22.T_off.df)
+Ap.T_off$Species <- ifelse(Ap.T_off$colony == "ApVT", "A. picea", "A. carolinensis")
+# change factor levels to "Low" first
+Ap.T_off$class = factor(Ap.T_off$class, levels = c("Low", "High"))
+
+
+# combined plot
+T_off_plot <- ggplot(Ap.T_off, aes(x = T_off, y = ..density.., colour = Species, group = Species, fill = Species)) +
+    facet_grid(. ~ class) +
+    geom_histogram(position = "dodge", binwidth = 3) +
+    geom_density(adjust = 3, fill = NA, size = 2) + 
+    labs(x = "Temperature of gene activation", y = "Density") +
+    theme(axis.title = element_text(size = rel(2))) +
+    theme(axis.text = element_text(size = rel(1.2)))
+#    theme(legend.position = "none")
+print(T_off_plot)
+```
+
+Make a plot with all 4 gene activation comparisons.
+
+```{r combined_plot}
+gg2 <- ggplot(Ap.T_on, aes(x = T_on, y = ..density.., colour = Species, group = Species, fill = Species)) +
+    facet_grid(. ~ type) +
+    geom_histogram(position = "dodge", binwidth = 3) +
+    geom_density(adjust = 3, fill = NA, size = 2) + 
+    labs(x = "Critical temperature of upregulation", y = "Density") +
+    theme(legend.position = "none")  
+
+gg3 <- ggplot(Ap.T_off, aes(x = T_off, y = ..density.., colour = Species, group = Species, fill = Species)) +
+    facet_grid(. ~ class) +
+    geom_histogram(position = "dodge", binwidth = 3) +
+    geom_density(adjust = 3, fill = NA, size = 2) + 
+    labs(x = "Critical temperature of downregulation", y = "Density") +
+    theme(legend.position = "bottom", legend.text = element_text(size = 12, face = 3))  
+
+# grid.arrange
+grid.arrange(gg2, gg3, nrow = 2)
+```
+
+
+
+
+Does the mean expression level for all responsive genes differ among colonies?
+
+```{r mean_exp}
+t.test(log(Ap.response.type$A22.opt), log(Ap.response.type$Ar.opt))
+# expression level at optimum temp greater in Ar than A22
+
+# non-parametric test
+w4 = wilcox.test(Ap.response.type$A22.opt, 
+                 Ap.response.type$Ar.opt,
+                 alternative = "two.sided", paired = TRUE, conf.int = TRUE)
+
+
+mean.exp <- ddply(resp.TPM.dt.sub.pred, .(colony, Transcript), summarise,
+                  mean.TPM = mean(pTPM))
+
+t.test(log(mean.exp[which(mean.exp$colony == "A22"), "mean.TPM"]), 
+       log(mean.exp[which(mean.exp$colony == "Ar"), "mean.TPM"]))
+
+# non-parametric test
+w5 = wilcox.test(mean.exp[which(mean.exp$colony == "A22"), "mean.TPM"],
+                 mean.exp[which(mean.exp$colony == "Ar"), "mean.TPM"],
+                 alternative = "two.sided", paired = TRUE, conf.int = TRUE)
+
+
+plot(log(mean.exp[which(mean.exp$colony == "A22"), "mean.TPM"]), 
+     log(mean.exp[which(mean.exp$colony == "Ar"), "mean.TPM"]))
+```
+
+
 
 
 
