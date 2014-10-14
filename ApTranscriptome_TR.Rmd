@@ -586,10 +586,9 @@ In this section, I perform a number of comparisons of the thermal reactionomes b
 
 - compare profiles of the temperature of maximum expression for thermally-responsive transcripts
 - compare basal expression at optimal temperature for thermally-responsive genes
-- compare thermal stability of *Intermediate* genes
-- compare thermal sensitivity of *Bimodal* genes
-- compare the temperature at which gene expression increases, T~on~, for *High* and *Low* genes
-- evaluate the extent to which thermal reaction norms differ between species by mean and shape
+- compare degree of uregulation to constitutive expression
+- compare the critical temperature of transcript upregulation, T~on~, between species for transcripts induced in response to high or low temperatures 
+- compare the critical temperature of transcript downregulation, T~off~, between species for transcripts induced in response to high or low temperatures 
 
 
 ### Compare temperature of maximum expression between species
@@ -672,67 +671,30 @@ w3
 The non-parametric test for both comparisions also finds greater expression in *Ar* than *A22* at the optimal temperature.
 
 
-### Compare thermal stability of *Intermediate* genes
 
-*Intermediate* genes are those that have expression that is shut-down as conditions become stressful, likely non-essential molecular processes. We hypothesized that if the more southern *Ar* species was more thermally-tolerant than *A22*, transcripts with *Intermediate* expression (10-30C) would be active across a wider range of temperatures. To test this with our data, we calculated the standard deviation of the expression function for each temperature transcript that was 'Intermediate' expressed in each species.
 
-```{r thermal_breadth}
-# extract 'Intermediate' expressed transcripts for A22
-A22.int.transcripts <- Ap.response.type[which(Ap.response.type$A22.type == "Intermediate"), ]
-A22.int.lm <- RxNlmAIC[A22.int.transcripts$Transcript]
-length(A22.int.lm)
 
-# apply `transcriptSD` function to all transcripts
-A22.int.sd <- unlist(Map(transcriptSD, A22.int.lm, colony = "A22"))
-A22.int.sd <- data.frame(colony = "A22", exp_sd = A22.int.sd)
 
-# repeat for Ar
-Ar.int.transcripts <- Ap.response.type[which(Ap.response.type$Ar.type == "Intermediate"), ]
-Ar.int.lm <- RxNlmAIC[Ar.int.transcripts$Transcript]
-Ar.int.sd <- unlist(Map(transcriptSD, Ar.int.lm, colony = "Ar"))
-Ar.int.sd <- data.frame(colony = "Ar", exp_sd = Ar.int.sd)
+### Comparison of the degree of upregulation against constitutive expression
 
-# T-test comparing standard deviation of expression between colonies
-(t.varint <- t.test(Ar.int.sd$exp_sd, A22.int.sd$exp_sd, alternative = "two.sided"))
+To test the genetic assimilation hypothesis, I compare the degree of upregulation of a transcript against constitutive expression at optimal temperatures. 
+
+
+```{r induction_vs_constitutive}
+Ap.constitutive <- resp.TPM.dt.sub.pred[resp.TPM.dt.sub.pred$val == ]
+
 ```
 
-Consistent with our hypothesis, *Intermediate* transcripts in *Ar* are expressed over a significantly wider range of temperatures than in *A22*. 
-
-```{r plot_thermal_breadth, echo=FALSE, eval=TRUE}
-# prep data for plotting
-Ap.int.sd <- rbind(A22.int.sd, Ar.int.sd)
-
-# plot thermal breadth
-g1 <- ggplot(Ap.int.sd, aes(x=exp_sd, fill=colony)) + geom_density(alpha=0.2, position="identity")
-g1 + scale_y_continuous(name="Density") +
-  scale_x_continuous(name=expression("Standard deviation of expression"))
-```
-
-### Compare thermal sensitivity of *Bimodal* genes
-
-As the converse of the above hypothesis, a species that is especially thermally-sensitive is likely to activate expression of molecular processes for thermal tolerance more quickly. We tested this using the same approach as for the *Intermediate* transcripts, but using the inverse of the *Bimodal* expressed transcripts. 
-
-```{r calc_Bimodal_variance}
-# extract 'Bimodal' expressed transcripts for A22 species
-A22.bim.lm <- RxNlmAIC[Ap.response.type[which(Ap.response.type$A22.type == "Bimodal"), "Transcript"]]
-length(A22.bim.lm)
-
-# apply `transcriptSD` function to all transcripts
-A22.bim.sd <- unlist(Map(transcriptSD, A22.bim.lm, colony = "A22"))
-
-# repeat for Ar 
-Ar.bim.lm <- RxNlmAIC[Ap.response.type[which(Ap.response.type$Ar.type == "Bimodal"), "Transcript"]]
-length(Ar.bim.lm)
-Ar.bim.sd <- unlist(Map(transcriptSD, Ar.bim.lm, colony = "Ar"))
-
-# t-test to compare standard deviation of 'Bimodal' transcripts between colonies
-(t.varbim <- t.test(Ar.bim.sd, A22.bim.sd))
-```
-
-No difference in the standard deviation of expression for bimodally-expressed transcripts between colonies.
 
 
-### Compare the temperature at which gene expression increases, T~on~, for *High* and *Low* genes
+
+
+
+
+
+
+
+### Compare the critical temperature of transcript upregulation, T~on~, between species for transcripts induced in response to high or low temperatures
 
 Thermally-responsive genes could also differ in the critical temperature of gene induction. To examine this, I determine the temperature at which each responsive gene has the greatest increase or decrease in expression.
 
@@ -882,7 +844,10 @@ print(T_on_plot)
 ```
 
 
-Repeat analysis for when **Intermediate** genes are turned *off*.
+### Compare the critical temperature of transcript downregulation, T~off~, between species for transcripts induced in response to high or low temperatures 
+
+This analysis is comparable to the one above, but for the *Intermediate* genes that are downregulated, split into the low and high temperature extremes.
+
 
 ```{r T_int_off}
 # transcripts expressed at *Intermediate* temperatures in A22
@@ -989,11 +954,10 @@ gg3 <- ggplot(Ap.T_off, aes(x = T_off, y = ..density.., colour = Species, group 
     theme(legend.position = "bottom", legend.text = element_text(size = 12, face = 3))  
 
 # grid.arrange
+#tiff("results/crit_temp_regulation_Fig2.tiff", compression = "lzw", bg = "white")
 grid.arrange(gg2, gg3, nrow = 2)
+#dev.off()
 ```
-
-
-
 
 Does the mean expression level for all responsive genes differ among colonies?
 
@@ -1023,73 +987,6 @@ plot(log(mean.exp[which(mean.exp$colony == "A22"), "mean.TPM"]),
      log(mean.exp[which(mean.exp$colony == "Ar"), "mean.TPM"]))
 ```
 
-
-
-
-
-### Evaluate the extent to which differences in thermal reaction norms are due to mean or shape
-
-For the transcripts that differed in thermal responsiveness due to temperature, was the difference primarily due to differences in the mean value of expression, slope, curvature of a higher order effect? To test this, I rougly follow `r citet("10.1086/675302")` by defining differences among reation norms for individual genes due to changes in the overall mean, slope, curvature and all higher-order shape differences (i.e. wiggle).
-
-- *Mean, M*: overall difference in the mean expression value across all temperatures
-- *Slope, S*: difference in overall slope
-- *Curvature, C*: average difference in curvature of the reaction norm
-- *Wiggle, W*: variability in shape not captured by the previous three measures
-
-```{r varshape, echo=TRUE, eval=TRUE}
-varshape.out <- ldply(interaction.lms, .progress = "none", RxNvarshape)
-
-# delta mean
-boxplot(varshape.out$A22.mean, varshape.out$Ar.mean)
-boxplot(log(varshape.out$A22.mean), log(varshape.out$Ar.mean))
-
-t.mean <- t.test(log(varshape.out$A22.mean), log(varshape.out$Ar.mean), paired = TRUE)
-t.mean
-
-# delta slope
-boxplot(log(varshape.out$A22.slope), log(varshape.out$Ar.slope))
-t.slope <- t.test(log(varshape.out$A22.slope + 0.1), log(varshape.out$Ar.slope + 0.1), paired = TRUE)
-t.slope
-
-# delta curvature
-boxplot(log(varshape.out$A22.curve), log(varshape.out$Ar.curve))
-t.curvature <- t.test(log(varshape.out$A22.curve + 0.1), log(varshape.out$Ar.curve + 0.1), paired = TRUE)
-t.curvature
-
-# delta wiggle - small values so use un-transformed
-boxplot(varshape.out$A22.wiggle, varshape.out$Ar.wiggle)
-t.wiggle <- t.test(varshape.out$A22.wiggle, varshape.out$Ar.wiggle, paired = TRUE)
-t.wiggle
-```
-
-Reaction norms differ between species by mean and slope, but not by curvature or wiggle.
-
-Next, I partition the differences in the reaction norms into the variation explained by differences in the trait means and slope, as curvature and wiggle did not differ between species.
-
-```{r partition_reaction_norm_variation}
-# calculate differences in mean, slope, curvature and wiggle between colonies for each transcript
-# mean = mean1 - mean2
-varshape.out$lmean <- log(varshape.out$A22.mean) - log(varshape.out$Ar.mean)
-
-# slope = slope1 - slope2
-varshape.out$lslope <- log(varshape.out$A22.slope + 0.1) - log(varshape.out$Ar.slope + 0.1)
-
-# take absolute value of each value and sum to get total differences between reaction norms
-varshape.out$ltotal <- abs(varshape.out$lmean) + abs(varshape.out$lslope)
-
-# variation in reaction norms due to differences in mean
-varshape.out$prop.lmean <- abs(varshape.out$lmean) / varshape.out$ltotal
-varshape.out$prop.lslope <- abs(varshape.out$lslope) / varshape.out$ltotal
-
-# Mean proportion and 95% CI of total variation of each measure
-mean(varshape.out$prop.lmean)
-(qlmean <- quantile(varshape.out$prop.lmean, probs = c(0.05, 0.5, 0.95)))
-
-mean(varshape.out$prop.lslope)
-(qlslope <- quantile(varshape.out$prop.lslope, probs = c(0.05, 0.5, 0.95)))
-```
-
-From this analysis, about 80% of the differences in reaction norms between species are due to changes in the mean, with the remainder being due to changes in slope.
 
 
 
@@ -1804,12 +1701,12 @@ write.csv(shiny.dt, file = "ApRxN-shinyapp/responsive.lms.TPM.csv", quote = TRUE
 
 ```{r rData, echo=FALSE}
 # save RData for manuscript file
-save(TPM.dt.sub, RxNpval, sigtable, chi1, resp.TPM.dt.sub, Ap.type.table, tt2, tt3, GO.stress.Xsq, GO0006950.responsive, Ap.df, w1, w2, w3, Ap.T_on, hsp_responsive, hsp_all, mh.test, mh_plot, Ap.BP.resultParentChild, resp.stress.responsive.count, T_on.high.ttest, T_on.low.ttest, T_off.int.high.ttest, T_off.int.low.ttest, Ap.gsea.intersect, Ar.int.A22.bim.gsea, Ar.int.A22.low.gsea, Ar.int.A22.lowbim.gsea, quadratic.lms, resp.TPM.dt.sub.pred, md, file = paste("doc/ms_", Sys.Date(), ".RData", sep = ""))
+save(TPM.dt.sub, RxNpval, sigtable, chi1, resp.TPM.dt.sub, Ap.type.table, tt2, tt3, GO.stress.Xsq, GO0006950.responsive, Ap.df, w1, w2, w3, Ap.T_on, Ap.T_off, hsp_responsive, hsp_all, mh.test, mh_plot, Ap.BP.resultParentChild, resp.stress.responsive.count, T_on.high.ttest, T_on.low.ttest, T_off.int.high.ttest, T_off.int.low.ttest, Ap.gsea.intersect, Ar.int.A22.bim.gsea, Ar.int.A22.low.gsea, Ar.int.A22.lowbim.gsea, quadratic.lms, resp.TPM.dt.sub.pred, md, file = paste("doc/ms_", Sys.Date(), ".RData", sep = ""))
 ```
 
 
 ## Session information
-
+ 
 ```{r session}
 save.image()
 sessionInfo()
