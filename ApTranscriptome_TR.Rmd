@@ -3,7 +3,7 @@ Thermal reactionome of the common ant species *Aphaenogaster picea* and *A. caro
    
 **Author:** [John Stanton-Geddes](john.stantongeddes.research@gmail.com)
 
-**July 17, 2014**
+**October 14, 2014**
 
 **Technical Report No. 3**
 
@@ -435,6 +435,8 @@ stopifnot(nrow(temperature.response.type) == length(temperature.lms))
 # merge results
 Ap.response.type <- rbind(interaction.response.type, temperature.response.type)
 colnames(Ap.response.type)[which(colnames(Ap.response.type) == ".id")] <- "Transcript"
+Ap.response.type <- data.table(Ap.response.type)
+setkey(Ap.response.type, Transcript)
 str(Ap.response.type)
 
 # save results to file
@@ -518,8 +520,13 @@ Ec.cells <- sign(tt2 - Ec) * (tt2 - Ec)^2 / Ec
 md <- melt(Ec.cells)
 
 mh_plot <- qplot(x=Apic, y=Acar, data=md, fill=value, geom="tile", ylim = rev(levels(md$Acar))) + 
-  scale_fill_gradient2(limits=c(-600, 600)) 
+  scale_fill_gradient2(limits=c(-600, 600)) +
+  theme(axis.title = element_text(face="italic")) +
+  labs(x = "A. picea", y = "A. carolinensis") 
+
+tiff("results/matched_observations_Fig1.tiff", compression = "lzw")
 mh_plot
+dev.off()
 ```
 
 The number of thermally-responsive in each response category differs between the colonies, with the msot transcripts expressed at *Low* temperatures in both colonies. For *ApVT*, an equal number of transcripts are expressed at *High* and *Bimodal*, followed by *Intermediate* transcripts. For *AcNC*, transcripts expressed at *Intermediate* temperatures are next most common, followed by *High* and *Bimodal*. 
@@ -672,24 +679,35 @@ The non-parametric test for both comparisions also finds greater expression in *
 
 
 
-
-
-
 ### Comparison of the degree of upregulation against constitutive expression
 
 To test the genetic assimilation hypothesis, I compare the degree of upregulation of a transcript against constitutive expression at optimal temperatures. 
 
 
 ```{r induction_vs_constitutive}
-Ap.constitutive <- resp.TPM.dt.sub.pred[resp.TPM.dt.sub.pred$val == ]
+# calculate degree of induction
+Ap.induction <- ddply(resp.TPM.dt.sub.pred, .(colony, Transcript), summarise, 
+                      upreg = (max(pTPM) - min(pTPM))/min(pTPM) * 100 )
+# merge optimum expression, in Ap.response.type data.frame, with predicted TPM data
+Ap.induction <- data.table(Ap.induction)
+setkey(Ap.induction, Transcript)
+Ap.response.type2 <- Ap.induction[Ap.response.type]
 
+
+# plot constitutive expression vs induction for High, Low and Bimodal genes only
+
+setkey(Ap.response.type2, A22.type)
+Ap.response.type2.up <- Ap.response.type2[A22.type!="Intermediate", ]
+setkey(Ap.response.type2.up, Ar.type)
+Ap.response.type2.up <- Ap.response.type2.up[Ar.type!="Intermediate", ]
+
+
+gg5 <- ggplot(Ap.response.type2.up, aes(x = log(A22.opt), y = log(upreg), colour = A22.type)) + 
+  geom_point() + 
+  facet_grid(. ~ colony) 
+
+print(gg5)
 ```
-
-
-
-
-
-
 
 
 
