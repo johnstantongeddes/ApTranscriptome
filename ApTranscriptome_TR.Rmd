@@ -626,21 +626,21 @@ Genes upregulated in response to thermal stress in one species may have greater 
 
 ```{r optimum_expression_comparison}
 # list of transcripts that are 'high' expressed in A22
-A22.high.transcripts <- Ap.response.type[which(Ap.response.type$A22.type == "High"), ]
+A22.high.transcripts.df <- Ap.response.type[which(Ap.response.type$A22.type == "High"), ]
 
 # Compare expression at optimum temp (A22.opt) between colonies using t-test
-t.test(A22.high.transcripts$A22.opt, A22.high.transcripts$Ar.opt)
-boxplot(A22.high.transcripts$A22.opt, A22.high.transcripts$Ar.opt)
+t.test(A22.high.transcripts.df$A22.opt, A22.high.transcripts.df$Ar.opt)
+boxplot(A22.high.transcripts.df$A22.opt, A22.high.transcripts.df$Ar.opt)
 
 # T test on log-transformed values to control for outliers
-t.test(log(A22.high.transcripts$A22.opt+1), log(A22.high.transcripts$Ar.opt+1))
-boxplot(log(A22.high.transcripts$A22.opt+1), log(A22.high.transcripts$Ar.opt+1))
+t.test(log(A22.high.transcripts.df$A22.opt+1), log(A22.high.transcripts.df$Ar.opt+1))
+boxplot(log(A22.high.transcripts.df$A22.opt+1), log(A22.high.transcripts.df$Ar.opt+1))
 ```
 
 The `t.test` fails to account for the many orders of magnitude difference in expression among transcripts, e.g. non-equal variances. This problem is the key issue in the analysis of differential expression `r citep(c("10.1186/1471-2105-11-94", "10.1038/nprot.2013.099"))`. As my goal is simply to determine if expression is typically greater at optimal temperatures (19.5 C) in *Ar* than *A22* for genes that are up-regulated at high temperatures in *A22*, I use a non-parametric Wilcoxon signed rank-test
 
 ```{r A22_high_wilcoxon}
-w1 <- wilcox.test(A22.high.transcripts$A22.opt, A22.high.transcripts$Ar.opt, alternative = "two.sided", paired = TRUE, conf.int = TRUE)
+w1 <- wilcox.test(A22.high.transcripts.df$A22.opt, A22.high.transcripts.df$Ar.opt, alternative = "two.sided", paired = TRUE, conf.int = TRUE)
 w1
 ```
 
@@ -650,14 +650,14 @@ Next I test the converse: do genes up-regulated at low temperatures in *Ar* have
 
 ```{r Ar_low_wilcoxon}
 # list of transcripts that are 'high' expressed in Ar
-Ar.low.transcripts <- Ap.response.type[which(Ap.response.type$Ar.type == "Low"), ]
+Ar.low.transcripts.df <- Ap.response.type[which(Ap.response.type$Ar.type == "Low"), ]
 
 # t-test with log values
-t.test(log(Ar.low.transcripts$A22.opt+1), log(Ar.low.transcripts$Ar.opt+1))
-boxplot(log(Ar.low.transcripts$A22.opt+1), log(Ar.low.transcripts$Ar.opt+1))
+t.test(log(Ar.low.transcripts.df$A22.opt+1), log(Ar.low.transcripts.df$Ar.opt+1))
+boxplot(log(Ar.low.transcripts.df$A22.opt+1), log(Ar.low.transcripts.df$Ar.opt+1))
 
 # Wilcoxon signed rank-test
-w2 <- wilcox.test(Ar.low.transcripts$A22.opt, Ar.low.transcripts$Ar.opt, alternative = "two.sided", paired = TRUE, conf.int = TRUE)
+w2 <- wilcox.test(Ar.low.transcripts.df$A22.opt, Ar.low.transcripts.df$Ar.opt, alternative = "two.sided", paired = TRUE, conf.int = TRUE)
 w2
 ```
 
@@ -688,25 +688,71 @@ To test the genetic assimilation hypothesis, I compare the degree of upregulatio
 # calculate degree of induction
 Ap.induction <- ddply(resp.TPM.dt.sub.pred, .(colony, Transcript), summarise, 
                       upreg = (max(pTPM) - min(pTPM))/min(pTPM) * 100 )
+# cast to wide
+Ap.induction.wide <- dcast(Ap.induction, Transcript ~ colony, value.var = "upreg")
+names(Ap.induction.wide)[names(Ap.induction.wide)=="A22"] <- "A22.upreg"
+names(Ap.induction.wide)[names(Ap.induction.wide)=="Ar"] <- "Ar.upreg"
+
 # merge optimum expression, in Ap.response.type data.frame, with predicted TPM data
-Ap.induction <- data.table(Ap.induction)
-setkey(Ap.induction, Transcript)
-Ap.response.type2 <- Ap.induction[Ap.response.type]
+Ap.induction.wide <- data.table(Ap.induction.wide)
+setkey(Ap.induction.wide, Transcript)
+Ap.response.type2 <- Ap.induction.wide[Ap.response.type]
 
 
 # plot constitutive expression vs induction for High, Low and Bimodal genes only
-
 setkey(Ap.response.type2, A22.type)
-Ap.response.type2.up <- Ap.response.type2[A22.type!="Intermediate", ]
+up.terms <- c("Bimodal", "Low", "High")
+Ap.response.type2.up <- Ap.response.type2[A22.type %in% up.terms, ]
+
 setkey(Ap.response.type2.up, Ar.type)
-Ap.response.type2.up <- Ap.response.type2.up[Ar.type!="Intermediate", ]
+Ap.response.type2.up <- Ap.response.type2.up[Ar.type %in% up.terms, ]
+Ap.response.type2.up <- droplevels(Ap.response.type2.up)
 
-
-gg5 <- ggplot(Ap.response.type2.up, aes(x = log(A22.opt), y = log(upreg), colour = A22.type)) + 
+gg5 <- ggplot(Ap.response.type2.up, aes(x = log(Ar.opt), y = log(A22.upreg), colour = A22.type)) + 
   geom_point() + 
-  facet_grid(. ~ colony) 
+  geom_smooth() +
+  labs(x="log(consitutive expression of A. carolinensis)", y = "log(Degree of inducibility in A. picea)") +
+  theme(legend.position = "none")  
 
-print(gg5)
+gg6 <- ggplot(Ap.response.type2.up, aes(x = log(A22.opt), y = log(Ar.upreg), colour = Ar.type)) + 
+  geom_point() + 
+  geom_smooth() +
+  labs(x="log(consitutive expression of A. picea)", y = "log(Degree of inducibility in A. carolinensis)") +
+  theme(legend.justification=c(1,0), legend.position=c(1,0), legend.text = element_text(size = 12))  
+
+# grid.arrange
+tiff("results/constitutive_vs_inducibility.tiff", compression = "lzw", bg = "white")
+grid.arrange(gg5, gg6, nrow = 1)
+dev.off()
+
+### plot constitutive expression in one species vs the other
+gg7 <- ggplot(Ap.response.type2.up, aes(x = log(Ar.opt), y = log(A22.opt), colour = A22.type)) + 
+  geom_point() + 
+  geom_smooth() +
+  labs(x="log(consitutive expression of A. carolinensis)", y = "log(constitutive expression in A. picea)") +
+  theme(legend.position = "none")  
+gg7
+
+### plot inducibility in one species vs the other
+gg8 <- ggplot(Ap.response.type2.up, aes(x = log(Ar.upreg), y = log(A22.upreg), colour = A22.type)) + 
+  geom_point() + 
+  geom_smooth() +
+  labs(x="log(upregulation in A. carolinensis)", y = "log(upregulation in A. picea)") +
+  theme(legend.position = "none")  
+gg8
+
+
+### constitutive vs upregulated for *High* genes only
+Ap.response.type2.A22.high <- Ap.response.type2[Ap.response.type2$Transcript %in% A22.high.transcripts.df$Transcript, ]
+str(Ap.response.type2.A22.high)
+
+gg9 <- ggplot(Ap.response.type2.A22.high, aes(x = log(Ar.opt), y = log(A22.opt), colour = Ar.type)) + 
+  geom_point() + 
+  geom_smooth() +
+  labs(x="log(consitutive expression of A. carolinensis)", y = "log(Degree of inducibility in A. picea)") +
+  theme(legend.position = "none")  
+gg9
+
 ```
 
 
