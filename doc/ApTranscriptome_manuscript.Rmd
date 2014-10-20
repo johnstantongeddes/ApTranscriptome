@@ -4,7 +4,6 @@ title: Thermal reactionomes reveal adaptive responses to thermal extremes in war
 author: ' '
 csl: ecology.csl
 output:
-  word_document: default
   pdf_document:
     fig_caption: yes
     includes:
@@ -14,6 +13,7 @@ output:
     number_sections: no
     toc_depth: 2
   html_document: null
+  word_document: default
 includes: header.tex
 bibliography: ApTranscriptome.bib
 ---
@@ -223,12 +223,14 @@ Figure 3. Scatterplots of (A) constitutive expression in *A. picea* against degr
 
 # Figures
 
-![Figure 1](matched_observations_Fig1.tiff)
+![Matched expression type data for *A. carolinensis* (rows) and *A. picea* (columns). The color of each cell represent the deviation of the observed from the expected number of transcripts based on hypothetical equivalence of the marginal frequencies. Blue cells are those with significant excesses, while red cells are those with significant absences.](../results/matched_observations_Fig1.png)
 
-![Figure 2](crit_temp_regulation_Fig2.tiff)
+![Histogram with smooth density estimate of temperature of maximum change in expression for transcripts that have increased expression at **Low** and **High** temperatures. Red bars and lines are for *A. carolinensis* while blue bars and lines are for *A. picea*.](../results/crit_temp_regulation_Fig2.png)
 
-![Figure 3](constitutive_vs_upreg_Fig3.tiff)
+![Scatterplots of (A) constitutive expression in *A. picea* against degree of induction for upregulated transcripts in *A. carolinensis* and (B) constitutive expression in *A. carolinensis* against degree of induction for upregulated transcripts in *A. picea.*. For each species, the transcripts are split into expression category based on the ... The top row is for *High* transcripts, middle is for *Intermediate* transcripts and bottom row is for *Low* transcripts.](../results/constitutive_vs_upreg_Fig3.png)
 
 
 # References
+
+
 
