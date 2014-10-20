@@ -452,10 +452,27 @@ Ar.type.table <- table(Ap.response.type[ , 'Ar.type'])
 # table
 (Ap.type.table <- rbind(A22.type.table, Ar.type.table))
 
-# Pearson Chi-square test
-chi1 <- chisq.test(Ap.type.table)
-chi1
 
+# test if the total number of responsive transcripts differs between species 
+resp.table <- matrix(nrow=2, ncol=2, dimnames = list(c("R", "NR"), c("Ap", "Ac")))
+resp.table[1,1] <- sum(A22.type.table[which(names(A22.type.table) != "NotResp")])
+resp.table[2,1] <- nrow(annotation.table) - sum(A22.type.table[which(names(A22.type.table) != "NotResp")])
+resp.table[1,2] <- sum(Ar.type.table[which(names(Ar.type.table) != "NotResp")])
+resp.table[2,2] <- nrow(annotation.table) - sum(Ar.type.table[which(names(Ar.type.table) != "NotResp")])
+resp.table
+
+chi1 <- chisq.test(resp.table)
+
+# test if the number of transcripts in each category differs from null expectations using Pearson Chi-square test
+chi2 <- chisq.test(Ap.type.table)
+chi2
+```
+
+The total number of responsive transcripts does not differ between species, though their groupings into expression categories does differ. 
+
+
+
+```{r mosaic_plot}
 # Reorganize for plotting to show overlap among categories between colonies
 type.table <- table(Acar = Ap.response.type[ , 'Ar.type'], Apic = Ap.response.type[ , 'A22.type'])
 # reorder
@@ -471,12 +488,6 @@ text(c(.1,.5,.75,.85,.99), par("usr")[3] - 0.05, srt = 45, adj = 1, labels = lab
 text(.5, par("usr")[4], "A. carolinensis", xpd = TRUE, font = 3)
 legend(1.05, .75, fill = mosaic.colors, c("Low", "Intermediate", "High", "Bimodal", "NotResp"), xpd=TRUE)
 dev.off()
-```
-
-Table with 'Total Transcripts' category
-
-```{r total_table}
-
 ```
 
 The question of biological interest is whether the marginal frequencies differ between the two species. Statistically, this can be addressed using the generalized [McNemar's test](http://en.wikipedia.org/wiki/McNemar's_test) of marginal homogeneity. 
@@ -502,7 +513,9 @@ abs(d5)/dsum
 # e2 (Acar Intermediate) contributes ~44% to Z~0~
 ```
 
-```{r mh_plot}
+To identify specific cells that deviate from null expectation, calculate expected observations assuming that marginal frequencies equal the overall frequency for each expression category, then determine which cells have deviations between observed and expected that are greater than the overall X^2^ statistic.
+
+```{r chi_posthoc}
 # overall mean for each class
 rs <- rowSums(tt2)
 cs <- colSums(tt2)
@@ -517,6 +530,12 @@ Ec.dev <- tt2 - Ec
 # calculate chi-squared deviation 
 Ec.cells <- sign(tt2 - Ec) * (tt2 - Ec)^2 / Ec
 
+# which of these are significantly great than expected chi-squared?
+```
+
+To visualize this, make a heatmap that shows deviation from expected count.
+
+```{r mh_plot}
 md <- melt(Ec.cells)
 
 mh_plot <- qplot(x=Apic, y=Acar, data=md, fill=value, geom="tile", ylim = rev(levels(md$Acar))) + 
@@ -698,7 +717,6 @@ Ap.induction.wide <- data.table(Ap.induction.wide)
 setkey(Ap.induction.wide, Transcript)
 Ap.response.type2 <- Ap.induction.wide[Ap.response.type]
 
-
 # plot constitutive expression vs induction for High, Low and Bimodal genes only
 setkey(Ap.response.type2, A22.type)
 up.terms <- c("Bimodal", "Low", "High")
@@ -721,7 +739,7 @@ gg6 <- ggplot(Ap.response.type2.up, aes(x = log(A22.opt), y = log(Ar.upreg), col
   theme(legend.justification=c(1,0), legend.position=c(1,0), legend.text = element_text(size = 12))  
 
 # grid.arrange
-tiff("results/constitutive_vs_inducibility.tiff", compression = "lzw", bg = "white")
+png("results/constitutive_vs_inducibility.png")
 grid.arrange(gg5, gg6, nrow = 1)
 dev.off()
 
@@ -731,7 +749,11 @@ gg7 <- ggplot(Ap.response.type2.up, aes(x = log(Ar.opt), y = log(A22.opt), colou
   geom_smooth() +
   labs(x="log(consitutive expression of A. carolinensis)", y = "log(constitutive expression in A. picea)") +
   theme(legend.position = "none")  
+gg7 <- gg7 + geom_abline(intercept=0, slope=1)
+
+png("results/constitutive_comparison.png")
 gg7
+dev.off()
 
 ### plot inducibility in one species vs the other
 gg8 <- ggplot(Ap.response.type2.up, aes(x = log(Ar.upreg), y = log(A22.upreg), colour = A22.type)) + 
@@ -741,6 +763,9 @@ gg8 <- ggplot(Ap.response.type2.up, aes(x = log(Ar.upreg), y = log(A22.upreg), c
   theme(legend.position = "none")  
 gg8
 
+png("results/upregulation_comparison.png")
+gg8
+dev.off()
 
 ### constitutive vs upregulated for *High* genes only
 Ap.response.type2.A22.high <- Ap.response.type2[Ap.response.type2$Transcript %in% A22.high.transcripts.df$Transcript, ]
@@ -751,8 +776,11 @@ gg9 <- ggplot(Ap.response.type2.A22.high, aes(x = log(Ar.opt), y = log(A22.opt),
   geom_smooth() +
   labs(x="log(consitutive expression of A. carolinensis)", y = "log(Degree of inducibility in A. picea)") +
   theme(legend.position = "none")  
-gg9
+gg9 + geom_abline(intercept=0, slope=1)
 
+png("results/constitutive_vs_inducibility_A22high.png")
+gg9
+dev.off()
 ```
 
 
@@ -1765,7 +1793,7 @@ write.csv(shiny.dt, file = "ApRxN-shinyapp/responsive.lms.TPM.csv", quote = TRUE
 
 ```{r rData, echo=FALSE}
 # save RData for manuscript file
-save(TPM.dt.sub, RxNpval, sigtable, chi1, resp.TPM.dt.sub, Ap.type.table, tt2, tt3, GO.stress.Xsq, GO0006950.responsive, Ap.df, w1, w2, w3, Ap.T_on, Ap.T_off, hsp_responsive, hsp_all, mh.test, mh_plot, Ap.BP.resultParentChild, resp.stress.responsive.count, T_on.high.ttest, T_on.low.ttest, T_off.int.high.ttest, T_off.int.low.ttest, Ap.gsea.intersect, Ar.int.A22.bim.gsea, Ar.int.A22.low.gsea, Ar.int.A22.lowbim.gsea, quadratic.lms, resp.TPM.dt.sub.pred, md, file = paste("doc/ms_", Sys.Date(), ".RData", sep = ""))
+save(TPM.dt.sub, RxNpval, sigtable, chi1, chi2, resp.TPM.dt.sub, Ap.type.table, tt2, tt3, GO.stress.Xsq, GO0006950.responsive, Ap.df, w1, w2, w3, hsp_responsive, hsp_all, mh.test, mh_plot, Ap.BP.resultParentChild, resp.stress.responsive.count, T_on.high.ttest, T_on.low.ttest, T_off.int.high.ttest, T_off.int.low.ttest, Ap.gsea.intersect, Ar.int.A22.bim.gsea, Ar.int.A22.low.gsea, Ar.int.A22.lowbim.gsea, quadratic.lms, resp.TPM.dt.sub.pred, md, file = paste("doc/ms_", Sys.Date(), ".RData", sep = ""))
 ```
 
 

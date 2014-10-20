@@ -27,6 +27,4 @@ transcriptome and identification of thermally-responsonsive genes.
   - Identification of responsive genes
 
 
-
-
-
+[![DOI](https://zenodo.org/badge/4669/johnstantongeddes/ApTranscriptome.png)](http://dx.doi.org/10.5281/zenodo.12295)
