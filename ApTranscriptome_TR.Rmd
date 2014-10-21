@@ -541,7 +541,57 @@ md <- melt(Ec.cells)
 mh_plot <- qplot(x=Apic, y=Acar, data=md, fill=value, geom="tile", ylim = rev(levels(md$Acar))) + 
   scale_fill_gradient2(limits=c(-600, 600)) +
   theme(axis.title = element_text(face="italic")) +
-  labs(x = "A. picea", y = "A. carolinensis") 
+  labs(x = "A. picea", y = "A. carolinensis")
+
+# make subplot of rows that match hypotheses
+
+# A. carolinensis **Low** and **Bimodal**
+md_sub1 <- subset(md, Acar %in% c("Low", "Bimodal"), )
+md_sub1 <- droplevels(md_sub1)
+
+mh_plot_sub1 <- qplot(x=Apic, y=Acar, data=md_sub1, fill=value, geom="tile", ylim = rev(levels(md_sub1$Acar))) + 
+  scale_fill_gradient2(limits=c(-600, 600)) +
+  theme(axis.title = element_text(face="italic")) +
+  labs(x = "A. picea", y = "A. carolinensis") +
+  theme(legend.position = "none")
+mh_plot_sub1
+
+md_sub2 <- subset(md, Apic %in% c("High", "Bimodal"), )
+md_sub2 <- droplevels(md_sub2)
+
+mh_plot_sub2 <- qplot(x=Apic, y=Acar, data=md_sub2, fill=value, geom="tile", ylim = rev(levels(md_sub2$Acar))) + 
+  scale_fill_gradient2(limits=c(-600, 600)) +
+  theme(axis.title = element_text(face="italic")) +
+  labs(x = "A. picea", y = "A. carolinensis") + 
+  theme(legend.position = "none")
+mh_plot_sub2
+
+# get legend from http://stackoverflow.com/questions/11883844/inserting-a-table-under-the-legend-in-a-ggplot2-histogram
+#Extract Legend
+g_legend <- function(a.gplot){
+  tmp <- ggplot_gtable(ggplot_build(a.gplot))
+  leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box")
+  legend <- tmp$grobs[[leg]]
+  return(legend)}
+
+legend <- g_legend(mh_plot)
+
+# remove legend from mh_plot
+mh_plot <- mh_plot + theme(legend.position = "none")
+
+# add bars
+geom_rect(data = dark.subset, aes(xmin = phase_start, xmax = phase_end), 
+              ymin = -Inf,
+              xmax = Inf,
+              fill = alpha("#000000", 0.2))
+
+# arrange plots
+
+grid.arrange(mh_plot, mh_plot_sub2, mh_plot_sub1, legend,
+             ncol=2, widths=c(1,0.5), heights=c(1, 0.5))
+
+arrangeGrob(mh_plot, mh_plot_sub1, mh_plot_sub2, ncol=1), 
+                    ncol=2, widths=c(1,1.2))
 
 tiff("results/matched_observations_Fig1.tiff", compression = "lzw")
 mh_plot
@@ -696,12 +746,9 @@ w3
 
 The non-parametric test for both comparisions also finds greater expression in *Ar* than *A22* at the optimal temperature.
 
+To visualize this data, I plot the log ratio of inducibility between species against the log ratio of baseline expression between species. I do this separately for **High** transcripts in *A. picea* and then **Low** transcripts in *A. carolinensis*. 
 
-
-### Comparison of the degree of upregulation against constitutive expression
-
-To test the genetic assimilation hypothesis, I compare the degree of upregulation of a transcript against constitutive expression at optimal temperatures. 
-
+First, I calculate the degree of expression induction as the proportion difference between the maximum and minimum expression levels for each transcript.
 
 ```{r induction_vs_constitutive}
 # calculate degree of induction
@@ -716,141 +763,79 @@ names(Ap.induction.wide)[names(Ap.induction.wide)=="Ar"] <- "Ar.upreg"
 Ap.induction.wide <- data.table(Ap.induction.wide)
 setkey(Ap.induction.wide, Transcript)
 Ap.response.type2 <- Ap.induction.wide[Ap.response.type]
-
-# plot constitutive expression vs induction for High, Low and Bimodal genes only
-setkey(Ap.response.type2, A22.type)
-up.terms <- c("Bimodal", "Low", "High")
-Ap.response.type2.up <- Ap.response.type2[A22.type %in% up.terms, ]
-
-setkey(Ap.response.type2.up, Ar.type)
-Ap.response.type2.up <- Ap.response.type2.up[Ar.type %in% up.terms, ]
-Ap.response.type2.up <- droplevels(Ap.response.type2.up)
-
-gg5 <- ggplot(Ap.response.type2.up, aes(x = log(Ar.opt), y = log(A22.upreg), colour = A22.type)) + 
-  geom_point() + 
-  geom_smooth() +
-  labs(x="log(consitutive expression of A. carolinensis)", y = "log(Degree of inducibility in A. picea)") +
-  theme(legend.position = "none")  
-
-gg6 <- ggplot(Ap.response.type2.up, aes(x = log(A22.opt), y = log(Ar.upreg), colour = Ar.type)) + 
-  geom_point() + 
-  geom_smooth() +
-  labs(x="log(consitutive expression of A. picea)", y = "log(Degree of inducibility in A. carolinensis)") +
-  theme(legend.justification=c(1,0), legend.position=c(1,0), legend.text = element_text(size = 12))  
-
-# grid.arrange
-png("results/constitutive_vs_inducibility.png")
-grid.arrange(gg5, gg6, nrow = 1)
-dev.off()
-
-### plot constitutive expression in one species vs the other
-gg7 <- ggplot(Ap.response.type2.up, aes(x = log(Ar.opt), y = log(A22.opt), colour = A22.type)) + 
-  geom_point() + 
-  geom_smooth() +
-  labs(x="log(consitutive expression of A. carolinensis)", y = "log(constitutive expression in A. picea)") +
-  theme(legend.position = "none")  
-gg7 <- gg7 + geom_abline(intercept=0, slope=1)
-
-png("results/constitutive_comparison.png")
-gg7
-dev.off()
-
-### plot inducibility in one species vs the other
-gg8 <- ggplot(Ap.response.type2.up, aes(x = log(Ar.upreg), y = log(A22.upreg), colour = A22.type)) + 
-  geom_point() + 
-  geom_smooth() +
-  labs(x="log(upregulation in A. carolinensis)", y = "log(upregulation in A. picea)") +
-  theme(legend.position = "none")  
-gg8
-
-png("results/upregulation_comparison.png")
-gg8
-dev.off()
-
-### constitutive vs upregulated for *High* genes only
-Ap.response.type2.A22.high <- Ap.response.type2[Ap.response.type2$Transcript %in% A22.high.transcripts.df$Transcript, ]
-str(Ap.response.type2.A22.high)
-
-gg9 <- ggplot(Ap.response.type2.A22.high, aes(x = log(Ar.opt), y = log(A22.opt), colour = Ar.type)) + 
-  geom_point() + 
-  geom_smooth() +
-  labs(x="log(consitutive expression of A. carolinensis)", y = "log(Degree of inducibility in A. picea)") +
-  theme(legend.position = "none")  
-gg9 + geom_abline(intercept=0, slope=1)
-
-png("results/constitutive_vs_inducibility_A22high.png")
-gg9
-dev.off()
-
-
-Ar.high.transcripts.df <- Ap.response.type[which(Ap.response.type$Ar.type == "High"), ]
-Ap.response.type2.Ar.high <- Ap.response.type2[Ap.response.type2$Transcript %in% Ar.high.transcripts.df$Transcript, ]
-str(Ap.response.type2.Ar.high)
-
-gg10 <- ggplot(Ap.response.type2.Ar.high, aes(x = log(A22.opt), y = log(Ar.opt), colour = A22.type)) + 
-  geom_point() + 
-  geom_smooth() +
-  labs(x="log(consitutive expression of A. picea)", y = "log(Degree of inducibility in A. carolinensis)") 
-
-#+
-  #theme(legend.position = "none")  
-
-gg10 + geom_abline(intercept=0, slope=1)
 ```
+
+I extract the **High** transcripts for *A. picea* and plot the log ratio of inducibility in *A. picea* over inducibility in *A. carolinensis*, against the log ratio of baseline expression in *A. carolinensis* against expression in *A. picea*. According to the *genetic assimilation hypothesis* there should be a positive relationship between these ratios. That is, greater baseline expression in *A. carolinensis* should have greater inducibility towards **High** temperatures in *A. picea*.
 
 
 ```{r log_inducibility}
-str(Ar.high.transcripts.df)
-Ap.response.type2.A22.high <- Ap.response.type2[Ap.response.type2$Transcript %in% Ar.high.transcripts.df$Transcript, ]
+Ap.response.type2.A22.high <- Ap.response.type2[Ap.response.type2$Transcript %in% A22.high.transcripts.df$Transcript, ]
 str(Ap.response.type2.A22.high)
 
-# exclude transcripts with zero upregulation for denominator
-Ap.response.type2.A22.high <- Ap.response.type2.A22.high[which(Ap.response.type2.A22.high$Ar.upreg != 0), ]
+# filter out NotResp transcripts in Ar
+Ap.response.type2.A22.high <- Ap.response.type2.A22.high[which(Ap.response.type2.A22.high$Ar.type != "NotResp"), ]
 
+# ratio of upregulation
 Ap.response.type2.A22.high$A22.Ar.upreg <- Ap.response.type2.A22.high$A22.upreg / Ap.response.type2.A22.high$Ar.upreg
-
-# exclude transcripts with zero ratio of upregulation
-Ap.response.type2.A22.high <- Ap.response.type2.A22.high[which(Ap.response.type2.A22.high$A22.Ar.upreg != 0), ]
 
 # ratio of baseline expression
 Ap.response.type2.A22.high$Ar.A22.baseline <- Ap.response.type2.A22.high$Ar.opt / Ap.response.type2.A22.high$A22.opt
-
-head(Ap.response.type2.A22.high)
 
 # plot!
 gg11 <- ggplot(Ap.response.type2.A22.high, aes(y = log(A22.Ar.upreg+0.01), x = log(Ar.A22.baseline))) + 
   geom_point() + 
   geom_smooth(method = "lm") +
-  labs(y="log(inducibility A. picea / inducibility A. car)", x = "log(baseline A. carolinensis / baseline A. picea)") 
+  labs(y = expression(paste("log(inducibility ", italic("A. picea / A. carolinensis"), ")")),
+       x = expression(paste("log(baseline ", italic("A. carolinensis / A. picea"), ")")))    
+gg11
 
+A22.high.lm <- lm(log(A22.Ar.upreg) ~ log(Ar.A22.baseline), data = Ap.response.type2.A22.high)
 
-summary(lm(log(A22.Ar.upreg) ~ log(Ar.A22.baseline), data = Ap.response.type2.A22.high))
+summary(A22.high.lm)
+```
 
-cor.test(log(Ap.response.type2.A22.high$A22.Ar.upreg), log(Ap.response.type2.A22.high$Ar.A22.baseline))
+In contrast to the prediction there is a negative relationship between these ratios. That is, genes with greater upregulation of expression also have greater baseline expression. This is also consistent with the results simply comparing baseline expression between species for the *A. picea* **High** transcripts. 
 
+I repeated the above but for **Low** transcripts in *A. carolinensis*. 
+
+```{r assimilation_Ar_low}
 ### Repeat for A. carolinensis *Low* transcripts
 
-str(Ar.low.transcripts.df)
 Ap.response.type2.Ar.low <- Ap.response.type2[Ap.response.type2$Transcript %in% Ar.low.transcripts.df$Transcript, ]
 str(Ap.response.type2.Ar.low)
+
+# filter out NotResp transcripts in A22
+Ap.response.type2.Ar.low <- Ap.response.type2.Ar.low[which(Ap.response.type2.Ar.low$A22.type != "NotResp"), ]
 
 # ratio of upregulation
 Ap.response.type2.Ar.low$Ar.A22.upreg <- Ap.response.type2.Ar.low$Ar.upreg / Ap.response.type2.Ar.low$A22.upreg
 
-# exclude transcripts with zero ratio of upregulation
-Ap.response.type2.Ar.low <- Ap.response.type2.Ar.low[which(Ap.response.type2.Ar.low$Ar.A22.upreg != 0), ]
-
+# ratio of baseline expression
 Ap.response.type2.Ar.low$A22.Ar.baseline <- Ap.response.type2.Ar.low$A22.opt / Ap.response.type2.Ar.low$Ar.opt
-
-head(Ap.response.type2.Ar.low)
 
 gg12 <- ggplot(Ap.response.type2.Ar.low, aes(y = log(Ar.A22.upreg), x = log(A22.Ar.baseline))) + 
   geom_point() + 
   geom_smooth(method = "lm") +
-  labs(y="log(inducibility A. car / inducibility A. picea)", x = "log(baseline A. picea / baseline A. car)") 
+  labs(y = expression(paste("log(inducibility ", italic("A. carolinensis / A. picea"), ")")),
+       x = expression(paste("log(baseline ", italic("A. picea / A. carolinensis"), ")")))                   
 
 gg12
+
+Ar.low.lm <- lm(log(Ar.A22.upreg) ~ log(A22.Ar.baseline), data = Ap.response.type2.Ar.low)
+
+summary(Ar.low.lm)
 ```
+
+I combine the two above figures into a single figure.
+
+```{r fig3}
+# grid.arrange
+png(file = "results/genetic_assimilation.png")
+grid.arrange(gg11, gg12, nrow = 1)
+dev.off()
+```
+
+As with the previous comparison, I also find no evidence for the genetic assimilation hypothesis. 
 
 
 ### Compare the critical temperature of transcript upregulation, T~on~, between species for transcripts induced in response to high or low temperatures
