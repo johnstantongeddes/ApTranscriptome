@@ -781,9 +781,76 @@ gg9 + geom_abline(intercept=0, slope=1)
 png("results/constitutive_vs_inducibility_A22high.png")
 gg9
 dev.off()
+
+
+Ar.high.transcripts.df <- Ap.response.type[which(Ap.response.type$Ar.type == "High"), ]
+Ap.response.type2.Ar.high <- Ap.response.type2[Ap.response.type2$Transcript %in% Ar.high.transcripts.df$Transcript, ]
+str(Ap.response.type2.Ar.high)
+
+gg10 <- ggplot(Ap.response.type2.Ar.high, aes(x = log(A22.opt), y = log(Ar.opt), colour = A22.type)) + 
+  geom_point() + 
+  geom_smooth() +
+  labs(x="log(consitutive expression of A. picea)", y = "log(Degree of inducibility in A. carolinensis)") 
+
+#+
+  #theme(legend.position = "none")  
+
+gg10 + geom_abline(intercept=0, slope=1)
 ```
 
 
+```{r log_inducibility}
+str(Ar.high.transcripts.df)
+Ap.response.type2.A22.high <- Ap.response.type2[Ap.response.type2$Transcript %in% Ar.high.transcripts.df$Transcript, ]
+str(Ap.response.type2.A22.high)
+
+# exclude transcripts with zero upregulation for denominator
+Ap.response.type2.A22.high <- Ap.response.type2.A22.high[which(Ap.response.type2.A22.high$Ar.upreg != 0), ]
+
+Ap.response.type2.A22.high$A22.Ar.upreg <- Ap.response.type2.A22.high$A22.upreg / Ap.response.type2.A22.high$Ar.upreg
+
+# exclude transcripts with zero ratio of upregulation
+Ap.response.type2.A22.high <- Ap.response.type2.A22.high[which(Ap.response.type2.A22.high$A22.Ar.upreg != 0), ]
+
+# ratio of baseline expression
+Ap.response.type2.A22.high$Ar.A22.baseline <- Ap.response.type2.A22.high$Ar.opt / Ap.response.type2.A22.high$A22.opt
+
+head(Ap.response.type2.A22.high)
+
+# plot!
+gg11 <- ggplot(Ap.response.type2.A22.high, aes(y = log(A22.Ar.upreg+0.01), x = log(Ar.A22.baseline))) + 
+  geom_point() + 
+  geom_smooth(method = "lm") +
+  labs(y="log(inducibility A. picea / inducibility A. car)", x = "log(baseline A. carolinensis / baseline A. picea)") 
+
+
+summary(lm(log(A22.Ar.upreg) ~ log(Ar.A22.baseline), data = Ap.response.type2.A22.high))
+
+cor.test(log(Ap.response.type2.A22.high$A22.Ar.upreg), log(Ap.response.type2.A22.high$Ar.A22.baseline))
+
+### Repeat for A. carolinensis *Low* transcripts
+
+str(Ar.low.transcripts.df)
+Ap.response.type2.Ar.low <- Ap.response.type2[Ap.response.type2$Transcript %in% Ar.low.transcripts.df$Transcript, ]
+str(Ap.response.type2.Ar.low)
+
+# ratio of upregulation
+Ap.response.type2.Ar.low$Ar.A22.upreg <- Ap.response.type2.Ar.low$Ar.upreg / Ap.response.type2.Ar.low$A22.upreg
+
+# exclude transcripts with zero ratio of upregulation
+Ap.response.type2.Ar.low <- Ap.response.type2.Ar.low[which(Ap.response.type2.Ar.low$Ar.A22.upreg != 0), ]
+
+Ap.response.type2.Ar.low$A22.Ar.baseline <- Ap.response.type2.Ar.low$A22.opt / Ap.response.type2.Ar.low$Ar.opt
+
+head(Ap.response.type2.Ar.low)
+
+gg12 <- ggplot(Ap.response.type2.Ar.low, aes(y = log(Ar.A22.upreg), x = log(A22.Ar.baseline))) + 
+  geom_point() + 
+  geom_smooth(method = "lm") +
+  labs(y="log(inducibility A. car / inducibility A. picea)", x = "log(baseline A. picea / baseline A. car)") 
+
+gg12
+```
 
 
 ### Compare the critical temperature of transcript upregulation, T~on~, between species for transcripts induced in response to high or low temperatures
