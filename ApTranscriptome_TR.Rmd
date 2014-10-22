@@ -72,7 +72,7 @@ The raw Illumina fastq files are available from the NCBI short read archive [lin
 
 ## Sample description ##
 
-Two ant colonies were used for the transcriptome sequencing. The first, designated *A22*, was collected at Molly Bog, Vermont in August 2012 by Nick Gotelli and Andrew Nguyen. The second colony, designated *Ar*, was collected by Lauren Nichols in Raleigh, North Carolina. These colonies were maintained in the lab for 6 months prior to sample collection. Bernice Bacon DeMarco (Michigan State University) identified colony *A22* as *A. picea* and *Ar* as *A. carolinensis*. For historical reasons, I refer to these species as colonies at times throughout this technical report.
+Two ant colonies were used for the transcriptome sequencing. The first, designated *A22*, was collected at Molly Bog, Vermont in August 2012 by Nick Gotelli and Andrew Nguyen. The second colony, designated *Ar*, was collected by Lauren Nichols in Raleigh, North Carolina. These colonies were maintained in the lab for 6 months prior to sample collection. Bernice DeMarco (Michigan State University) identified colony *A22* as *A. picea* and *Ar* as *A. carolinensis*. For historical reasons, I sometimes refer to these species as colonies at times throughout this technical report.
 
 For each colony, three ants were exposed to one of 12 temperature treatments, every 3.5C ranging from 0C to 38.5C, for one hour in glass tubes in a water bath. The ants were flash frozen and stored at -80C until RNA was extracted using a two step extraction; [RNAzol RT](http://www.mrcgene.com/rnazol.htm) (Molecular Research Center, Inc) followed by an [RNeasy Micro](http://www.qiagen.com/products/catalog/sample-technologies/rna-sample-technologies/total-rna/rneasy-micro-kit) column (Qiagen). Samples from each colony were pooled and sequenced in separate lanes on a 100bp paired-end run of an Illumina HiSeq at the University of Minnesota Genomics Center, yielding 20e6 and 16e6 reads for the A22 and Ar samples, respectively.
 
@@ -452,6 +452,8 @@ Ar.type.table <- table(Ap.response.type[ , 'Ar.type'])
 # table
 (Ap.type.table <- rbind(A22.type.table, Ar.type.table))
 
+# test if the number of transcripts in each category differs from null expectations using Pearson Chi-square test
+(chi1 <- chisq.test(Ap.type.table))
 
 # test if the total number of responsive transcripts differs between species 
 resp.table <- matrix(nrow=2, ncol=2, dimnames = list(c("R", "NR"), c("Ap", "Ac")))
@@ -461,11 +463,50 @@ resp.table[1,2] <- sum(Ar.type.table[which(names(Ar.type.table) != "NotResp")])
 resp.table[2,2] <- nrow(annotation.table) - sum(Ar.type.table[which(names(Ar.type.table) != "NotResp")])
 resp.table
 
-chi1 <- chisq.test(resp.table)
+(chi2 <- chisq.test(resp.table))
 
-# test if the number of transcripts in each category differs from null expectations using Pearson Chi-square test
-chi2 <- chisq.test(Ap.type.table)
-chi2
+# test if the number of Low responsive transcripts differs between species 
+low.table <- matrix(nrow=2, ncol=2, dimnames = list(c("Low", "NotLow"), c("Ap", "Ac")))
+low.table[1,1] <- A22.type.table[which(names(A22.type.table) == "Low")]
+low.table[2,1] <- sum(A22.type.table[which(names(A22.type.table) != "Low")])
+low.table[1,2] <- Ar.type.table[which(names(Ar.type.table) == "Low")]
+low.table[2,2] <- sum(Ar.type.table[which(names(Ar.type.table) != "Low")])
+low.table
+
+(chi3 <- chisq.test(low.table))
+
+
+# test if the number of Intermediate responsive transcripts differs between species 
+intermediate.table <- matrix(nrow=2, ncol=2, dimnames = list(c("Intermediate", "Others"), c("Ap", "Ac")))
+intermediate.table[1,1] <- A22.type.table[which(names(A22.type.table) == "Intermediate")]
+intermediate.table[2,1] <- sum(A22.type.table[which(names(A22.type.table) != "Intermediate")])
+intermediate.table[1,2] <- Ar.type.table[which(names(Ar.type.table) == "Intermediate")]
+intermediate.table[2,2] <- sum(Ar.type.table[which(names(Ar.type.table) != "Intermediate")])
+intermediate.table
+
+(chi4 <- chisq.test(intermediate.table))
+
+
+# test if the number of High responsive transcripts differs between species 
+high.table <- matrix(nrow=2, ncol=2, dimnames = list(c("High", "Others"), c("Ap", "Ac")))
+high.table[1,1] <- A22.type.table[which(names(A22.type.table) == "High")]
+high.table[2,1] <- sum(A22.type.table[which(names(A22.type.table) != "High")])
+high.table[1,2] <- Ar.type.table[which(names(Ar.type.table) == "High")]
+high.table[2,2] <- sum(Ar.type.table[which(names(Ar.type.table) != "High")])
+high.table
+
+(chi5 <- chisq.test(high.table))
+
+
+# test if the number of Bimodal responsive transcripts differs between species 
+bimodal.table <- matrix(nrow=2, ncol=2, dimnames = list(c("Bimodal", "Others"), c("Ap", "Ac")))
+bimodal.table[1,1] <- A22.type.table[which(names(A22.type.table) == "Bimodal")]
+bimodal.table[2,1] <- sum(A22.type.table[which(names(A22.type.table) != "Bimodal")])
+bimodal.table[1,2] <- Ar.type.table[which(names(Ar.type.table) == "Bimodal")]
+bimodal.table[2,2] <- sum(Ar.type.table[which(names(Ar.type.table) != "Bimodal")])
+bimodal.table
+
+(chi6 <- chisq.test(bimodal.table))
 ```
 
 The total number of responsive transcripts does not differ between species, though their groupings into expression categories does differ. 
@@ -546,54 +587,44 @@ mh_plot <- qplot(x=Apic, y=Acar, data=md, fill=value, geom="tile", ylim = rev(le
 # make subplot of rows that match hypotheses
 
 # A. carolinensis **Low** and **Bimodal**
-md_sub1 <- subset(md, Acar %in% c("Low", "Bimodal"), )
+md_sub1 <- subset(md, Acar %in% c("Low", "Bimodal", "High"), )
 md_sub1 <- droplevels(md_sub1)
 
 mh_plot_sub1 <- qplot(x=Apic, y=Acar, data=md_sub1, fill=value, geom="tile", ylim = rev(levels(md_sub1$Acar))) + 
   scale_fill_gradient2(limits=c(-600, 600)) +
   theme(axis.title = element_text(face="italic")) +
   labs(x = "A. picea", y = "A. carolinensis") +
-  theme(legend.position = "none")
+  theme(legend.position = "bottom") + 
+  geom_rect(xmin = 0.5, xmax = 1.5, ymin = 2.5, ymax = 3.5, fill = "transparent", linetype=2, colour="black") +
+  geom_rect(xmin = 2.5, xmax = 3.5, ymin = 1.5, ymax = 2.5, fill = "transparent", linetype=2, colour="black") +
+  geom_rect(xmin = 3.5, xmax = 4.5, ymin = .5, ymax = 1.5, fill = "transparent", linetype=2, colour="black")
+
 mh_plot_sub1
 
-md_sub2 <- subset(md, Apic %in% c("High", "Bimodal"), )
+md_sub2 <- subset(md, Apic %in% c("Low", "High", "Bimodal"), )
 md_sub2 <- droplevels(md_sub2)
 
-mh_plot_sub2 <- qplot(x=Apic, y=Acar, data=md_sub2, fill=value, geom="tile", ylim = rev(levels(md_sub2$Acar))) + 
+mh_plot_sub2 <- qplot(x=Acar, y=Apic, data=md_sub2, fill=value, geom="tile", ylim = rev(levels(md_sub2$Apic))) + 
   scale_fill_gradient2(limits=c(-600, 600)) +
   theme(axis.title = element_text(face="italic")) +
-  labs(x = "A. picea", y = "A. carolinensis") + 
-  theme(legend.position = "none")
+  labs(x = "A. carolinensis", y = "A. picea") + 
+  theme(legend.position = "none") + 
+  geom_rect(xmin = 0.5, xmax = 1.5, ymin = 2.5, ymax = 3.5, fill = "transparent", linetype=2, colour="black") +
+  geom_rect(xmin = 2.5, xmax = 3.5, ymin = 1.5, ymax = 2.5, fill = "transparent", linetype=2, colour="black") +
+  geom_rect(xmin = 3.5, xmax = 4.5, ymin = 0.5, ymax = 1.5, fill = "transparent", linetype=2, colour="black")
+
 mh_plot_sub2
 
-# get legend from http://stackoverflow.com/questions/11883844/inserting-a-table-under-the-legend-in-a-ggplot2-histogram
-#Extract Legend
-g_legend <- function(a.gplot){
-  tmp <- ggplot_gtable(ggplot_build(a.gplot))
-  leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box")
-  legend <- tmp$grobs[[leg]]
-  return(legend)}
+# arrange plots to make figure for manuscript
+mh_plot_sub2 <- mh_plot_sub2 + ggtitle('A') + theme(plot.title = element_text(hjust=0))
+mh_plot_sub1 <- mh_plot_sub1 + ggtitle('B') + theme(plot.title = element_text(hjust=0))
 
-legend <- g_legend(mh_plot)
+png("results/matched_observations_Fig1.png")
+grid.arrange(mh_plot_sub2, mh_plot_sub1, ncol=1, heights = c(0.45, 0.6))
+dev.off()
 
-# remove legend from mh_plot
-mh_plot <- mh_plot + theme(legend.position = "none")
-
-# add bars
-geom_rect(data = dark.subset, aes(xmin = phase_start, xmax = phase_end), 
-              ymin = -Inf,
-              xmax = Inf,
-              fill = alpha("#000000", 0.2))
-
-# arrange plots
-
-grid.arrange(mh_plot, mh_plot_sub2, mh_plot_sub1, legend,
-             ncol=2, widths=c(1,0.5), heights=c(1, 0.5))
-
-arrangeGrob(mh_plot, mh_plot_sub1, mh_plot_sub2, ncol=1), 
-                    ncol=2, widths=c(1,1.2))
-
-tiff("results/matched_observations_Fig1.tiff", compression = "lzw")
+# full figure for supplemental
+png("results/matched_observations_FigS1.png")
 mh_plot
 dev.off()
 ```
@@ -621,7 +652,7 @@ pandoc.table(tt3, style="rmarkdown", caption = "Number of transcripts with maxim
 
 Table 4 shows the number of transcripts that fall into each expression type for each each species. The totals for each species include the `r length(temperature.lms)` transcripts that have consistent temperature responses between the two colonies. 
 
-An interesting observation from the matched observations plot (Fig. ...) is that for **NotResp** genes in *A. carolinensis* the **High** and **Bimodal** categories in *A. picea* are over-represented. Finding that the mean expression level of these genes in *A. carolinensis* is greater than the expression level at the optimum temperature (19.5°C) in *A. picea* would be consistent with genetic assimilation.
+An interesting observation from the matched observations plot (Fig. 1) is that for **NotResp** genes in *A. carolinensis* the **High** and **Bimodal** categories in *A. picea* are over-represented. Finding that the mean expression level of these genes in *A. carolinensis* is greater than the expression level at the optimum temperature (19.5°C) in *A. picea* would be consistent with genetic assimilation.
 
 ```{r gen_assimilation_high}
 Ap.high.Ac.nr <- Ap.response.type[which(Ap.response.type$A22.type == "High" & Ap.response.type$Ar.type == "NotResp"), ]
@@ -746,7 +777,7 @@ w3
 
 The non-parametric test for both comparisions also finds greater expression in *Ar* than *A22* at the optimal temperature.
 
-To visualize this data, I plot the log ratio of inducibility between species against the log ratio of baseline expression between species. I do this separately for **High** transcripts in *A. picea* and then **Low** transcripts in *A. carolinensis*. 
+To visualize this data, I plot the log ratio of inducibility between species against the log ratio of constitutive expression between species. I do this separately for **High** transcripts in *A. picea* and then **Low** transcripts in *A. carolinensis*. 
 
 First, I calculate the degree of expression induction as the proportion difference between the maximum and minimum expression levels for each transcript.
 
@@ -765,7 +796,7 @@ setkey(Ap.induction.wide, Transcript)
 Ap.response.type2 <- Ap.induction.wide[Ap.response.type]
 ```
 
-I extract the **High** transcripts for *A. picea* and plot the log ratio of inducibility in *A. picea* over inducibility in *A. carolinensis*, against the log ratio of baseline expression in *A. carolinensis* against expression in *A. picea*. According to the *genetic assimilation hypothesis* there should be a positive relationship between these ratios. That is, greater baseline expression in *A. carolinensis* should have greater inducibility towards **High** temperatures in *A. picea*.
+I extract the **High** transcripts for *A. picea* and plot the log ratio of inducibility in *A. picea* over inducibility in *A. carolinensis*, against the log ratio of constitutive expression in *A. carolinensis* against expression in *A. picea*. According to the *genetic assimilation hypothesis* there should be a positive relationship between these ratios. That is, greater constitutive expression in *A. carolinensis* should have greater inducibility towards **High** temperatures in *A. picea*.
 
 
 ```{r log_inducibility}
@@ -778,29 +809,29 @@ Ap.response.type2.A22.high <- Ap.response.type2.A22.high[which(Ap.response.type2
 # ratio of upregulation
 Ap.response.type2.A22.high$A22.Ar.upreg <- Ap.response.type2.A22.high$A22.upreg / Ap.response.type2.A22.high$Ar.upreg
 
-# ratio of baseline expression
-Ap.response.type2.A22.high$Ar.A22.baseline <- Ap.response.type2.A22.high$Ar.opt / Ap.response.type2.A22.high$A22.opt
+# ratio of constitutive expression
+Ap.response.type2.A22.high$Ar.A22.constitutive <- Ap.response.type2.A22.high$Ar.opt / Ap.response.type2.A22.high$A22.opt
 
 # plot!
-gg11 <- ggplot(Ap.response.type2.A22.high, aes(y = log(A22.Ar.upreg+0.01), x = log(Ar.A22.baseline))) + 
+gg11 <- ggplot(Ap.response.type2.A22.high, aes(y = log(A22.Ar.upreg), x = log(Ar.A22.constitutive))) + 
   geom_point() + 
   geom_smooth(method = "lm") +
   labs(y = expression(paste("log(inducibility ", italic("A. picea / A. carolinensis"), ")")),
-       x = expression(paste("log(baseline ", italic("A. carolinensis / A. picea"), ")")))    
+       x = expression(paste("log(constitutive ", italic("A. carolinensis / A. picea"), ")")))    
+
 gg11
 
-A22.high.lm <- lm(log(A22.Ar.upreg) ~ log(Ar.A22.baseline), data = Ap.response.type2.A22.high)
+A22.high.lm <- lm(log(A22.Ar.upreg) ~ log(Ar.A22.constitutive), data = Ap.response.type2.A22.high)
 
 summary(A22.high.lm)
 ```
 
-In contrast to the prediction there is a negative relationship between these ratios. That is, genes with greater upregulation of expression also have greater baseline expression. This is also consistent with the results simply comparing baseline expression between species for the *A. picea* **High** transcripts. 
+In contrast to the prediction there is a negative relationship between these ratios. That is, genes with greater upregulation of expression also have greater constitutive expression. This is also consistent with the results simply comparing constitutive expression between species for the *A. picea* **High** transcripts. 
 
 I repeated the above but for **Low** transcripts in *A. carolinensis*. 
 
 ```{r assimilation_Ar_low}
 ### Repeat for A. carolinensis *Low* transcripts
-
 Ap.response.type2.Ar.low <- Ap.response.type2[Ap.response.type2$Transcript %in% Ar.low.transcripts.df$Transcript, ]
 str(Ap.response.type2.Ar.low)
 
@@ -810,27 +841,30 @@ Ap.response.type2.Ar.low <- Ap.response.type2.Ar.low[which(Ap.response.type2.Ar.
 # ratio of upregulation
 Ap.response.type2.Ar.low$Ar.A22.upreg <- Ap.response.type2.Ar.low$Ar.upreg / Ap.response.type2.Ar.low$A22.upreg
 
-# ratio of baseline expression
-Ap.response.type2.Ar.low$A22.Ar.baseline <- Ap.response.type2.Ar.low$A22.opt / Ap.response.type2.Ar.low$Ar.opt
+# ratio of constitutive expression
+Ap.response.type2.Ar.low$A22.Ar.constitutive <- Ap.response.type2.Ar.low$A22.opt / Ap.response.type2.Ar.low$Ar.opt
 
-gg12 <- ggplot(Ap.response.type2.Ar.low, aes(y = log(Ar.A22.upreg), x = log(A22.Ar.baseline))) + 
+gg12 <- ggplot(Ap.response.type2.Ar.low, aes(y = log(Ar.A22.upreg), x = log(A22.Ar.constitutive))) + 
   geom_point() + 
   geom_smooth(method = "lm") +
   labs(y = expression(paste("log(inducibility ", italic("A. carolinensis / A. picea"), ")")),
-       x = expression(paste("log(baseline ", italic("A. picea / A. carolinensis"), ")")))                   
+       x = expression(paste("log(constitutive ", italic("A. picea / A. carolinensis"), ")")))                   
 
 gg12
 
-Ar.low.lm <- lm(log(Ar.A22.upreg) ~ log(A22.Ar.baseline), data = Ap.response.type2.Ar.low)
+Ar.low.lm <- lm(log(Ar.A22.upreg) ~ log(A22.Ar.constitutive), data = Ap.response.type2.Ar.low)
 
 summary(Ar.low.lm)
 ```
 
 I combine the two above figures into a single figure.
 
-```{r fig3}
+```{r fig2}
+# add labels
+gg11 <- gg11 + ggtitle('A') + theme(plot.title = element_text(hjust=0))
+gg12 <- gg12 + ggtitle('B') + theme(plot.title = element_text(hjust=0))
 # grid.arrange
-png(file = "results/genetic_assimilation.png")
+png(file = "results/genetic_assimilation_Fig2.png")
 grid.arrange(gg11, gg12, nrow = 1)
 dev.off()
 ```
@@ -1044,7 +1078,7 @@ for(i in unique(Ar.int.TPM.dt.sub$Transcript)) {
 (T_off.int.low.ttest <- t.test(Ar.int.T_off$Low, A22.int.T_off$Low))
 ```
 
-As with genes turned on at high temperatures, *A. carolinensis* **Intermediate** genes are down-regulated on average at 2.7°C higher temperatures than *A. picea* **Intermediate** genes. In contrast, towards low temperatures, the temperature of mean temperature of downregulation was higher for *A. picea* (10.6°) than *A. carolinensis* (9.75°).
+As with genes turned on at high temperatures, *A. carolinensis* **Intermediate** genes are down-regulated on at higher temperatures than *A. picea* **Intermediate** genes. In contrast, towards low temperatures, the temperature of mean temperature of downregulation was higher for *A. picea* than *A. carolinensis*.
 
 Visualize T~off~ for both *Low* and *High* genes on the same plot.
 
@@ -1098,9 +1132,12 @@ gg3 <- ggplot(Ap.T_off, aes(x = T_off, y = ..density.., colour = Species, group 
     theme(legend.position = "bottom", legend.text = element_text(size = 12, face = 3))  
 
 # grid.arrange
-#tiff("results/crit_temp_regulation_Fig2.tiff", compression = "lzw", bg = "white")
-grid.arrange(gg2, gg3, nrow = 2)
-#dev.off()
+gg2 <- gg2 + ggtitle('A') + theme(plot.title = element_text(hjust=0))
+gg3 <- gg3 + ggtitle('B') + theme(plot.title = element_text(hjust=0))
+
+png("results/crit_temp_regulation_Fig3.png")
+grid.arrange(gg2, gg3, nrow = 2, heights = c(.5,.6))
+dev.off()
 ```
 
 Does the mean expression level for all responsive genes differ among colonies?
