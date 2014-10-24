@@ -587,29 +587,28 @@ mh_plot <- qplot(x=Apic, y=Acar, data=md, fill=value, geom="tile", ylim = rev(le
 # make subplot of rows that match hypotheses
 
 # A. carolinensis **Low** and **Bimodal**
-md_sub1 <- subset(md, Acar %in% c("Low", "Bimodal", "High"), )
+md_sub1 <- subset(md, Acar %in% c("Bimodal", "Low"), )
 md_sub1 <- droplevels(md_sub1)
 
 mh_plot_sub1 <- qplot(x=Apic, y=Acar, data=md_sub1, fill=value, geom="tile", ylim = rev(levels(md_sub1$Acar))) + 
   scale_fill_gradient2(limits=c(-600, 600)) +
   theme(axis.title = element_text(face="italic")) +
   labs(x = "A. picea", y = "A. carolinensis") +
-  theme(legend.position = "bottom") + 
-  geom_rect(xmin = 0.5, xmax = 1.5, ymin = 2.5, ymax = 3.5, fill = "transparent", linetype=2, colour="black") +
-  geom_rect(xmin = 2.5, xmax = 3.5, ymin = 1.5, ymax = 2.5, fill = "transparent", linetype=2, colour="black") +
-  geom_rect(xmin = 3.5, xmax = 4.5, ymin = .5, ymax = 1.5, fill = "transparent", linetype=2, colour="black")
+  theme(legend.position = "none") + 
+  geom_rect(xmin = 0.5, xmax = 1.5, ymin = 1.5, ymax = 2.5, fill = "transparent", linetype=2, colour="black") +
+  geom_rect(xmin = 3.5, xmax = 4.5, ymin = 0.5, ymax = 1.5, fill = "transparent", linetype=2, colour="black")
 
 mh_plot_sub1
 
-md_sub2 <- subset(md, Apic %in% c("Low", "High", "Bimodal"), )
+# A. picea **High** and **Bimodal**
+md_sub2 <- subset(md, Apic %in% c("High", "Bimodal"), )
 md_sub2 <- droplevels(md_sub2)
 
 mh_plot_sub2 <- qplot(x=Acar, y=Apic, data=md_sub2, fill=value, geom="tile", ylim = rev(levels(md_sub2$Apic))) + 
   scale_fill_gradient2(limits=c(-600, 600)) +
   theme(axis.title = element_text(face="italic")) +
   labs(x = "A. carolinensis", y = "A. picea") + 
-  theme(legend.position = "none") + 
-  geom_rect(xmin = 0.5, xmax = 1.5, ymin = 2.5, ymax = 3.5, fill = "transparent", linetype=2, colour="black") +
+  theme(legend.position = "bottom") + 
   geom_rect(xmin = 2.5, xmax = 3.5, ymin = 1.5, ymax = 2.5, fill = "transparent", linetype=2, colour="black") +
   geom_rect(xmin = 3.5, xmax = 4.5, ymin = 0.5, ymax = 1.5, fill = "transparent", linetype=2, colour="black")
 
@@ -620,7 +619,7 @@ mh_plot_sub2 <- mh_plot_sub2 + ggtitle('A') + theme(plot.title = element_text(hj
 mh_plot_sub1 <- mh_plot_sub1 + ggtitle('B') + theme(plot.title = element_text(hjust=0))
 
 png("results/matched_observations_Fig1.png")
-grid.arrange(mh_plot_sub2, mh_plot_sub1, ncol=1, heights = c(0.45, 0.6))
+grid.arrange(mh_plot_sub1, mh_plot_sub2, ncol=1, heights = c(0.45, 0.6))
 dev.off()
 
 # full figure for supplemental
@@ -810,18 +809,18 @@ Ap.response.type2.A22.high <- Ap.response.type2.A22.high[which(Ap.response.type2
 Ap.response.type2.A22.high$A22.Ar.upreg <- Ap.response.type2.A22.high$A22.upreg / Ap.response.type2.A22.high$Ar.upreg
 
 # ratio of constitutive expression
-Ap.response.type2.A22.high$Ar.A22.constitutive <- Ap.response.type2.A22.high$Ar.opt / Ap.response.type2.A22.high$A22.opt
+Ap.response.type2.A22.high$A22.Ar.constitutive <- Ap.response.type2.A22.high$A22.opt / Ap.response.type2.A22.high$Ar.opt
 
 # plot!
-gg11 <- ggplot(Ap.response.type2.A22.high, aes(y = log(A22.Ar.upreg), x = log(Ar.A22.constitutive))) + 
+gg11 <- ggplot(Ap.response.type2.A22.high, aes(x = log(A22.Ar.upreg), y = log(A22.Ar.constitutive))) + 
   geom_point() + 
   geom_smooth(method = "lm") +
-  labs(y = expression(paste("log(inducibility ", italic("A. picea / A. carolinensis"), ")")),
-       x = expression(paste("log(constitutive ", italic("A. carolinensis / A. picea"), ")")))    
+  labs(x = expression(paste("log(inducibility ", italic("A. picea / A. carolinensis"), ")")),
+       y = expression(paste("log(constitutive expression ", italic("A. picea / A. carolinensis"), ")")))    
 
 gg11
 
-A22.high.lm <- lm(log(A22.Ar.upreg) ~ log(Ar.A22.constitutive), data = Ap.response.type2.A22.high)
+A22.high.lm <- lm(log(Ar.A22.constitutive) ~ log(A22.Ar.upreg), data = Ap.response.type2.A22.high)
 
 summary(A22.high.lm)
 ```
@@ -842,29 +841,29 @@ Ap.response.type2.Ar.low <- Ap.response.type2.Ar.low[which(Ap.response.type2.Ar.
 Ap.response.type2.Ar.low$Ar.A22.upreg <- Ap.response.type2.Ar.low$Ar.upreg / Ap.response.type2.Ar.low$A22.upreg
 
 # ratio of constitutive expression
-Ap.response.type2.Ar.low$A22.Ar.constitutive <- Ap.response.type2.Ar.low$A22.opt / Ap.response.type2.Ar.low$Ar.opt
+Ap.response.type2.Ar.low$Ar.A22.constitutive <- Ap.response.type2.Ar.low$Ar.opt / Ap.response.type2.Ar.low$A22.opt
 
-gg12 <- ggplot(Ap.response.type2.Ar.low, aes(y = log(Ar.A22.upreg), x = log(A22.Ar.constitutive))) + 
+gg12 <- ggplot(Ap.response.type2.Ar.low, aes(x = log(Ar.A22.upreg), y = log(Ar.A22.constitutive))) + 
   geom_point() + 
   geom_smooth(method = "lm") +
-  labs(y = expression(paste("log(inducibility ", italic("A. carolinensis / A. picea"), ")")),
-       x = expression(paste("log(constitutive ", italic("A. picea / A. carolinensis"), ")")))                   
+  labs(x = expression(paste("log(inducibility ", italic("A. carolinensis / A. picea"), ")")),
+       y = expression(paste("log(constitutive expression ", italic("A. carolinensis / A. picea"), ")")))                   
 
 gg12
 
-Ar.low.lm <- lm(log(Ar.A22.upreg) ~ log(A22.Ar.constitutive), data = Ap.response.type2.Ar.low)
+Ar.low.lm <- lm(log(Ar.A22.constitutive) ~ log(Ar.A22.upreg), data = Ap.response.type2.Ar.low)
 
 summary(Ar.low.lm)
 ```
 
 I combine the two above figures into a single figure.
 
-```{r fig2}
+```{r fig3}
 # add labels
 gg11 <- gg11 + ggtitle('A') + theme(plot.title = element_text(hjust=0))
 gg12 <- gg12 + ggtitle('B') + theme(plot.title = element_text(hjust=0))
 # grid.arrange
-png(file = "results/genetic_assimilation_Fig2.png")
+png(file = "results/genetic_assimilation_Fig3.png")
 grid.arrange(gg11, gg12, nrow = 1)
 dev.off()
 ```
@@ -1135,7 +1134,7 @@ gg3 <- ggplot(Ap.T_off, aes(x = T_off, y = ..density.., colour = Species, group 
 gg2 <- gg2 + ggtitle('A') + theme(plot.title = element_text(hjust=0))
 gg3 <- gg3 + ggtitle('B') + theme(plot.title = element_text(hjust=0))
 
-png("results/crit_temp_regulation_Fig3.png")
+png("results/crit_temp_regulation_Fig2.png")
 grid.arrange(gg2, gg3, nrow = 2, heights = c(.5,.6))
 dev.off()
 ```
@@ -1882,7 +1881,9 @@ write.csv(shiny.dt, file = "ApRxN-shinyapp/responsive.lms.TPM.csv", quote = TRUE
 
 ```{r rData, echo=FALSE}
 # save RData for manuscript file
-save(TPM.dt.sub, RxNpval, sigtable, chi1, chi2, resp.TPM.dt.sub, Ap.type.table, tt2, tt3, GO.stress.Xsq, GO0006950.responsive, Ap.df, w1, w2, w3, hsp_responsive, hsp_all, mh.test, mh_plot, Ap.BP.resultParentChild, resp.stress.responsive.count, T_on.high.ttest, T_on.low.ttest, T_off.int.high.ttest, T_off.int.low.ttest, Ap.gsea.intersect, Ar.int.A22.bim.gsea, Ar.int.A22.low.gsea, Ar.int.A22.lowbim.gsea, quadratic.lms, resp.TPM.dt.sub.pred, md, file = paste("doc/ms_", Sys.Date(), ".RData", sep = ""))
+save(TPM.dt.sub, RxNpval, sigtable, chi1, chi2, chi3, chi4, chi5, resp.TPM.dt.sub, Ap.type.table, tt2, tt3, GO.stress.Xsq, GO0006950.responsive, Ap.df, w1, w2, w3, hsp_responsive, hsp_all, mh.test, mh_plot, Ap.BP.resultParentChild, resp.stress.responsive.count, T_on.high.ttest, T_on.low.ttest, T_off.int.high.ttest, T_off.int.low.ttest, Ap.gsea.intersect, Ar.int.A22.bim.gsea, Ar.int.A22.low.gsea, Ar.int.A22.lowbim.gsea, quadratic.lms, resp.TPM.dt.sub.pred, md, file = paste("doc/ms_", Sys.Date(), ".RData", sep = ""))
+
+save(sigtable, chi1, chi2, chi3, chi4, chi5, chi6, resp.TPM.dt.sub, Ap.type.table, tt2, tt3, GO.stress.Xsq, GO0006950.responsive, Ap.df, w1, w2, w3, hsp_responsive, hsp_all, mh.test, mh_plot, T_on.high.ttest, T_on.low.ttest, T_off.int.high.ttest, T_off.int.low.ttest, Ar.int.A22.bim.gsea, Ar.int.A22.low.gsea, Ar.int.A22.lowbim.gsea, md, file = paste("doc/ms_slim_", Sys.Date(), ".RData", sep = ""))
 ```
 
 
