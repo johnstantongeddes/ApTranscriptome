@@ -615,8 +615,8 @@ mh_plot_sub2 <- qplot(x=Acar, y=Apic, data=md_sub2, fill=value, geom="tile", yli
 mh_plot_sub2
 
 # arrange plots to make figure for manuscript
-mh_plot_sub2 <- mh_plot_sub2 + ggtitle('A') + theme(plot.title = element_text(hjust=0))
-mh_plot_sub1 <- mh_plot_sub1 + ggtitle('B') + theme(plot.title = element_text(hjust=0))
+mh_plot_sub1 <- mh_plot_sub1 + ggtitle('A') + theme(plot.title = element_text(hjust=0))
+mh_plot_sub2 <- mh_plot_sub2 + ggtitle('B') + theme(plot.title = element_text(hjust=0))
 
 png("results/matched_observations_Fig1.png")
 grid.arrange(mh_plot_sub1, mh_plot_sub2, ncol=1, heights = c(0.45, 0.6))

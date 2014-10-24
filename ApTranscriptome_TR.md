@@ -3,7 +3,7 @@ Thermal reactionome of the common ant species *Aphaenogaster picea* and *A. caro
    
 **Author:** [John Stanton-Geddes](john.stantongeddes.research@gmail.com)
 
-**July 17, 2014**
+**October 14, 2014**
 
 **Technical Report No. 3**
 
@@ -33,7 +33,7 @@ The raw Illumina fastq files are available from the NCBI short read archive [lin
 
 ## Sample description ##
 
-Two ant colonies were used for the transcriptome sequencing. The first, designated *A22*, was collected at Molly Bog, Vermont in August 2012 by Nick Gotelli and Andrew Nguyen. The second colony, designated *Ar*, was collected by Lauren Nichols in Raleigh, North Carolina. These colonies were maintained in the lab for 6 months prior to sample collection. Bernice Bacon DeMarco (Michigan State University) identified colony *A22* as *A. picea* and *Ar* as *A. carolinensis*. For historical reasons, I refer to these species as colonies at times throughout this technical report.
+Two ant colonies were used for the transcriptome sequencing. The first, designated *A22*, was collected at Molly Bog, Vermont in August 2012 by Nick Gotelli and Andrew Nguyen. The second colony, designated *Ar*, was collected by Lauren Nichols in Raleigh, North Carolina. These colonies were maintained in the lab for 6 months prior to sample collection. Bernice DeMarco (Michigan State University) identified colony *A22* as *A. picea* and *Ar* as *A. carolinensis*. For historical reasons, I sometimes refer to these species as colonies at times throughout this technical report.
 
 For each colony, three ants were exposed to one of 12 temperature treatments, every 3.5C ranging from 0C to 38.5C, for one hour in glass tubes in a water bath. The ants were flash frozen and stored at -80C until RNA was extracted using a two step extraction; [RNAzol RT](http://www.mrcgene.com/rnazol.htm) (Molecular Research Center, Inc) followed by an [RNeasy Micro](http://www.qiagen.com/products/catalog/sample-technologies/rna-sample-technologies/total-rna/rneasy-micro-kit) column (Qiagen). Samples from each colony were pooled and sequenced in separate lanes on a 100bp paired-end run of an Illumina HiSeq at the University of Minnesota Genomics Center, yielding 20e6 and 16e6 reads for the A22 and Ar samples, respectively.
 
@@ -462,20 +462,24 @@ stopifnot(nrow(temperature.response.type) == length(temperature.lms))
 # merge results
 Ap.response.type <- rbind(interaction.response.type, temperature.response.type)
 colnames(Ap.response.type)[which(colnames(Ap.response.type) == ".id")] <- "Transcript"
+Ap.response.type <- data.table(Ap.response.type)
+setkey(Ap.response.type, Transcript)
 str(Ap.response.type)
 ```
 
 ```
-## 'data.frame':	9052 obs. of  9 variables:
+## Classes 'data.table' and 'data.frame':	9052 obs. of  9 variables:
 ##  $ Transcript: chr  "100008|*|comp137625_c0_seq2" "100015|*|comp3543055_c0_seq1" "100067|*|comp3557646_c0_seq1" "100089|*|comp11313_c1_seq1" ...
-##  $ A22.max   : num  38.5 0 NA 18.5 NA 0 NA 0 0 38.5 ...
-##  $ A22.min   : num  0 20.5 NA 38.5 NA 23 NA 28.5 26 0 ...
-##  $ A22.opt   : num  1.025 0.945 1 1.057 1 ...
+##  $ A22.max   : num  38.5 0 NA 18.5 0 NA 0 0 NA 0 ...
+##  $ A22.min   : num  0 20.5 NA 38.5 38.5 NA 23 38.5 NA 28.5 ...
+##  $ A22.opt   : num  1.025 0.945 1 1.057 2.554 ...
 ##  $ A22.type  : chr  "High" "Bimodal" "NotResp" "Intermediate" ...
-##  $ Ar.max    : num  0 38.5 0 38.5 38.5 18 0 0 NA NA ...
-##  $ Ar.min    : num  38.5 0 20.5 13.5 18.5 38.5 38.5 38.5 NA NA ...
-##  $ Ar.opt    : num  1.199 1.005 0.935 0.962 0.898 ...
+##  $ Ar.max    : num  0 38.5 0 38.5 0 38.5 18 0 0 0 ...
+##  $ Ar.min    : num  38.5 0 20.5 13.5 38.5 18.5 38.5 38.5 38.5 38.5 ...
+##  $ Ar.opt    : num  1.199 1.005 0.935 0.962 3.937 ...
 ##  $ Ar.type   : chr  "Low" "High" "Bimodal" "High" ...
+##  - attr(*, ".internal.selfref")=<externalptr> 
+##  - attr(*, "sorted")= chr "Transcript"
 ```
 
 ```r
@@ -495,40 +499,266 @@ Ar.type.table <- table(Ap.response.type[ , 'Ar.type'])
 ```
 
 ```
-##                Bimodal High Intermediate  Low NotResp
-## A22.type.table    1499 1238          909 4904     502
-## Ar.type.table      868 1089         2606 3758     731
+##                A22.type
+## A22.type.table        1
+## Ar.type.table         1
 ```
 
 ```r
-# Pearson Chi-square test
-chi1 <- chisq.test(Ap.type.table)
-chi1
+# test if the number of transcripts in each category differs from null expectations using Pearson Chi-square test
+(chi1 <- chisq.test(Ap.type.table))
+```
+
+```
+## Warning: Chi-squared approximation may be incorrect
+```
+
+```
+## 
+## 	Chi-squared test for given probabilities
+## 
+## data:  Ap.type.table
+## X-squared = 0, df = 1, p-value = 1
+```
+
+```r
+# test if the total number of responsive transcripts differs between species 
+resp.table <- matrix(nrow=2, ncol=2, dimnames = list(c("R", "NR"), c("Ap", "Ac")))
+resp.table[1,1] <- sum(A22.type.table[which(names(A22.type.table) != "NotResp")])
+resp.table[2,1] <- nrow(annotation.table) - sum(A22.type.table[which(names(A22.type.table) != "NotResp")])
+resp.table[1,2] <- sum(Ar.type.table[which(names(Ar.type.table) != "NotResp")])
+resp.table[2,2] <- nrow(annotation.table) - sum(Ar.type.table[which(names(Ar.type.table) != "NotResp")])
+resp.table
+```
+
+```
+##       Ap    Ac
+## R      1     1
+## NR 99860 99860
+```
+
+```r
+(chi2 <- chisq.test(resp.table))
+```
+
+```
+## Warning: Chi-squared approximation may be incorrect
 ```
 
 ```
 ## 
 ## 	Pearson's Chi-squared test
 ## 
-## data:  Ap.type.table
-## X-squared = 1191, df = 4, p-value < 2.2e-16
+## data:  resp.table
+## X-squared = 0, df = 1, p-value = 1
 ```
+
+```r
+# test if the number of Low responsive transcripts differs between species 
+low.table <- matrix(nrow=2, ncol=2, dimnames = list(c("Low", "NotLow"), c("Ap", "Ac")))
+low.table[1,1] <- A22.type.table[which(names(A22.type.table) == "Low")]
+```
+
+```
+## Error: replacement has length zero
+```
+
+```r
+low.table[2,1] <- sum(A22.type.table[which(names(A22.type.table) != "Low")])
+low.table[1,2] <- Ar.type.table[which(names(Ar.type.table) == "Low")]
+```
+
+```
+## Error: replacement has length zero
+```
+
+```r
+low.table[2,2] <- sum(Ar.type.table[which(names(Ar.type.table) != "Low")])
+low.table
+```
+
+```
+##        Ap Ac
+## Low    NA NA
+## NotLow  1  1
+```
+
+```r
+(chi3 <- chisq.test(low.table))
+```
+
+```
+## Error: all entries of 'x' must be nonnegative and finite
+```
+
+```r
+# test if the number of Intermediate responsive transcripts differs between species 
+intermediate.table <- matrix(nrow=2, ncol=2, dimnames = list(c("Intermediate", "Others"), c("Ap", "Ac")))
+intermediate.table[1,1] <- A22.type.table[which(names(A22.type.table) == "Intermediate")]
+```
+
+```
+## Error: replacement has length zero
+```
+
+```r
+intermediate.table[2,1] <- sum(A22.type.table[which(names(A22.type.table) != "Intermediate")])
+intermediate.table[1,2] <- Ar.type.table[which(names(Ar.type.table) == "Intermediate")]
+```
+
+```
+## Error: replacement has length zero
+```
+
+```r
+intermediate.table[2,2] <- sum(Ar.type.table[which(names(Ar.type.table) != "Intermediate")])
+intermediate.table
+```
+
+```
+##              Ap Ac
+## Intermediate NA NA
+## Others        1  1
+```
+
+```r
+(chi4 <- chisq.test(intermediate.table))
+```
+
+```
+## Error: all entries of 'x' must be nonnegative and finite
+```
+
+```r
+# test if the number of High responsive transcripts differs between species 
+high.table <- matrix(nrow=2, ncol=2, dimnames = list(c("High", "Others"), c("Ap", "Ac")))
+high.table[1,1] <- A22.type.table[which(names(A22.type.table) == "High")]
+```
+
+```
+## Error: replacement has length zero
+```
+
+```r
+high.table[2,1] <- sum(A22.type.table[which(names(A22.type.table) != "High")])
+high.table[1,2] <- Ar.type.table[which(names(Ar.type.table) == "High")]
+```
+
+```
+## Error: replacement has length zero
+```
+
+```r
+high.table[2,2] <- sum(Ar.type.table[which(names(Ar.type.table) != "High")])
+high.table
+```
+
+```
+##        Ap Ac
+## High   NA NA
+## Others  1  1
+```
+
+```r
+(chi5 <- chisq.test(high.table))
+```
+
+```
+## Error: all entries of 'x' must be nonnegative and finite
+```
+
+```r
+# test if the number of Bimodal responsive transcripts differs between species 
+bimodal.table <- matrix(nrow=2, ncol=2, dimnames = list(c("Bimodal", "Others"), c("Ap", "Ac")))
+bimodal.table[1,1] <- A22.type.table[which(names(A22.type.table) == "Bimodal")]
+```
+
+```
+## Error: replacement has length zero
+```
+
+```r
+bimodal.table[2,1] <- sum(A22.type.table[which(names(A22.type.table) != "Bimodal")])
+bimodal.table[1,2] <- Ar.type.table[which(names(Ar.type.table) == "Bimodal")]
+```
+
+```
+## Error: replacement has length zero
+```
+
+```r
+bimodal.table[2,2] <- sum(Ar.type.table[which(names(Ar.type.table) != "Bimodal")])
+bimodal.table
+```
+
+```
+##         Ap Ac
+## Bimodal NA NA
+## Others   1  1
+```
+
+```r
+(chi6 <- chisq.test(bimodal.table))
+```
+
+```
+## Error: all entries of 'x' must be nonnegative and finite
+```
+
+The total number of responsive transcripts does not differ between species, though their groupings into expression categories does differ. 
+
+
+
 
 ```r
 # Reorganize for plotting to show overlap among categories between colonies
 type.table <- table(Acar = Ap.response.type[ , 'Ar.type'], Apic = Ap.response.type[ , 'A22.type'])
 # reorder
 tt2 <- type.table[c("Low", "Intermediate", "High", "Bimodal", "NotResp"), c("Low", "Intermediate", "High", "Bimodal", "NotResp")]
+```
 
+```
+## Error: subscript out of bounds
+```
+
+```r
 # plot
 png("mosaic_plot.png")
 mosaic.colors <- brewer.pal(5, "Blues")
 par(mar = c(5.1, 3.1, 2.1, 7.5))
 mosaicplot(tt2, ylab = expression(italic("A. picea")), xlab = "", main = "", color = mosaic.colors, cex.axis = 0.01)
+```
+
+```
+## Error: object 'tt2' not found
+```
+
+```r
 labels <- c("Low", "Intermediate", "High", "Bimodal", "NotResp")
 text(c(.1,.5,.75,.85,.99), par("usr")[3] - 0.05, srt = 45, adj = 1, labels = labels, xpd = TRUE, font = 1)
+```
+
+```
+## Error: plot.new has not been called yet
+```
+
+```r
 text(.5, par("usr")[4], "A. carolinensis", xpd = TRUE, font = 3)
+```
+
+```
+## Error: plot.new has not been called yet
+```
+
+```r
 legend(1.05, .75, fill = mosaic.colors, c("Low", "Intermediate", "High", "Bimodal", "NotResp"), xpd=TRUE)
+```
+
+```
+## Error: plot.new has not been called yet
+```
+
+```r
 dev.off()
 ```
 
@@ -536,10 +766,6 @@ dev.off()
 ## pdf 
 ##   2
 ```
-
-Table with 'Total Transcripts' category
-
-
 
 The question of biological interest is whether the marginal frequencies differ between the two species. Statistically, this can be addressed using the generalized [McNemar's test](http://en.wikipedia.org/wiki/McNemar's_test) of marginal homogeneity. 
 
@@ -599,37 +825,220 @@ abs(d5)/dsum
 # e2 (Acar Intermediate) contributes ~44% to Z~0~
 ```
 
+To identify specific cells that deviate from null expectation, calculate expected observations assuming that marginal frequencies equal the overall frequency for each expression category, then determine which cells have deviations between observed and expected that are greater than the overall X^2^ statistic.
+
 
 ```r
 # overall mean for each class
 rs <- rowSums(tt2)
+```
+
+```
+## Error: object 'tt2' not found
+```
+
+```r
 cs <- colSums(tt2)
+```
+
+```
+## Error: object 'tt2' not found
+```
+
+```r
 (gm <- (rs + cs) / sum(tt2 * 2))
 ```
 
 ```
-##          Low Intermediate         High      Bimodal      NotResp 
-##       0.4785       0.1942       0.1285       0.1307       0.0681
+## Error: object 'rs' not found
 ```
 
 ```r
 # calculate observed values for each cell using overall mean for each expression type
 Ec <- outer(gm, gm, "*") * sum(tt2)
+```
 
+```
+## Error: object 'gm' not found
+```
+
+```r
 # get deviations of observed from expected
 Ec.dev <- tt2 - Ec
+```
 
+```
+## Error: object 'tt2' not found
+```
+
+```r
 # calculate chi-squared deviation 
 Ec.cells <- sign(tt2 - Ec) * (tt2 - Ec)^2 / Ec
+```
 
+```
+## Error: object 'tt2' not found
+```
+
+```r
+# which of these are significantly great than expected chi-squared?
+```
+
+To visualize this, make a heatmap that shows deviation from expected count.
+
+
+```r
 md <- melt(Ec.cells)
+```
 
+```
+## Error: object 'Ec.cells' not found
+```
+
+```r
 mh_plot <- qplot(x=Apic, y=Acar, data=md, fill=value, geom="tile", ylim = rev(levels(md$Acar))) + 
-  scale_fill_gradient2(limits=c(-600, 600)) 
+  scale_fill_gradient2(limits=c(-600, 600)) +
+  theme(axis.title = element_text(face="italic")) +
+  labs(x = "A. picea", y = "A. carolinensis")
+```
+
+```
+## Error: object 'md' not found
+```
+
+```r
+# make subplot of rows that match hypotheses
+
+# A. carolinensis **Low** and **Bimodal**
+md_sub1 <- subset(md, Acar %in% c("Bimodal", "Low"), )
+```
+
+```
+## Error: error in evaluating the argument 'x' in selecting a method for function 'subset': Error: object 'md' not found
+```
+
+```r
+md_sub1 <- droplevels(md_sub1)
+```
+
+```
+## Error: object 'md_sub1' not found
+```
+
+```r
+mh_plot_sub1 <- qplot(x=Apic, y=Acar, data=md_sub1, fill=value, geom="tile", ylim = rev(levels(md_sub1$Acar))) + 
+  scale_fill_gradient2(limits=c(-600, 600)) +
+  theme(axis.title = element_text(face="italic")) +
+  labs(x = "A. picea", y = "A. carolinensis") +
+  theme(legend.position = "none") + 
+  geom_rect(xmin = 0.5, xmax = 1.5, ymin = 1.5, ymax = 2.5, fill = "transparent", linetype=2, colour="black") +
+  geom_rect(xmin = 3.5, xmax = 4.5, ymin = 0.5, ymax = 1.5, fill = "transparent", linetype=2, colour="black")
+```
+
+```
+## Error: object 'md_sub1' not found
+```
+
+```r
+mh_plot_sub1
+```
+
+```
+## Error: object 'mh_plot_sub1' not found
+```
+
+```r
+# A. picea **High** and **Bimodal**
+md_sub2 <- subset(md, Apic %in% c("High", "Bimodal"), )
+```
+
+```
+## Error: error in evaluating the argument 'x' in selecting a method for function 'subset': Error: object 'md' not found
+```
+
+```r
+md_sub2 <- droplevels(md_sub2)
+```
+
+```
+## Error: object 'md_sub2' not found
+```
+
+```r
+mh_plot_sub2 <- qplot(x=Acar, y=Apic, data=md_sub2, fill=value, geom="tile", ylim = rev(levels(md_sub2$Apic))) + 
+  scale_fill_gradient2(limits=c(-600, 600)) +
+  theme(axis.title = element_text(face="italic")) +
+  labs(x = "A. carolinensis", y = "A. picea") + 
+  theme(legend.position = "bottom") + 
+  geom_rect(xmin = 2.5, xmax = 3.5, ymin = 1.5, ymax = 2.5, fill = "transparent", linetype=2, colour="black") +
+  geom_rect(xmin = 3.5, xmax = 4.5, ymin = 0.5, ymax = 1.5, fill = "transparent", linetype=2, colour="black")
+```
+
+```
+## Error: object 'md_sub2' not found
+```
+
+```r
+mh_plot_sub2
+```
+
+```
+## Error: object 'mh_plot_sub2' not found
+```
+
+```r
+# arrange plots to make figure for manuscript
+mh_plot_sub1 <- mh_plot_sub1 + ggtitle('A') + theme(plot.title = element_text(hjust=0))
+```
+
+```
+## Error: object 'mh_plot_sub1' not found
+```
+
+```r
+mh_plot_sub2 <- mh_plot_sub2 + ggtitle('B') + theme(plot.title = element_text(hjust=0))
+```
+
+```
+## Error: object 'mh_plot_sub2' not found
+```
+
+```r
+png("results/matched_observations_Fig1.png")
+grid.arrange(mh_plot_sub1, mh_plot_sub2, ncol=1, heights = c(0.45, 0.6))
+```
+
+```
+## Error: object 'mh_plot_sub1' not found
+```
+
+```r
+dev.off()
+```
+
+```
+## pdf 
+##   2
+```
+
+```r
+# full figure for supplemental
+png("results/matched_observations_FigS1.png")
 mh_plot
 ```
 
-![plot of chunk mh_plot](figure/mh_plot.png) 
+```
+## Error: object 'mh_plot' not found
+```
+
+```r
+dev.off()
+```
+
+```
+## pdf 
+##   2
+```
 
 The number of thermally-responsive in each response category differs between the colonies, with the msot transcripts expressed at *Low* temperatures in both colonies. For *ApVT*, an equal number of transcripts are expressed at *High* and *Bimodal*, followed by *Intermediate* transcripts. For *AcNC*, transcripts expressed at *Intermediate* temperatures are next most common, followed by *High* and *Bimodal*. 
 
@@ -651,7 +1060,7 @@ Table: Number of transcripts with maximum expression at high, low, intermediate,
 
 Table 4 shows the number of transcripts that fall into each expression type for each each species. The totals for each species include the 2260 transcripts that have consistent temperature responses between the two colonies. 
 
-An interesting observation from the matched observations plot (Fig. ...) is that for **NotResp** genes in *A. carolinensis* the **High** and **Bimodal** categories in *A. picea* are over-represented. Finding that the mean expression level of these genes in *A. carolinensis* is greater than the expression level at the optimum temperature (19.5°C) in *A. picea* would be consistent with genetic assimilation.
+An interesting observation from the matched observations plot (Fig. 1) is that for **NotResp** genes in *A. carolinensis* the **High** and **Bimodal** categories in *A. picea* are over-represented. Finding that the mean expression level of these genes in *A. carolinensis* is greater than the expression level at the optimum temperature (19.5°C) in *A. picea* would be consistent with genetic assimilation.
 
 
 ```r
@@ -722,10 +1131,9 @@ In this section, I perform a number of comparisons of the thermal reactionomes b
 
 - compare profiles of the temperature of maximum expression for thermally-responsive transcripts
 - compare basal expression at optimal temperature for thermally-responsive genes
-- compare thermal stability of *Intermediate* genes
-- compare thermal sensitivity of *Bimodal* genes
-- compare the temperature at which gene expression increases, T~on~, for *High* and *Low* genes
-- evaluate the extent to which thermal reaction norms differ between species by mean and shape
+- compare degree of uregulation to constitutive expression
+- compare the critical temperature of transcript upregulation, T~on~, between species for transcripts induced in response to high or low temperatures 
+- compare the critical temperature of transcript downregulation, T~off~, between species for transcripts induced in response to high or low temperatures 
 
 
 ### Compare temperature of maximum expression between species
@@ -774,17 +1182,17 @@ Genes upregulated in response to thermal stress in one species may have greater 
 
 ```r
 # list of transcripts that are 'high' expressed in A22
-A22.high.transcripts <- Ap.response.type[which(Ap.response.type$A22.type == "High"), ]
+A22.high.transcripts.df <- Ap.response.type[which(Ap.response.type$A22.type == "High"), ]
 
 # Compare expression at optimum temp (A22.opt) between colonies using t-test
-t.test(A22.high.transcripts$A22.opt, A22.high.transcripts$Ar.opt)
+t.test(A22.high.transcripts.df$A22.opt, A22.high.transcripts.df$Ar.opt)
 ```
 
 ```
 ## 
 ## 	Welch Two Sample t-test
 ## 
-## data:  A22.high.transcripts$A22.opt and A22.high.transcripts$Ar.opt
+## data:  A22.high.transcripts.df$A22.opt and A22.high.transcripts.df$Ar.opt
 ## t = -0.153, df = 2337, p-value = 0.878
 ## alternative hypothesis: true difference in means is not equal to 0
 ## 95 percent confidence interval:
@@ -795,21 +1203,21 @@ t.test(A22.high.transcripts$A22.opt, A22.high.transcripts$Ar.opt)
 ```
 
 ```r
-boxplot(A22.high.transcripts$A22.opt, A22.high.transcripts$Ar.opt)
+boxplot(A22.high.transcripts.df$A22.opt, A22.high.transcripts.df$Ar.opt)
 ```
 
 ![plot of chunk optimum_expression_comparison](figure/optimum_expression_comparison1.png) 
 
 ```r
 # T test on log-transformed values to control for outliers
-t.test(log(A22.high.transcripts$A22.opt+1), log(A22.high.transcripts$Ar.opt+1))
+t.test(log(A22.high.transcripts.df$A22.opt+1), log(A22.high.transcripts.df$Ar.opt+1))
 ```
 
 ```
 ## 
 ## 	Welch Two Sample t-test
 ## 
-## data:  log(A22.high.transcripts$A22.opt + 1) and log(A22.high.transcripts$Ar.opt + 1)
+## data:  log(A22.high.transcripts.df$A22.opt + 1) and log(A22.high.transcripts.df$Ar.opt + 1)
 ## t = -3.66, df = 2459, p-value = 0.0002603
 ## alternative hypothesis: true difference in means is not equal to 0
 ## 95 percent confidence interval:
@@ -820,7 +1228,7 @@ t.test(log(A22.high.transcripts$A22.opt+1), log(A22.high.transcripts$Ar.opt+1))
 ```
 
 ```r
-boxplot(log(A22.high.transcripts$A22.opt+1), log(A22.high.transcripts$Ar.opt+1))
+boxplot(log(A22.high.transcripts.df$A22.opt+1), log(A22.high.transcripts.df$Ar.opt+1))
 ```
 
 ![plot of chunk optimum_expression_comparison](figure/optimum_expression_comparison2.png) 
@@ -829,7 +1237,7 @@ The `t.test` fails to account for the many orders of magnitude difference in exp
 
 
 ```r
-w1 <- wilcox.test(A22.high.transcripts$A22.opt, A22.high.transcripts$Ar.opt, alternative = "two.sided", paired = TRUE, conf.int = TRUE)
+w1 <- wilcox.test(A22.high.transcripts.df$A22.opt, A22.high.transcripts.df$Ar.opt, alternative = "two.sided", paired = TRUE, conf.int = TRUE)
 w1
 ```
 
@@ -837,7 +1245,7 @@ w1
 ## 
 ## 	Wilcoxon signed rank test with continuity correction
 ## 
-## data:  A22.high.transcripts$A22.opt and A22.high.transcripts$Ar.opt
+## data:  A22.high.transcripts.df$A22.opt and A22.high.transcripts.df$Ar.opt
 ## V = 198641, p-value < 2.2e-16
 ## alternative hypothesis: true location shift is not equal to 0
 ## 95 percent confidence interval:
@@ -854,17 +1262,17 @@ Next I test the converse: do genes up-regulated at low temperatures in *Ar* have
 
 ```r
 # list of transcripts that are 'high' expressed in Ar
-Ar.low.transcripts <- Ap.response.type[which(Ap.response.type$Ar.type == "Low"), ]
+Ar.low.transcripts.df <- Ap.response.type[which(Ap.response.type$Ar.type == "Low"), ]
 
 # t-test with log values
-t.test(log(Ar.low.transcripts$A22.opt+1), log(Ar.low.transcripts$Ar.opt+1))
+t.test(log(Ar.low.transcripts.df$A22.opt+1), log(Ar.low.transcripts.df$Ar.opt+1))
 ```
 
 ```
 ## 
 ## 	Welch Two Sample t-test
 ## 
-## data:  log(Ar.low.transcripts$A22.opt + 1) and log(Ar.low.transcripts$Ar.opt + 1)
+## data:  log(Ar.low.transcripts.df$A22.opt + 1) and log(Ar.low.transcripts.df$Ar.opt + 1)
 ## t = -6.57, df = 7504, p-value = 5.21e-11
 ## alternative hypothesis: true difference in means is not equal to 0
 ## 95 percent confidence interval:
@@ -875,14 +1283,14 @@ t.test(log(Ar.low.transcripts$A22.opt+1), log(Ar.low.transcripts$Ar.opt+1))
 ```
 
 ```r
-boxplot(log(Ar.low.transcripts$A22.opt+1), log(Ar.low.transcripts$Ar.opt+1))
+boxplot(log(Ar.low.transcripts.df$A22.opt+1), log(Ar.low.transcripts.df$Ar.opt+1))
 ```
 
 ![plot of chunk Ar_low_wilcoxon](figure/Ar_low_wilcoxon.png) 
 
 ```r
 # Wilcoxon signed rank-test
-w2 <- wilcox.test(Ar.low.transcripts$A22.opt, Ar.low.transcripts$Ar.opt, alternative = "two.sided", paired = TRUE, conf.int = TRUE)
+w2 <- wilcox.test(Ar.low.transcripts.df$A22.opt, Ar.low.transcripts.df$Ar.opt, alternative = "two.sided", paired = TRUE, conf.int = TRUE)
 w2
 ```
 
@@ -890,7 +1298,7 @@ w2
 ## 
 ## 	Wilcoxon signed rank test with continuity correction
 ## 
-## data:  Ar.low.transcripts$A22.opt and Ar.low.transcripts$Ar.opt
+## data:  Ar.low.transcripts.df$A22.opt and Ar.low.transcripts.df$Ar.opt
 ## V = 2198150, p-value < 2.2e-16
 ## alternative hypothesis: true location shift is not equal to 0
 ## 95 percent confidence interval:
@@ -948,111 +1356,285 @@ w3
 
 The non-parametric test for both comparisions also finds greater expression in *Ar* than *A22* at the optimal temperature.
 
+To visualize this data, I plot the log ratio of inducibility between species against the log ratio of constitutive expression between species. I do this separately for **High** transcripts in *A. picea* and then **Low** transcripts in *A. carolinensis*. 
 
-### Compare thermal stability of *Intermediate* genes
-
-*Intermediate* genes are those that have expression that is shut-down as conditions become stressful, likely non-essential molecular processes. We hypothesized that if the more southern *Ar* species was more thermally-tolerant than *A22*, transcripts with *Intermediate* expression (10-30C) would be active across a wider range of temperatures. To test this with our data, we calculated the standard deviation of the expression function for each temperature transcript that was 'Intermediate' expressed in each species.
-
-
-```r
-# extract 'Intermediate' expressed transcripts for A22
-A22.int.transcripts <- Ap.response.type[which(Ap.response.type$A22.type == "Intermediate"), ]
-A22.int.lm <- RxNlmAIC[A22.int.transcripts$Transcript]
-length(A22.int.lm)
-```
-
-```
-## [1] 909
-```
-
-```r
-# apply `transcriptSD` function to all transcripts
-A22.int.sd <- unlist(Map(transcriptSD, A22.int.lm, colony = "A22"))
-A22.int.sd <- data.frame(colony = "A22", exp_sd = A22.int.sd)
-
-# repeat for Ar
-Ar.int.transcripts <- Ap.response.type[which(Ap.response.type$Ar.type == "Intermediate"), ]
-Ar.int.lm <- RxNlmAIC[Ar.int.transcripts$Transcript]
-Ar.int.sd <- unlist(Map(transcriptSD, Ar.int.lm, colony = "Ar"))
-Ar.int.sd <- data.frame(colony = "Ar", exp_sd = Ar.int.sd)
-
-# T-test comparing standard deviation of expression between colonies
-(t.varint <- t.test(Ar.int.sd$exp_sd, A22.int.sd$exp_sd, alternative = "two.sided"))
-```
-
-```
-## 
-## 	Welch Two Sample t-test
-## 
-## data:  Ar.int.sd$exp_sd and A22.int.sd$exp_sd
-## t = 9.55, df = 1299, p-value < 2.2e-16
-## alternative hypothesis: true difference in means is not equal to 0
-## 95 percent confidence interval:
-##  0.360 0.546
-## sample estimates:
-## mean of x mean of y 
-##     10.36      9.91
-```
-
-Consistent with our hypothesis, *Intermediate* transcripts in *Ar* are expressed over a significantly wider range of temperatures than in *A22*. 
-
-![plot of chunk plot_thermal_breadth](figure/plot_thermal_breadth.png) 
-
-### Compare thermal sensitivity of *Bimodal* genes
-
-As the converse of the above hypothesis, a species that is especially thermally-sensitive is likely to activate expression of molecular processes for thermal tolerance more quickly. We tested this using the same approach as for the *Intermediate* transcripts, but using the inverse of the *Bimodal* expressed transcripts. 
+First, I calculate the degree of expression induction as the proportion difference between the maximum and minimum expression levels for each transcript.
 
 
 ```r
-# extract 'Bimodal' expressed transcripts for A22 species
-A22.bim.lm <- RxNlmAIC[Ap.response.type[which(Ap.response.type$A22.type == "Bimodal"), "Transcript"]]
-length(A22.bim.lm)
+# calculate degree of induction
+Ap.induction <- ddply(resp.TPM.dt.sub.pred, .(colony, Transcript), summarise, 
+                      upreg = (max(pTPM) - min(pTPM))/min(pTPM) * 100 )
 ```
 
 ```
-## [1] 1499
-```
-
-```r
-# apply `transcriptSD` function to all transcripts
-A22.bim.sd <- unlist(Map(transcriptSD, A22.bim.lm, colony = "A22"))
-
-# repeat for Ar 
-Ar.bim.lm <- RxNlmAIC[Ap.response.type[which(Ap.response.type$Ar.type == "Bimodal"), "Transcript"]]
-length(Ar.bim.lm)
-```
-
-```
-## [1] 868
+## Error: object 'resp.TPM.dt.sub.pred' not found
 ```
 
 ```r
-Ar.bim.sd <- unlist(Map(transcriptSD, Ar.bim.lm, colony = "Ar"))
-
-# t-test to compare standard deviation of 'Bimodal' transcripts between colonies
-(t.varbim <- t.test(Ar.bim.sd, A22.bim.sd))
+# cast to wide
+Ap.induction.wide <- dcast(Ap.induction, Transcript ~ colony, value.var = "upreg")
 ```
 
 ```
-## 
-## 	Welch Two Sample t-test
-## 
-## data:  Ar.bim.sd and A22.bim.sd
-## t = -0.855, df = 1528, p-value = 0.3925
-## alternative hypothesis: true difference in means is not equal to 0
-## 95 percent confidence interval:
-##  -0.2126  0.0835
-## sample estimates:
-## mean of x mean of y 
-##      12.6      12.7
+## Error: object 'Ap.induction' not found
 ```
 
-No difference in the standard deviation of expression for bimodally-expressed transcripts between colonies.
+```r
+names(Ap.induction.wide)[names(Ap.induction.wide)=="A22"] <- "A22.upreg"
+```
+
+```
+## Error: object 'Ap.induction.wide' not found
+```
+
+```r
+names(Ap.induction.wide)[names(Ap.induction.wide)=="Ar"] <- "Ar.upreg"
+```
+
+```
+## Error: object 'Ap.induction.wide' not found
+```
+
+```r
+# merge optimum expression, in Ap.response.type data.frame, with predicted TPM data
+Ap.induction.wide <- data.table(Ap.induction.wide)
+```
+
+```
+## Error: object 'Ap.induction.wide' not found
+```
+
+```r
+setkey(Ap.induction.wide, Transcript)
+```
+
+```
+## Error: object 'Ap.induction.wide' not found
+```
+
+```r
+Ap.response.type2 <- Ap.induction.wide[Ap.response.type]
+```
+
+```
+## Error: object 'Ap.induction.wide' not found
+```
+
+I extract the **High** transcripts for *A. picea* and plot the log ratio of inducibility in *A. picea* over inducibility in *A. carolinensis*, against the log ratio of constitutive expression in *A. carolinensis* against expression in *A. picea*. According to the *genetic assimilation hypothesis* there should be a positive relationship between these ratios. That is, greater constitutive expression in *A. carolinensis* should have greater inducibility towards **High** temperatures in *A. picea*.
 
 
-### Compare the temperature at which gene expression increases, T~on~, for *High* and *Low* genes
 
-Thermally-responsive genes could also differ in the temperatures at which they have increased or decreased expression in response to temperature changes. To examine this, I determine the temperature at which each responsive gene has the greated increase or decrease in expression.
+```r
+Ap.response.type2.A22.high <- Ap.response.type2[Ap.response.type2$Transcript %in% A22.high.transcripts.df$Transcript, ]
+```
+
+```
+## Error: object 'Ap.response.type2' not found
+```
+
+```r
+str(Ap.response.type2.A22.high)
+```
+
+```
+## Error: object 'Ap.response.type2.A22.high' not found
+```
+
+```r
+# filter out NotResp transcripts in Ar
+Ap.response.type2.A22.high <- Ap.response.type2.A22.high[which(Ap.response.type2.A22.high$Ar.type != "NotResp"), ]
+```
+
+```
+## Error: object 'Ap.response.type2.A22.high' not found
+```
+
+```r
+# ratio of upregulation
+Ap.response.type2.A22.high$A22.Ar.upreg <- Ap.response.type2.A22.high$A22.upreg / Ap.response.type2.A22.high$Ar.upreg
+```
+
+```
+## Error: object 'Ap.response.type2.A22.high' not found
+```
+
+```r
+# ratio of constitutive expression
+Ap.response.type2.A22.high$A22.Ar.constitutive <- Ap.response.type2.A22.high$A22.opt / Ap.response.type2.A22.high$Ar.opt
+```
+
+```
+## Error: object 'Ap.response.type2.A22.high' not found
+```
+
+```r
+# plot!
+gg11 <- ggplot(Ap.response.type2.A22.high, aes(x = log(A22.Ar.upreg), y = log(A22.Ar.constitutive))) + 
+  geom_point() + 
+  geom_smooth(method = "lm") +
+  labs(x = expression(paste("log(inducibility ", italic("A. picea / A. carolinensis"), ")")),
+       y = expression(paste("log(constitutive expression ", italic("A. picea / A. carolinensis"), ")")))    
+```
+
+```
+## Error: object 'Ap.response.type2.A22.high' not found
+```
+
+```r
+gg11
+```
+
+```
+## Error: object 'gg11' not found
+```
+
+```r
+A22.high.lm <- lm(log(Ar.A22.constitutive) ~ log(A22.Ar.upreg), data = Ap.response.type2.A22.high)
+```
+
+```
+## Error: object 'Ap.response.type2.A22.high' not found
+```
+
+```r
+summary(A22.high.lm)
+```
+
+```
+## Error: error in evaluating the argument 'object' in selecting a method for function 'summary': Error: object 'A22.high.lm' not found
+```
+
+In contrast to the prediction there is a negative relationship between these ratios. That is, genes with greater upregulation of expression also have greater constitutive expression. This is also consistent with the results simply comparing constitutive expression between species for the *A. picea* **High** transcripts. 
+
+I repeated the above but for **Low** transcripts in *A. carolinensis*. 
+
+
+```r
+### Repeat for A. carolinensis *Low* transcripts
+Ap.response.type2.Ar.low <- Ap.response.type2[Ap.response.type2$Transcript %in% Ar.low.transcripts.df$Transcript, ]
+```
+
+```
+## Error: object 'Ap.response.type2' not found
+```
+
+```r
+str(Ap.response.type2.Ar.low)
+```
+
+```
+## Error: object 'Ap.response.type2.Ar.low' not found
+```
+
+```r
+# filter out NotResp transcripts in A22
+Ap.response.type2.Ar.low <- Ap.response.type2.Ar.low[which(Ap.response.type2.Ar.low$A22.type != "NotResp"), ]
+```
+
+```
+## Error: object 'Ap.response.type2.Ar.low' not found
+```
+
+```r
+# ratio of upregulation
+Ap.response.type2.Ar.low$Ar.A22.upreg <- Ap.response.type2.Ar.low$Ar.upreg / Ap.response.type2.Ar.low$A22.upreg
+```
+
+```
+## Error: object 'Ap.response.type2.Ar.low' not found
+```
+
+```r
+# ratio of constitutive expression
+Ap.response.type2.Ar.low$Ar.A22.constitutive <- Ap.response.type2.Ar.low$Ar.opt / Ap.response.type2.Ar.low$A22.opt
+```
+
+```
+## Error: object 'Ap.response.type2.Ar.low' not found
+```
+
+```r
+gg12 <- ggplot(Ap.response.type2.Ar.low, aes(x = log(Ar.A22.upreg), y = log(Ar.A22.constitutive))) + 
+  geom_point() + 
+  geom_smooth(method = "lm") +
+  labs(x = expression(paste("log(inducibility ", italic("A. carolinensis / A. picea"), ")")),
+       y = expression(paste("log(constitutive expression ", italic("A. carolinensis / A. picea"), ")")))                   
+```
+
+```
+## Error: object 'Ap.response.type2.Ar.low' not found
+```
+
+```r
+gg12
+```
+
+```
+## Error: object 'gg12' not found
+```
+
+```r
+Ar.low.lm <- lm(log(Ar.A22.constitutive) ~ log(Ar.A22.upreg), data = Ap.response.type2.Ar.low)
+```
+
+```
+## Error: object 'Ap.response.type2.Ar.low' not found
+```
+
+```r
+summary(Ar.low.lm)
+```
+
+```
+## Error: error in evaluating the argument 'object' in selecting a method for function 'summary': Error: object 'Ar.low.lm' not found
+```
+
+I combine the two above figures into a single figure.
+
+
+```r
+# add labels
+gg11 <- gg11 + ggtitle('A') + theme(plot.title = element_text(hjust=0))
+```
+
+```
+## Error: object 'gg11' not found
+```
+
+```r
+gg12 <- gg12 + ggtitle('B') + theme(plot.title = element_text(hjust=0))
+```
+
+```
+## Error: object 'gg12' not found
+```
+
+```r
+# grid.arrange
+png(file = "results/genetic_assimilation_Fig3.png")
+grid.arrange(gg11, gg12, nrow = 1)
+```
+
+```
+## Error: object 'gg11' not found
+```
+
+```r
+dev.off()
+```
+
+```
+## pdf 
+##   2
+```
+
+As with the previous comparison, I also find no evidence for the genetic assimilation hypothesis. 
+
+
+### Compare the critical temperature of transcript upregulation, T~on~, between species for transcripts induced in response to high or low temperatures
+
+Thermally-responsive genes could also differ in the critical temperature of gene induction. To examine this, I determine the temperature at which each responsive gene has the greatest increase or decrease in expression.
 
 
 ```r
@@ -1134,73 +1716,6 @@ resp.TPM.dt.sub.pred <- ddply(resp.TPM.dt.sub, .(Transcript), .inform="TRUE", pr
 resp.TPM.dt.sub.pred <- data.table(resp.TPM.dt.sub.pred)
 setkey(resp.TPM.dt.sub.pred, Transcript, colony)
 ```
-
-
-Does the mean expression level for all responsive genes differ among colonies?
-
-
-```r
-t.test(log(Ap.response.type$A22.opt), log(Ap.response.type$Ar.opt))
-```
-
-```
-## 
-## 	Welch Two Sample t-test
-## 
-## data:  log(Ap.response.type$A22.opt) and log(Ap.response.type$Ar.opt)
-## t = -9.09, df = 18041, p-value < 2.2e-16
-## alternative hypothesis: true difference in means is not equal to 0
-## 95 percent confidence interval:
-##  -0.185 -0.120
-## sample estimates:
-## mean of x mean of y 
-##     0.708     0.861
-```
-
-```r
-# expression level at optimum temp greater in Ar than A22
-
-# non-parametric test
-w4 = wilcox.test(Ap.response.type$A22.opt, 
-                 Ap.response.type$Ar.opt,
-                 alternative = "two.sided", paired = TRUE, conf.int = TRUE)
-
-
-mean.exp <- ddply(resp.TPM.dt.sub.pred, .(colony, Transcript), summarise,
-                  mean.TPM = mean(pTPM))
-
-t.test(log(mean.exp[which(mean.exp$colony == "A22"), "mean.TPM"]), 
-       log(mean.exp[which(mean.exp$colony == "Ar"), "mean.TPM"]))
-```
-
-```
-## 
-## 	Welch Two Sample t-test
-## 
-## data:  log(mean.exp[which(mean.exp$colony == "A22"), "mean.TPM"]) and log(mean.exp[which(mean.exp$colony == "Ar"), "mean.TPM"])
-## t = -6.53, df = 18077, p-value = 6.938e-11
-## alternative hypothesis: true difference in means is not equal to 0
-## 95 percent confidence interval:
-##  -0.1399 -0.0753
-## sample estimates:
-## mean of x mean of y 
-##     0.747     0.855
-```
-
-```r
-# non-parametric test
-w5 = wilcox.test(mean.exp[which(mean.exp$colony == "A22"), "mean.TPM"],
-                 mean.exp[which(mean.exp$colony == "Ar"), "mean.TPM"],
-                 alternative = "two.sided", paired = TRUE, conf.int = TRUE)
-
-
-plot(log(mean.exp[which(mean.exp$colony == "A22"), "mean.TPM"]), 
-     log(mean.exp[which(mean.exp$colony == "Ar"), "mean.TPM"]))
-```
-
-![plot of chunk mean_exp](figure/mean_exp.png) 
-
-
 
 
 For next analyses, extract list of gene names by response type.
@@ -1392,7 +1907,10 @@ Visualize T~on~ for both *Low* and *High* genes on the same plot.
 ![plot of chunk plot_T_on](figure/plot_T_on.png) 
 
 
-Repeat analysis for when **Intermediate** genes are turned *off*.
+### Compare the critical temperature of transcript downregulation, T~off~, between species for transcripts induced in response to high or low temperatures 
+
+This analysis is comparable to the one above, but for the *Intermediate* genes that are downregulated, split into the low and high temperature extremes.
+
 
 
 ```r
@@ -1416,19 +1934,19 @@ str(A22.int.TPM.dt.sub)
 ```r
 # make data.frame for results
 l5 <- length(unique(A22.int.TPM.dt.sub$Transcript))
-A22.int.T_off <- data.frame(Transcript = unique(A22.int.TPM.dt.sub$Transcript), colony = rep("ApVT", length = l5), type = rep("Low", length = l5), T_off_high = NA, T_off_low = NA)
+A22.int.T_off <- data.frame(Transcript = unique(A22.int.TPM.dt.sub$Transcript), colony = rep("ApVT", length = l5), type = rep("Intermediate", length = l5), High = NA, Low = NA)
 
 # loop across transcripts, calculating T_off at both high and low temperatures
 for(i in unique(A22.int.TPM.dt.sub$Transcript)) {
     subdf <- A22.int.TPM.dt.sub[i]
     
     subdf.high <- subdf[which(subdf$val >= 21), ]
-    T_off_high <- subdf.high[median(which(diff(subdf.high$TPM) == min(diff(subdf.high$TPM)))), val]
-    A22.int.T_off[which(A22.int.T_off$Transcript == i), "T_off_high"] <- T_off_high
+    High <- subdf.high[median(which(diff(subdf.high$TPM) == min(diff(subdf.high$TPM)))), val]
+    A22.int.T_off[which(A22.int.T_off$Transcript == i), "High"] <- High
     
     subdf.low <- subdf[which(subdf$val <= 21), ]
-    T_off_low <- subdf.low[median(which(diff(subdf.low$TPM) == min(diff(subdf.low$TPM)))), val]
-    A22.int.T_off[which(A22.int.T_off$Transcript == i), "T_off_low"] <- T_off_low
+    Low <- subdf.low[median(which(diff(subdf.low$TPM) == min(diff(subdf.low$TPM)))), val]
+    A22.int.T_off[which(A22.int.T_off$Transcript == i), "Low"] <- Low
 }   
 
 # repeat for Ar
@@ -1451,30 +1969,30 @@ str(Ar.int.TPM.dt.sub)
 ```r
 # make data.frame for results
 l6 <- length(unique(Ar.int.TPM.dt.sub$Transcript))
-Ar.int.T_off <- data.frame(Transcript = unique(Ar.int.TPM.dt.sub$Transcript), colony = rep("ApVT", length = l6), type = rep("Low", length = l6), T_off_high = NA, T_off_low = NA)
+Ar.int.T_off <- data.frame(Transcript = unique(Ar.int.TPM.dt.sub$Transcript), colony = rep("AcNC", length = l6), type = rep("Intermediate", length = l6), High = NA, Low = NA)
 
 # loop across transcripts, calculating T_off at both high and low temperatures
 for(i in unique(Ar.int.TPM.dt.sub$Transcript)) {
     subdf <- Ar.int.TPM.dt.sub[i]
     
     subdf.high <- subdf[which(subdf$val >= 21), ]
-    T_off_high <- subdf.high[median(which(diff(subdf.high$TPM) == min(diff(subdf.high$TPM)))), val]
-    Ar.int.T_off[which(Ar.int.T_off$Transcript == i), "T_off_high"] <- T_off_high
+    High <- subdf.high[median(which(diff(subdf.high$TPM) == min(diff(subdf.high$TPM)))), val]
+    Ar.int.T_off[which(Ar.int.T_off$Transcript == i), "High"] <- High
     
     subdf.low <- subdf[which(subdf$val <= 21), ]
-    T_off_low <- subdf.low[median(which(diff(subdf.low$TPM) == min(diff(subdf.low$TPM)))), val]
-    Ar.int.T_off[which(Ar.int.T_off$Transcript == i), "T_off_low"] <- T_off_low
+    Low <- subdf.low[median(which(diff(subdf.low$TPM) == min(diff(subdf.low$TPM)))), val]
+    Ar.int.T_off[which(Ar.int.T_off$Transcript == i), "Low"] <- Low
 }
 
 # compare T_off among species
-(T_off.int.high.ttest <- t.test(Ar.int.T_off$T_off_high, A22.int.T_off$T_off_high))
+(T_off.int.high.ttest <- t.test(Ar.int.T_off$High, A22.int.T_off$High))
 ```
 
 ```
 ## 
 ## 	Welch Two Sample t-test
 ## 
-## data:  Ar.int.T_off$T_off_high and A22.int.T_off$T_off_high
+## data:  Ar.int.T_off$High and A22.int.T_off$High
 ## t = 7.02, df = 1655, p-value = 3.325e-12
 ## alternative hypothesis: true difference in means is not equal to 0
 ## 95 percent confidence interval:
@@ -1485,14 +2003,14 @@ for(i in unique(Ar.int.TPM.dt.sub$Transcript)) {
 ```
 
 ```r
-(T_off.int.low.ttest <- t.test(Ar.int.T_off$T_off_low, A22.int.T_off$T_off_low))
+(T_off.int.low.ttest <- t.test(Ar.int.T_off$Low, A22.int.T_off$Low))
 ```
 
 ```
 ## 
 ## 	Welch Two Sample t-test
 ## 
-## data:  Ar.int.T_off$T_off_low and A22.int.T_off$T_off_low
+## data:  Ar.int.T_off$Low and A22.int.T_off$Low
 ## t = 2.17, df = 1574, p-value = 0.02979
 ## alternative hypothesis: true difference in means is not equal to 0
 ## 95 percent confidence interval:
@@ -1502,192 +2020,108 @@ for(i in unique(Ar.int.TPM.dt.sub$Transcript)) {
 ##      11.1      10.6
 ```
 
-As with genes turned on at high temperatures, *A. carolinensis* **Intermediate** genes are down-regulated on average at 1.2C higher temperatures than *A. picea* **Intermediate** genes. 
+As with genes turned on at high temperatures, *A. carolinensis* **Intermediate** genes are down-regulated on at higher temperatures than *A. picea* **Intermediate** genes. In contrast, towards low temperatures, the temperature of mean temperature of downregulation was higher for *A. picea* than *A. carolinensis*.
 
+Visualize T~off~ for both *Low* and *High* genes on the same plot.
 
+![plot of chunk activation_plot](figure/activation_plot.png) 
 
-### Evaluate the extent to which differences in thermal reaction norms are due to mean or shape
-
-For the transcripts that differed in thermal responsiveness due to temperature, was the difference primarily due to differences in the mean value of expression, slope, curvature of a higher order effect? To test this, I rougly follow Murren, Maclean, Diamond, Steiner, Heskel, Handelsman, Ghalambor, Auld, Callahan, Pfennig, Relyea, Schlichting, and Kingsolver (2014) by defining differences among reation norms for individual genes due to changes in the overall mean, slope, curvature and all higher-order shape differences (i.e. wiggle).
-
-- *Mean, M*: overall difference in the mean expression value across all temperatures
-- *Slope, S*: difference in overall slope
-- *Curvature, C*: average difference in curvature of the reaction norm
-- *Wiggle, W*: variability in shape not captured by the previous three measures
+Make a plot with all 4 gene activation comparisons.
 
 
 ```r
-varshape.out <- ldply(interaction.lms, .progress = "none", RxNvarshape)
+gg2 <- ggplot(Ap.T_on, aes(x = T_on, y = ..density.., colour = Species, group = Species, fill = Species)) +
+    facet_grid(. ~ type) +
+    geom_histogram(position = "dodge", binwidth = 3) +
+    geom_density(adjust = 3, fill = NA, size = 2) + 
+    labs(x = "Critical temperature of upregulation", y = "Density") +
+    theme(legend.position = "none")  
 
-# delta mean
-boxplot(varshape.out$A22.mean, varshape.out$Ar.mean)
+gg3 <- ggplot(Ap.T_off, aes(x = T_off, y = ..density.., colour = Species, group = Species, fill = Species)) +
+    facet_grid(. ~ class) +
+    geom_histogram(position = "dodge", binwidth = 3) +
+    geom_density(adjust = 3, fill = NA, size = 2) + 
+    labs(x = "Critical temperature of downregulation", y = "Density") +
+    theme(legend.position = "bottom", legend.text = element_text(size = 12, face = 3))  
+
+# grid.arrange
+gg2 <- gg2 + ggtitle('A') + theme(plot.title = element_text(hjust=0))
+gg3 <- gg3 + ggtitle('B') + theme(plot.title = element_text(hjust=0))
+
+png("results/crit_temp_regulation_Fig2.png")
+grid.arrange(gg2, gg3, nrow = 2, heights = c(.5,.6))
+dev.off()
 ```
 
-![plot of chunk varshape](figure/varshape1.png) 
-
-```r
-boxplot(log(varshape.out$A22.mean), log(varshape.out$Ar.mean))
+```
+## pdf 
+##   2
 ```
 
-![plot of chunk varshape](figure/varshape2.png) 
+Does the mean expression level for all responsive genes differ among colonies?
+
 
 ```r
-t.mean <- t.test(log(varshape.out$A22.mean), log(varshape.out$Ar.mean), paired = TRUE)
-t.mean
+t.test(log(Ap.response.type$A22.opt), log(Ap.response.type$Ar.opt))
 ```
 
 ```
 ## 
-## 	Paired t-test
+## 	Welch Two Sample t-test
 ## 
-## data:  log(varshape.out$A22.mean) and log(varshape.out$Ar.mean)
-## t = -10.7, df = 6791, p-value < 2.2e-16
+## data:  log(Ap.response.type$A22.opt) and log(Ap.response.type$Ar.opt)
+## t = -9.09, df = 18041, p-value < 2.2e-16
 ## alternative hypothesis: true difference in means is not equal to 0
 ## 95 percent confidence interval:
-##  -0.1069 -0.0737
+##  -0.185 -0.120
 ## sample estimates:
-## mean of the differences 
-##                 -0.0903
+## mean of x mean of y 
+##     0.708     0.861
 ```
 
 ```r
-# delta slope
-boxplot(log(varshape.out$A22.slope), log(varshape.out$Ar.slope))
-```
+# expression level at optimum temp greater in Ar than A22
 
-```
-## Warning: Outlier (-Inf) in boxplot 1 is not drawn
-## Warning: Outlier (-Inf) in boxplot 2 is not drawn
-```
+# non-parametric test
+w4 = wilcox.test(Ap.response.type$A22.opt, 
+                 Ap.response.type$Ar.opt,
+                 alternative = "two.sided", paired = TRUE, conf.int = TRUE)
 
-![plot of chunk varshape](figure/varshape3.png) 
 
-```r
-t.slope <- t.test(log(varshape.out$A22.slope + 0.1), log(varshape.out$Ar.slope + 0.1), paired = TRUE)
-t.slope
+mean.exp <- ddply(resp.TPM.dt.sub.pred, .(colony, Transcript), summarise,
+                  mean.TPM = mean(pTPM))
+
+t.test(log(mean.exp[which(mean.exp$colony == "A22"), "mean.TPM"]), 
+       log(mean.exp[which(mean.exp$colony == "Ar"), "mean.TPM"]))
 ```
 
 ```
 ## 
-## 	Paired t-test
+## 	Welch Two Sample t-test
 ## 
-## data:  log(varshape.out$A22.slope + 0.1) and log(varshape.out$Ar.slope + 0.1)
-## t = 7.71, df = 6791, p-value = 1.496e-14
+## data:  log(mean.exp[which(mean.exp$colony == "A22"), "mean.TPM"]) and log(mean.exp[which(mean.exp$colony == "Ar"), "mean.TPM"])
+## t = -6.53, df = 18077, p-value = 6.938e-11
 ## alternative hypothesis: true difference in means is not equal to 0
 ## 95 percent confidence interval:
-##  0.0214 0.0360
+##  -0.1399 -0.0753
 ## sample estimates:
-## mean of the differences 
-##                  0.0287
+## mean of x mean of y 
+##     0.747     0.855
 ```
 
 ```r
-# delta curvature
-boxplot(log(varshape.out$A22.curve), log(varshape.out$Ar.curve))
+# non-parametric test
+w5 = wilcox.test(mean.exp[which(mean.exp$colony == "A22"), "mean.TPM"],
+                 mean.exp[which(mean.exp$colony == "Ar"), "mean.TPM"],
+                 alternative = "two.sided", paired = TRUE, conf.int = TRUE)
+
+
+plot(log(mean.exp[which(mean.exp$colony == "A22"), "mean.TPM"]), 
+     log(mean.exp[which(mean.exp$colony == "Ar"), "mean.TPM"]))
 ```
 
-![plot of chunk varshape](figure/varshape4.png) 
+![plot of chunk mean_exp](figure/mean_exp.png) 
 
-```r
-t.curvature <- t.test(log(varshape.out$A22.curve + 0.1), log(varshape.out$Ar.curve + 0.1), paired = TRUE)
-t.curvature
-```
-
-```
-## 
-## 	Paired t-test
-## 
-## data:  log(varshape.out$A22.curve + 0.1) and log(varshape.out$Ar.curve + 0.1)
-## t = 0.763, df = 6791, p-value = 0.4454
-## alternative hypothesis: true difference in means is not equal to 0
-## 95 percent confidence interval:
-##  -0.00168  0.00381
-## sample estimates:
-## mean of the differences 
-##                 0.00107
-```
-
-```r
-# delta wiggle - small values so use un-transformed
-boxplot(varshape.out$A22.wiggle, varshape.out$Ar.wiggle)
-```
-
-![plot of chunk varshape](figure/varshape5.png) 
-
-```r
-t.wiggle <- t.test(varshape.out$A22.wiggle, varshape.out$Ar.wiggle, paired = TRUE)
-t.wiggle
-```
-
-```
-## 
-## 	Paired t-test
-## 
-## data:  varshape.out$A22.wiggle and varshape.out$Ar.wiggle
-## t = -0.782, df = 6791, p-value = 0.4344
-## alternative hypothesis: true difference in means is not equal to 0
-## 95 percent confidence interval:
-##  -0.000375  0.000161
-## sample estimates:
-## mean of the differences 
-##               -0.000107
-```
-
-Reaction norms differ between species by mean and slope, but not by curvature or wiggle.
-
-Next, I partition the differences in the reaction norms into the variation explained by differences in the trait means and slope, as curvature and wiggle did not differ between species.
-
-
-```r
-# calculate differences in mean, slope, curvature and wiggle between colonies for each transcript
-# mean = mean1 - mean2
-varshape.out$lmean <- log(varshape.out$A22.mean) - log(varshape.out$Ar.mean)
-
-# slope = slope1 - slope2
-varshape.out$lslope <- log(varshape.out$A22.slope + 0.1) - log(varshape.out$Ar.slope + 0.1)
-
-# take absolute value of each value and sum to get total differences between reaction norms
-varshape.out$ltotal <- abs(varshape.out$lmean) + abs(varshape.out$lslope)
-
-# variation in reaction norms due to differences in mean
-varshape.out$prop.lmean <- abs(varshape.out$lmean) / varshape.out$ltotal
-varshape.out$prop.lslope <- abs(varshape.out$lslope) / varshape.out$ltotal
-
-# Mean proportion and 95% CI of total variation of each measure
-mean(varshape.out$prop.lmean)
-```
-
-```
-## [1] 0.773
-```
-
-```r
-(qlmean <- quantile(varshape.out$prop.lmean, probs = c(0.05, 0.5, 0.95)))
-```
-
-```
-##    5%   50%   95% 
-## 0.448 0.817 0.985
-```
-
-```r
-mean(varshape.out$prop.lslope)
-```
-
-```
-## [1] 0.227
-```
-
-```r
-(qlslope <- quantile(varshape.out$prop.lslope, probs = c(0.05, 0.5, 0.95)))
-```
-
-```
-##     5%    50%    95% 
-## 0.0154 0.1832 0.5517
-```
-
-From this analysis, about 80% of the differences in reaction norms between species are due to changes in the mean, with the remainder being due to changes in slope.
 
 
 
@@ -3699,6 +4133,8 @@ resp.TPM.dt.sub.pred[,pTPM.scaled:=scale(pTPM), by = Transcript]
 ```
 
 ```r
+setkey(resp.TPM.dt.sub.pred, "Transcript")
+
 pred_A22_high <- ggplot(resp.TPM.dt.sub.pred[A22.high.transcripts][1:220,], aes(x=val, y=pTPM.scaled, group=Transcript)) +
   geom_line() + 
   facet_grid(. ~ colony) + 
@@ -3734,10 +4170,18 @@ Export data for interactive shiny app.
 
 
 
+```
+## Error: objects 'chi3', 'chi4', 'chi5', 'tt2', 'mh_plot', 'md' not found
+```
+
+```
+## Error: objects 'chi3', 'chi4', 'chi5', 'chi6', 'tt2', 'mh_plot', 'md' not
+## found
+```
 
 
 ## Session information
-
+ 
 
 ```r
 save.image()
