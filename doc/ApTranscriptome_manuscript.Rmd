@@ -1,6 +1,5 @@
 ---
-title: Thermal reactionomes reveal adaptive responses to thermal extremes in warm
-  and cool-climate ant species
+title: Thermal reactionomes reveal adaptive responses to thermal extremes in warm and cool-climate ant species
 author: ' '
 csl: pnas1.csl
 output:
@@ -22,7 +21,7 @@ bibliography: ApTranscriptome.bib
 
 \newpage
 
-**Short title**: Thermal reactionomes of cool and warm-climate ant species
+**Short title**: Thermal reactionomes of warm and cool-climate ants
 
 **Authors** 
 
@@ -131,7 +130,7 @@ The two species differed in the number of transcripts in each response category 
 mh.test
 ```
 
-In addition to comparing the overall number of transcripts in each category, we also examined the extent to which reaction norms for individual transcripts were shared between species. Expression patterns differed for 6,792 (65%) of the thermally responsive transcripts, most of which shifted from one responsive category to another. These shifts were not randomly distributed (Stuart-Maxwell test of marginal homogeneity $\chi^2$~4~ = 1,259, *P* < 0.001, Figure S1) indicating that these differences are not simply due to neutral processes. The *enhanced defense* and *tolerance* hypotheses make opposing predictions concerning overlap in response patterns between the two species. The *enhanced defense hypothesis* posits that temperature adaptation uses existing defense mechanisms, which should result in significant overlap in response, whereas the *tolerance hypothesis* predicts that genes involved in active defense will become non-responsive or shift to other response categories in the better-adapted species. For each temperature extreme, we tested these predictions by focusing on the genes upregulated by the less-adapted species (*A. carolinensis* for low temperatures, *A. picea* for high temperatures) and testing whether those genes displayed the same response profile in the better-adapted species. As with the overall results, the patterns of association differed for the two temperature extremes. Genes upregulated at low temperatures in *A. carolinensis* (**Low** and **Bimodal** transcripts) were significantly biased toward this same category and away from all other expression categories in *A. picea*, suggesting shared response pathways (Fig. 1A). In contrast, genes upregulated in response to high temperatures in *A. picea* (**High** and **Bimodal**) were only weakly associated with this same category in *A. carolinensis* (Fig. 1B). Instead, these genes were less likely than expected to be upregulated in any context, with a significant excess in the **Not Responsive** and **Intermediate** categories (Fig. 1B).
+In addition to comparing the overall number of transcripts in each category, we also examined the extent to which reaction norms for individual transcripts were shared between species. Expression patterns differed for 6,792 (65%) of the thermally responsive transcripts, most of which shifted from one responsive category to another. These shifts were not randomly distributed (Stuart-Maxwell test of marginal homogeneity $\chi^2$~4~ = 1,259, *P* < 0.001, Fig. S1) indicating that these differences are not simply due to neutral processes. The *enhanced defense* and *tolerance* hypotheses make opposing predictions concerning overlap in response patterns between the two species. The *enhanced defense hypothesis* posits that temperature adaptation uses existing defense mechanisms, which should result in significant overlap in response, whereas the *tolerance hypothesis* predicts that genes involved in active defense will become non-responsive or shift to other response categories in the better-adapted species. For each temperature extreme, we tested these predictions by focusing on the genes upregulated by the less-adapted species (*A. carolinensis* for low temperatures, *A. picea* for high temperatures) and testing whether those genes displayed the same response profile in the better-adapted species. As with the overall results, the patterns of association differed for the two temperature extremes. Genes upregulated at low temperatures in *A. carolinensis* (**Low** and **Bimodal** transcripts) were significantly biased toward this same category and away from all other expression categories in *A. picea*, suggesting shared response pathways (Fig. 1A). In contrast, genes upregulated in response to high temperatures in *A. picea* (**High** and **Bimodal**) were only weakly associated with this same category in *A. carolinensis* (Fig. 1B). Instead, these genes were less likely than expected to be upregulated in any context, with a significant excess in the **Not Responsive** and **Intermediate** categories (Fig. 1B).
  
 The molecular processes in the set of transcripts that switched from upregulation in *A. picea* to downregulation in *A. carolinensis* included `r nrow(Ar.int.A22.low.gsea) + nrow(Ar.int.A22.bim.gsea)` significantly enriched GO terms (Table S1), of which `r round((length(grep("metab", Ar.int.A22.low.gsea$Term)) + length(grep("metab", Ar.int.A22.bim.gsea$Term))) / (nrow(Ar.int.A22.low.gsea) + nrow(Ar.int.A22.bim.gsea))*100, 0)`% (`r (length(grep("metab", Ar.int.A22.low.gsea$Term)) + length(grep("metab", Ar.int.A22.bim.gsea$Term)))`) were related to metabolism. In addition, there were GO terms related to repair (e.g. histone modification), transcript regulation (e.g. positive regulation of cellular process) and cellular organization (e.g. transport, organelle organization). Altogether, these results suggest that in response to both thermal extremes, the warmer-climate species, *A. carolinensis*, primarily shuts down metabolism whereas the cooler-climate species, *A. picea*, increases metabolism and initiates damage repair responses. 
 
@@ -250,13 +249,17 @@ Support made possible by NSF DEB Award #1136644 and the Vermont Genetics Network
 
 # Figure Legends
 
-**Figure 1**. Deviations from expected numbers of transcripts in matched observations of transcript expression type. The color of each cell represents the deviation of the observed from the expected number of transcripts based on hypothetical equivalence of the marginal frequencies (Blue = excess, Red = deficit). The dashed boxes indicate the diagonals (e.g. **High** - **High**). (A) **Low** and **Bimodal** expression types for *A. carolinensis* showing bias away from all other categories in *A. picea*. (B) **High** and **Bimodal** expression types for *A. picea* showing excess of transcripts that are not upregulated (**Intermediate** and **Not Responsive**). The complete set of matched observations is shown in Fig. S1.
+**Figure 1**. Deviations from expected numbers of transcripts in matched observations of transcript expression type. The color of each cell represents the deviation of the observed from the expected number of transcripts based on hypothetical equivalence of the marginal frequencies (blue = excess, red = deficit). The dashed boxes indicate the matched (e.g. **High** - **High**). (A) **Low** and **Bimodal** expression types for *A. carolinensis* showing bias away from all other categories in *A. picea*. (B) **High** and **Bimodal** expression types for *A. picea* showing excess of transcripts that are not upregulated (**Intermediate** and **Not Responsive**). The complete set of matched observations is shown in Fig. S1.
 
 **Figure 2**. Histogram with smooth density estimate of temperature of maximum change in expression for transcripts that have increased expression at **Low** and **High** temperatures. Red bars and lines are for *A. carolinensis* while blue bars and lines are for *A. picea*.
 
 **Figure 3**. Scatterplots of log ratios of relative inducibility to relative constitutive expression for (A) **High** transcripts in *A. picea* (*P* < 0.001, r^2^ = 0.07) and (B) **Low** transcripts in *A. carolinensis* (*P* < 0.001, r^2^ = 0.1). Blue lines and confidence intervals are from ordinary least squares regressions. 
 
-# Tables
+**Figure S1.** Deviations from expected numbers of transcripts in matched observations of transcript expression type between species (*A. carolinensis* on rows, *A. picea* on columns). The color of each cell represents the deviation of the observed from the expected number of transcripts based on hypothetical equivalence of the marginal frequencies (blue = excess, red = deficit). The expression types are **Low** transcripts that had greatest expression temperatures < 10°C, **Intermediate** transcripts with greatest expression between 10 and 30°C, **High** transcripts that had greatest expression at temperatures > 31°, **Bimodal** transcripts with increased expression at both high and low temperatures, and **Not Responsive** transcripts that were not thermally responsive in that species.
+
+\newpage
+
+# Tables and Figures
 
 ```{r type_table, echo=FALSE, results='asis', fig.cap = "Table of the number of thermally-responsive transcripts by expression type for *A. carolinensis* and *A. picea*. **Low** are transcripts with increased expression at low temperatuers (< 10°C), **Intermediate** are transcripts with maximum expression between 10 - 30°C, **High** are transcripts with increased expression at high temperatures (> 31°C), **Bimodal** are transcripts with increased expression at both low and high temperatures, while **NotResp** are transcripts that are not thermally responsive in one species but are in the other species."}
 
@@ -267,7 +270,7 @@ pandoc.table(Ap.type.table[,c("Low", "Intermediate", "High", "Bimodal", "NotResp
              caption = "Table of the number of thermally-responsive transcripts by expression type for *A. carolinensis* and *A. picea*. **Low** are transcripts with increased expression at low temperatures (< 10°C), **Intermediate** are transcripts with maximum expression between 10 - 30°C, **High** are transcripts with increased expression at high temperatures (> 31°C), **Bimodal** are transcripts with increased expression at both low and high temperatures, while **NotResp** are transcripts that are not thermally responsive in one species but are in the other species.")
 ```
 
-# Figures
+
 
 ![Deviations from expected numbers of transcripts in matched observations of transcript expression type. The color of each cell represents the deviation of the observed from the expected number of transcripts based on hypothetical equivalence of the marginal frequencies (Blue = excess, Red = deficit). The dashed boxes indicate the diagonals (e.g. **High** - **High**). (A) **Low** and **Bimodal** expression types for *A. carolinensis* showing bias away from all other categories in *A. picea*. (B) **High** and **Bimodal** expression types for *A. picea* showing excess of transcripts that are not upregulated (**Intermediate** and **Not Responsive**). The complete set of matched observations is shown in Fig. S1.](../results/matched_observations_Fig1.png)
 

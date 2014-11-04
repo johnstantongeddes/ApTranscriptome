@@ -1,0 +1,10 @@
+---
+output: pdf_document
+---
+```{r type_table, echo=FALSE, results='asis', fig.cap = "Deviations from expected numbers of transcripts in matched observations of transcript expression type. The color of each cell represents the deviation of the observed from the expected number of transcripts based on hypothetical equivalence of the marginal frequencies (Blue = excess, Red = deficit). The diagonal is the matched observations for each class (e.g. **High** - **High**)"}
+library(ggplot2)
+load("ms_slim_2014-10-22.RData")
+mh_plot
+```
+
+Figure S1. Deviations from expected numbers of transcripts in matched observations of transcript expression type between species (*A. carolinensis* on rows, *A. picea* on columns). The color of each cell represents the deviation of the observed from the expected number of transcripts based on hypothetical equivalence of the marginal frequencies (blue = excess, red = deficit). The expression types are **Low** transcripts that had greatest expression temperatures < 10°C, **Intermediate** transcripts with greatest expression between 10 and 30°C, **High** transcripts that had greatest expression at temperatures > 31°, **Bimodal** transcripts with increased expression at both high and low temperatures, and **Not Responsive** transcripts that were not thermally responsive in that species.
