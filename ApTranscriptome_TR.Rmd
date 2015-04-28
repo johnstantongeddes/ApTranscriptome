@@ -1,3 +1,6 @@
+---
+output: word_document
+---
 Thermal reactionome of the common ant species *Aphaenogaster picea* and *A. carolinensis*
 ========================================================================================
    
@@ -159,13 +162,9 @@ mv Aphaenogaster_transcriptome.tar results/trinity-full/.
 tar -xvf Aphaenogaster_transcriptome.tar
 ~~~
 
-To examine the species distribution of BLAST hits in the transcriptome assembly, I used the program [Krona](http://sourceforge.net/p/krona/home/krona/) r citep("doi:10.1186/1471-2105-12-385"). I ... 
+To examine the species distribution of BLAST hits in the transcriptome assembly, I used the program [Krona](http://sourceforge.net/p/krona/home/krona/) r citep("doi:10.1186/1471-2105-12-385") which provides a taxonomic profile of all transcripts by BLAST annotation to species.
 
-~~~
-KRONA code
-~~~
-
-The interactive visualization is available [here]().
+The interactive visualization is available [here](http://johnstantongeddes.org/assets/files/ApTranscriptome_FA.html).
 
 
 ## Transcriptome annotation ##
@@ -247,7 +246,9 @@ For each sample, there is a directory containting a file *quant_bias_corrected.s
 
 The TPM column for each sample was extracted and combined into a matrix for each species.
 
-**Preliminary [examination](https://minilims1.uvm.edu/BCProject-26-Cahan/methods.html#clustering-of-samples) of the data indicated that the A22_7 and Ar_7 samples may have been switched, so I remove these values from the combined expression data set for the two species.** 
+**Preliminary [examination](https://minilims1.uvm.edu/BCProject-26-Cahan/methods.html#clustering-of-samples) of the data indicated that the A22_7 and Ar_7 samples may have been switched, so I remove these values from the combined expression data set for the two species.**  The 'Ar_7' sample clusters with all the other A22 samples, while the 'A22_7' sample clusters with all the other Ar samples. The parsimonious explanation for this is a labeling mistake. Removing these samples, rather than relabeling, is the conservative approach. 
+
+![clustering](results/aphaenogaster_sample_clustering.png)
 
 
 ```{r load_expression_data, eval=TRUE, echo=FALSE, results='hide'}
@@ -312,7 +313,7 @@ With gene expression quantified using all reads, I now remove the transcripts id
 
 ```{r remove_contaminants}
 # extract transcript names from fasta file rather than loading whole file
-system("grep '^>' results/trinity-full/Trinity_cap3_uclust_cont.fa | cut -f 1 -d ' ' | sed -r 's/^.{1}//' > results/trinity-full/cont.list")
+system("grep '^>' results/trinity-full/Trinity_cap3_uclust_cont.fa | cut -f 1 -d ' ' | sed 's/^.{1}//' > results/trinity-full/cont.list")
 
 # read file
 cont.list <- read.table("results/trinity-full/cont.list")
@@ -446,8 +447,8 @@ write.table(file = paste(resultsdir, "Ap_responsive_transcripts_", Sys.Date(), "
 Next, I compare the number of thermally-responsive in each response category between the two colonies. 
 
 ```{r temperature_response}
-A22.type.table <- table(Ap.response.type[ , 'A22.type'])
-Ar.type.table <- table(Ap.response.type[ , 'Ar.type'])
+A22.type.table <- table(Ap.response.type$A22.type)
+Ar.type.table <- table(Ap.response.type$Ar.type)
 
 # table
 (Ap.type.table <- rbind(A22.type.table, Ar.type.table))
@@ -515,7 +516,7 @@ The total number of responsive transcripts does not differ between species, thou
 
 ```{r mosaic_plot}
 # Reorganize for plotting to show overlap among categories between colonies
-type.table <- table(Acar = Ap.response.type[ , 'Ar.type'], Apic = Ap.response.type[ , 'A22.type'])
+type.table <- table(Acar = Ap.response.type$Ar.type, Apic = Ap.response.type$A22.type)
 # reorder
 tt2 <- type.table[c("Low", "Intermediate", "High", "Bimodal", "NotResp"), c("Low", "Intermediate", "High", "Bimodal", "NotResp")]
 
@@ -577,13 +578,14 @@ Ec.cells <- sign(tt2 - Ec) * (tt2 - Ec)^2 / Ec
 To visualize this, make a heatmap that shows deviation from expected count.
 
 ```{r mh_plot}
-md <- melt(Ec.cells)
-
-mh_plot <- qplot(x=Apic, y=Acar, data=md, fill=value, geom="tile", ylim = rev(levels(md$Acar))) + 
-  scale_fill_gradient2(limits=c(-600, 600)) +
+md <- reshape2::melt(Ec.dev)
+  
+mh_plot <- qplot(x=Apic, y=Acar, data=md, fill=value, geom="tile", ylim = rev(levels(md$Acar))) +
+  scale_fill_gradient2(limits=c(-700, 600), low="#f1a340", high="#998ec3") +
   theme(axis.title = element_text(face="italic")) +
   labs(x = "A. picea", y = "A. carolinensis")
 
+mh_plot
 # make subplot of rows that match hypotheses
 
 # A. carolinensis **Low** and **Bimodal**
@@ -591,7 +593,7 @@ md_sub1 <- subset(md, Acar %in% c("Bimodal", "Low"), )
 md_sub1 <- droplevels(md_sub1)
 
 mh_plot_sub1 <- qplot(x=Apic, y=Acar, data=md_sub1, fill=value, geom="tile", ylim = rev(levels(md_sub1$Acar))) + 
-  scale_fill_gradient2(limits=c(-600, 600)) +
+  scale_fill_gradient2(limits=c(-700, 600), low="#f1a340", high="#998ec3") +
   theme(axis.title = element_text(face="italic")) +
   labs(x = "A. picea", y = "A. carolinensis") +
   theme(legend.position = "none") + 
@@ -605,7 +607,7 @@ md_sub2 <- subset(md, Apic %in% c("High", "Bimodal"), )
 md_sub2 <- droplevels(md_sub2)
 
 mh_plot_sub2 <- qplot(x=Acar, y=Apic, data=md_sub2, fill=value, geom="tile", ylim = rev(levels(md_sub2$Apic))) + 
-  scale_fill_gradient2(limits=c(-600, 600)) +
+  scale_fill_gradient2(limits=c(-700, 600), low="#f1a340", high="#998ec3") +
   theme(axis.title = element_text(face="italic")) +
   labs(x = "A. carolinensis", y = "A. picea") + 
   theme(legend.position = "bottom") + 
@@ -618,7 +620,7 @@ mh_plot_sub2
 mh_plot_sub1 <- mh_plot_sub1 + ggtitle('A') + theme(plot.title = element_text(hjust=0))
 mh_plot_sub2 <- mh_plot_sub2 + ggtitle('B') + theme(plot.title = element_text(hjust=0))
 
-png("results/matched_observations_Fig1.png")
+png("results/matched_observations_Fig2.png")
 grid.arrange(mh_plot_sub1, mh_plot_sub2, ncol=1, heights = c(0.45, 0.6))
 dev.off()
 
@@ -627,6 +629,70 @@ png("results/matched_observations_FigS1.png")
 mh_plot
 dev.off()
 ```
+
+Per suggestion of a reviewer, make a cartoon figure that shows the contrasting results of the *enhance defense* and the *tolerance* hypotheses.
+
+The *enhanced defense hypothesis* posits that temperature adaptation uses existing defense mechanisms, which should result in significant overlap in response. This pattern would be apparent as an excess of transcripts with the same response pattern between species (e.g. more shared "Low" transcripts) and a deficit of transcripts that shift to other response patterns or become not responsive. 
+
+```{r ed_cartoon}
+enhanced_defense_dat <- md_sub1
+enhanced_defense_dat$value <- 0
+# set non-shared response to random negative value 
+enhanced_defense_dat[which(enhanced_defense_dat$Acar == "Low"), "value"] <- runif(5, min = -300, max = 0)
+enhanced_defense_dat[which(enhanced_defense_dat$Acar == "Bimodal"), "value"] <- runif(5, min = -300, max = 0)
+# change shared response to positive
+enhanced_defense_dat[which(enhanced_defense_dat$Acar == "Low" & enhanced_defense_dat$Apic == "Low"), "value"] <- 500
+enhanced_defense_dat[which(enhanced_defense_dat$Acar == "Bimodal" & enhanced_defense_dat$Apic == "Bimodal"), "value"] <- 300
+
+enhanced_defense_dat
+
+# plot
+enhanced_defense_plot <- qplot(x=Apic, y=Acar, data=enhanced_defense_dat, fill=value, geom="tile", ylim = rev(levels(enhanced_defense_dat$Acar))) + 
+  scale_fill_gradient2(limits=c(-500, 500), low="#f1a340", high="#998ec3") +
+  theme(axis.title = element_text(face="italic")) +
+  labs(x = "A. picea", y = "A. carolinensis") +
+  theme(legend.position = "none") + 
+  geom_rect(xmin = 0.5, xmax = 1.5, ymin = 1.5, ymax = 2.5, fill = "transparent", linetype=2, colour="black") +
+  geom_rect(xmin = 3.5, xmax = 4.5, ymin = 0.5, ymax = 1.5, fill = "transparent", linetype=2, colour="black")
+
+# title
+enhanced_defense_plot <- enhanced_defense_plot + ggtitle('Enhanced defense hypothesis') + theme(plot.title = element_text(hjust=0))
+enhanced_defense_plot
+```
+
+In contrast, the *tolerance hypothesis* predicts that genes involved in active defense will become non-responsive or shift to other response categories in the better-adapted species. 
+
+```{r tol_cartoon}
+tolerance_dat <- md_sub1
+tolerance_dat$value <- 0
+# set non-shared response to random positive value 
+tolerance_dat[which(tolerance_dat$Acar == "Low"), "value"] <- runif(5, min = 100, max = 300)
+tolerance_dat[which(tolerance_dat$Acar == "Bimodal"), "value"] <- runif(5, min = 100, max = 200)
+# change shared response to near zero
+tolerance_dat[which(tolerance_dat$Acar == "Low" & tolerance_dat$Apic == "Low"), "value"] <- 30
+tolerance_dat[which(tolerance_dat$Acar == "Bimodal" & tolerance_dat$Apic == "Bimodal"), "value"] <- 20
+
+tolerance_dat
+
+# plot
+tolerance_plot <- qplot(x=Apic, y=Acar, data=tolerance_dat, fill=value, geom="tile", ylim = rev(levels(tolerance_dat$Acar))) + 
+  scale_fill_gradient2(limits=c(-500, 500), low="#f1a340", high="#998ec3") +
+  theme(axis.title = element_text(face="italic")) +
+  labs(x = "A. picea", y = "A. carolinensis") +
+  theme(legend.position = "bottom") + 
+  geom_rect(xmin = 0.5, xmax = 1.5, ymin = 1.5, ymax = 2.5, fill = "transparent", linetype=2, colour="black") +
+  geom_rect(xmin = 3.5, xmax = 4.5, ymin = 0.5, ymax = 1.5, fill = "transparent", linetype=2, colour="black")
+
+# title
+tolerance_plot <- tolerance_plot + ggtitle('Tolerance hypothesis') + theme(plot.title = element_text(hjust=0))
+tolerance_plot
+
+# plot together
+png("results/predictions_Fig1.png")
+grid.arrange(enhanced_defense_plot, tolerance_plot, ncol=1, heights = c(0.45, 0.6))
+dev.off()
+```
+
 
 The number of thermally-responsive in each response category differs between the colonies, with the msot transcripts expressed at *Low* temperatures in both colonies. For *ApVT*, an equal number of transcripts are expressed at *High* and *Bimodal*, followed by *Intermediate* transcripts. For *AcNC*, transcripts expressed at *Intermediate* temperatures are next most common, followed by *High* and *Bimodal*. 
 
@@ -863,7 +929,7 @@ I combine the two above figures into a single figure.
 gg11 <- gg11 + ggtitle('A') + theme(plot.title = element_text(hjust=0))
 gg12 <- gg12 + ggtitle('B') + theme(plot.title = element_text(hjust=0))
 # grid.arrange
-png(file = "results/genetic_assimilation_Fig3.png")
+png(file = "results/genetic_assimilation_Fig4.png")
 grid.arrange(gg11, gg12, nrow = 1)
 dev.off()
 ```
@@ -1134,7 +1200,7 @@ gg3 <- ggplot(Ap.T_off, aes(x = T_off, y = ..density.., colour = Species, group 
 gg2 <- gg2 + ggtitle('A') + theme(plot.title = element_text(hjust=0))
 gg3 <- gg3 + ggtitle('B') + theme(plot.title = element_text(hjust=0))
 
-png("results/crit_temp_regulation_Fig2.png")
+png("results/crit_temp_regulation_Fig3.png")
 grid.arrange(gg2, gg3, nrow = 2, heights = c(.5,.6))
 dev.off()
 ```
