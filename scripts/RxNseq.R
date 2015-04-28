@@ -136,18 +136,18 @@ RxNtype <- function(lmitem) {
     if(sd(A22.pout$pTPM) < 0.00001) {
         A22.max.val <- NA
         A22.min.val <- NA
-        A22.opt <- A22.pout[A22.pout$val == 19.5, "pTPM"]
+        A22.opt <- A22.pout[A22.pout$val == 25, "pTPM"]
         A22.exp.type <- "NotResp"
     } else {
         # else, set values from data
         A22.max.val <- median(A22.pout[which(A22.pout$pTPM == max(A22.pout$pTPM)), "val"])
         # for min.val, take median point as it may be string of points at zero
         A22.min.val <- median(A22.pout[which(A22.pout$pTPM == min(A22.pout$pTPM)), "val"])
-        A22.opt <- A22.pout[A22.pout$val == 19.5, "pTPM"]
+        A22.opt <- A22.pout[A22.pout$val == 25, "pTPM"]
         # determine expression shape
          A22.exp.type <- NA
-        # expression type defined as "Bimodal" if max expression below 10C and above 30C is greater than one standard deviation above expression at the optimum temperature (19.5C)
-        if(max(A22.pout[A22.pout$val < 10, "pTPM"])[1] > (A22.pout[A22.pout$val == 19.5, "pTPM"] + sd(A22.pout$pTPM)) & max(A22.pout[A22.pout$val > 30, "pTPM"])[1] > (A22.pout[A22.pout$val == 19.5, "pTPM"] + sd(A22.pout$pTPM))) A22.exp.type <- "Bimodal" else {
+        # expression type defined as "Bimodal" if max expression below 10C and above 30C is greater than one standard deviation above expression at the optimum temperature (25C)
+        if(max(A22.pout[A22.pout$val < 10, "pTPM"])[1] > (A22.pout[A22.pout$val == 25, "pTPM"] + sd(A22.pout$pTPM)) & max(A22.pout[A22.pout$val > 30, "pTPM"])[1] > (A22.pout[A22.pout$val == 25, "pTPM"] + sd(A22.pout$pTPM))) A22.exp.type <- "Bimodal" else {
               # expression type "High" if max expression at temperature above 30C
               if(A22.max.val > 30) A22.exp.type <- "High" else {
               # expression type "Low" if max expression at temperature below 10C
@@ -163,18 +163,18 @@ RxNtype <- function(lmitem) {
     if(sd(Ar.pout$pTPM) < 0.00001) {
         Ar.max.val <- NA
         Ar.min.val <- NA
-        Ar.opt <- Ar.pout[Ar.pout$val == 19.5, "pTPM"]
+        Ar.opt <- Ar.pout[Ar.pout$val == 25, "pTPM"]
         Ar.exp.type <- "NotResp"
     } else {
             # else, set values from data
             Ar.max.val <- median(Ar.pout[which(Ar.pout$pTPM == max(Ar.pout$pTPM)), "val"])
             # for min.val, take median point as it may be string of points at zero
             Ar.min.val <- median(Ar.pout[which(Ar.pout$pTPM == min(Ar.pout$pTPM)), "val"])
-            Ar.opt <- Ar.pout[Ar.pout$val == 19.5, "pTPM"]
+            Ar.opt <- Ar.pout[Ar.pout$val == 25, "pTPM"]
             # determine expression shape
             Ar.exp.type <- NA
-            # expression type defined as "Bimodal" if max expression below 10C and above 30C is greater than one standard deviation above expression at the optimum temperature (19.5C)
-            if(max(Ar.pout[Ar.pout$val < 10, "pTPM"])[1] > (Ar.pout[Ar.pout$val == 19.5, "pTPM"] + sd(Ar.pout$pTPM)) & max(Ar.pout[Ar.pout$val > 30, "pTPM"])[1] > (Ar.pout[Ar.pout$val == 19.5, "pTPM"] + sd(Ar.pout$pTPM))) Ar.exp.type <- "Bimodal" else {
+            # expression type defined as "Bimodal" if max expression below 10C and above 30C is greater than one standard deviation above expression at the optimum temperature (25C)
+            if(max(Ar.pout[Ar.pout$val < 10, "pTPM"])[1] > (Ar.pout[Ar.pout$val == 25, "pTPM"] + sd(Ar.pout$pTPM)) & max(Ar.pout[Ar.pout$val > 30, "pTPM"])[1] > (Ar.pout[Ar.pout$val == 25, "pTPM"] + sd(Ar.pout$pTPM))) Ar.exp.type <- "Bimodal" else {
                 # expression type "High" if max expression at temperature above 30C
                 if(Ar.max.val > 30) Ar.exp.type <- "High" else {
                 # expression type "Low" if max expression at temperature below 10C

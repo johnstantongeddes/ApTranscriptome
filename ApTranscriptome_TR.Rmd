@@ -727,7 +727,6 @@ Ap.high.Ac.nr.TPM <- TPM.dt.sub[Ap.high.Ac.nr$Transcript]
 Ap.high.Ac.nr.mean.exp.NR <- ddply(Ap.high.Ac.nr.TPM, .(Transcript), summarize, meanTPM = mean(TPM))
 
 # get expression at optimum for A22 transcripts
-
 Ap.high.Ac.nr.opt.exp <- Ap.high.Ac.nr$A22.opt
 
 t.test(Ap.high.Ac.nr.mean.exp.NR$meanTPM, Ap.high.Ac.nr.opt.exp)
@@ -758,10 +757,20 @@ In this section, I perform a number of comparisons of the thermal reactionomes b
 
 - compare profiles of the temperature of maximum expression for thermally-responsive transcripts
 - compare basal expression at optimal temperature for thermally-responsive genes
-- compare degree of uregulation to constitutive expression
+- compare degree of upregulation to constitutive expression
 - compare the critical temperature of transcript upregulation, T~on~, between species for transcripts induced in response to high or low temperatures 
 - compare the critical temperature of transcript downregulation, T~off~, between species for transcripts induced in response to high or low temperatures 
 
+Predict expression for responsive transcripts.
+
+```{r responsive_pred}
+# apply predFunc to all responsive transcripts
+resp.TPM.dt.sub.pred <- ddply(resp.TPM.dt.sub, .(Transcript), .inform="TRUE", predFunc)
+
+# setkey to Transcript and colony 
+resp.TPM.dt.sub.pred <- data.table(resp.TPM.dt.sub.pred)
+setkey(resp.TPM.dt.sub.pred, Transcript, colony)
+```
 
 ### Compare temperature of maximum expression between species
 
@@ -787,7 +796,7 @@ dev.off()
 
 ### Compare basal expression at optimal temperature for thermally-responsive genes
 
-Genes upregulated in response to thermal stress in one species may have greater basal levels of expression in the other species that experiences those stressful conditions more often. To test this hypothesis, we compared expression levels near the optimal temperature (19.5C) between the two species for genes in that are either in the 'High' or 'Low' expression group in the other species. Specifically, do genes upregulated at high temperatures in *A22* have greater basal expression at optimal temperatures in *Ar*?
+Genes upregulated in response to thermal stress in one species may have greater basal levels of expression in the other species that experiences those stressful conditions more often. To test this hypothesis, we compared expression levels at the rearing temperature (25C) between the two species for genes in that are either in the 'High' or 'Low' expression group in the other species. Specifically, do genes upregulated at high temperatures in *A22* have greater basal expression at optimal temperatures in *Ar*?
 
 ```{r optimum_expression_comparison}
 # list of transcripts that are 'high' expressed in A22
@@ -809,7 +818,7 @@ w1 <- wilcox.test(A22.high.transcripts.df$A22.opt, A22.high.transcripts.df$Ar.op
 w1
 ```
 
-Consistent with expectation, there is greater expression at 19.5C for *Ar* than *A22* transcripts for the set of transcripts that are transcripts that are up-regulated at high temperatures in *A22*. Note that A22 had the larger library size so if this was due to TPM not correctly accounting for differences in reads between samples, we would expect to see a positive instead of negative value here.
+Consistent with expectations, there is greater expression at 25C for *Ar* than *A22* transcripts for the set of transcripts that are transcripts that are up-regulated at high temperatures in *A22*. Note that A22 had the larger library size so if this was due to TPM not correctly accounting for differences in reads between samples, we would expect to see a positive instead of negative value here.
 
 Next I test the converse: do genes up-regulated at low temperatures in *Ar* have greater basal expression near optimal temperatures in *A22*?
 
@@ -861,7 +870,7 @@ setkey(Ap.induction.wide, Transcript)
 Ap.response.type2 <- Ap.induction.wide[Ap.response.type]
 ```
 
-I extract the **High** transcripts for *A. picea* and plot the log ratio of inducibility in *A. picea* over inducibility in *A. carolinensis*, against the log ratio of constitutive expression in *A. carolinensis* against expression in *A. picea*. According to the *genetic assimilation hypothesis* there should be a positive relationship between these ratios. That is, greater constitutive expression in *A. carolinensis* should have greater inducibility towards **High** temperatures in *A. picea*.
+I extract the **High** transcripts for *A. picea* and examine the log ratio of inducibility against the log ratio of constitutive expression in *A. picea* over *A. carolinensis**. According to the *genetic assimilation hypothesis* there should be a negative relationship between these ratios. That is, transcripts with greater constitutive expression in *A. carolinensis* should have greater inducibility in response to **High** temperatures in *A. picea*.
 
 
 ```{r log_inducibility}
@@ -871,10 +880,10 @@ str(Ap.response.type2.A22.high)
 # filter out NotResp transcripts in Ar
 Ap.response.type2.A22.high <- Ap.response.type2.A22.high[which(Ap.response.type2.A22.high$Ar.type != "NotResp"), ]
 
-# ratio of upregulation
+# ratio of upregulation in A22 vs Ar
 Ap.response.type2.A22.high$A22.Ar.upreg <- Ap.response.type2.A22.high$A22.upreg / Ap.response.type2.A22.high$Ar.upreg
 
-# ratio of constitutive expression
+# ratio of constitutive expression in Ar vs A22
 Ap.response.type2.A22.high$A22.Ar.constitutive <- Ap.response.type2.A22.high$A22.opt / Ap.response.type2.A22.high$Ar.opt
 
 # plot!
@@ -886,17 +895,17 @@ gg11 <- ggplot(Ap.response.type2.A22.high, aes(x = log(A22.Ar.upreg), y = log(A2
 
 gg11
 
-A22.high.lm <- lm(log(Ar.A22.constitutive) ~ log(A22.Ar.upreg), data = Ap.response.type2.A22.high)
+A22.high.lm <- lm(log(A22.Ar.constitutive) ~ log(A22.Ar.upreg), data = Ap.response.type2.A22.high)
 
 summary(A22.high.lm)
 ```
 
-In contrast to the prediction there is a negative relationship between these ratios. That is, genes with greater upregulation of expression also have greater constitutive expression. This is also consistent with the results simply comparing constitutive expression between species for the *A. picea* **High** transcripts. 
+In contrast to the prediction there is a positive relationship between these ratios. That is, genes with greater upregulation of expression also have greater constitutive expression. 
 
 I repeated the above but for **Low** transcripts in *A. carolinensis*. 
 
 ```{r assimilation_Ar_low}
-### Repeat for A. carolinensis *Low* transcripts
+### filter for A. carolinensis *Low* transcripts
 Ap.response.type2.Ar.low <- Ap.response.type2[Ap.response.type2$Transcript %in% Ar.low.transcripts.df$Transcript, ]
 str(Ap.response.type2.Ar.low)
 
@@ -953,22 +962,11 @@ resp.TPM.dt.sub[,TPM.scaled:=scale(TPM), by = Transcript]
 resp.TPM.dt.sub$colony2 <- ifelse(resp.TPM.dt.sub$colony == "A22", "ApVT", "AcNC")
 ```
 
-Predict expression for responsive transcripts.
-
-```{r responsive_pred}
-# apply predFunc to all responsive transcripts
-resp.TPM.dt.sub.pred <- ddply(resp.TPM.dt.sub, .(Transcript), .inform="TRUE", predFunc)
-
-# setkey to Transcript and colony 
-resp.TPM.dt.sub.pred <- data.table(resp.TPM.dt.sub.pred)
-setkey(resp.TPM.dt.sub.pred, Transcript, colony)
-```
-
-
 For next analyses, extract list of gene names by response type.
 
 ```{r extract_Transcripts}
-A22.high.transcripts <- Ap.response.type[which(Ap.response.type$A22.type == "High"), "Transcript"]
+Ap.response.type <- as.data.frame(Ap.response.type)
+A22.high.transcripts <-  Ap.response.type[which(Ap.response.type$A22.type == "High"), "Transcript"]
 Ar.high.transcripts <- Ap.response.type[which(Ap.response.type$Ar.type == "High"), "Transcript"]
 
 A22.low.transcripts <- Ap.response.type[which(Ap.response.type$A22.type == "Low"), "Transcript"]
@@ -987,7 +985,7 @@ Calculate T~on~ for *High* genes in each species. I use the observed (rather tha
 
 ```{r T_on_high}
 # transcripts expressed at *High* and *Bimodal* temperatures in A22
-A22.high.TPM.dt.sub <- resp.TPM.dt.sub.pred[J(union(A22.high.transcripts, A22.bim.transcripts), "A22")]
+A22.high.TPM.dt.sub <- resp.TPM.dt.sub.pred[J(union(A22.high.transcripts.df$Transcript, A22.bim.transcripts), "A22")]
 setkey(A22.high.TPM.dt.sub, Transcript)
 str(A22.high.TPM.dt.sub)
 
@@ -1143,7 +1141,7 @@ for(i in unique(Ar.int.TPM.dt.sub$Transcript)) {
 (T_off.int.low.ttest <- t.test(Ar.int.T_off$Low, A22.int.T_off$Low))
 ```
 
-As with genes turned on at high temperatures, *A. carolinensis* **Intermediate** genes are down-regulated on at higher temperatures than *A. picea* **Intermediate** genes. In contrast, towards low temperatures, the temperature of mean temperature of downregulation was higher for *A. picea* than *A. carolinensis*.
+As with genes turned on at high temperatures, *A. carolinensis* **Intermediate** genes are down-regulated on at higher temperatures than *A. picea* **Intermediate** genes. Towards low temperatures, the mean temperature of downregulation was marginally higher for *A. carolinensis* than *A. picea*.
 
 Visualize T~off~ for both *Low* and *High* genes on the same plot.
 
@@ -1232,8 +1230,6 @@ w5 = wilcox.test(mean.exp[which(mean.exp$colony == "A22"), "mean.TPM"],
 plot(log(mean.exp[which(mean.exp$colony == "A22"), "mean.TPM"]), 
      log(mean.exp[which(mean.exp$colony == "Ar"), "mean.TPM"]))
 ```
-
-
 
 
 ## Gene set enrichment analysis for thermal-responsive genes
