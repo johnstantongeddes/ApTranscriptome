@@ -592,13 +592,13 @@ mh_plot
 md_sub1 <- subset(md, Acar %in% c("Bimodal", "Low"), )
 md_sub1 <- droplevels(md_sub1)
 
-mh_plot_sub1 <- qplot(x=Apic, y=Acar, data=md_sub1, fill=value, geom="tile", ylim = rev(levels(md_sub1$Acar))) + 
+mh_plot_sub1 <- qplot(y=Apic, x=Acar, data=md_sub1, fill=value, geom="tile", xlim = rev(levels(md_sub1$Acar))) + 
   scale_fill_gradient2(limits=c(-700, 600), low="#f1a340", high="#998ec3") +
   theme(axis.title = element_text(face="italic")) +
-  labs(x = "A. picea", y = "A. carolinensis") +
+  labs(y = "A. picea", x = "A. carolinensis") +
   theme(legend.position = "none") + 
-  geom_rect(xmin = 0.5, xmax = 1.5, ymin = 1.5, ymax = 2.5, fill = "transparent", linetype=2, colour="black") +
-  geom_rect(xmin = 3.5, xmax = 4.5, ymin = 0.5, ymax = 1.5, fill = "transparent", linetype=2, colour="black")
+  geom_rect(xmin = 0.5, xmax = 1.5, ymin = 3.5, ymax = 4.5, fill = "transparent", linetype=2, colour="black") +
+  geom_rect(xmin = 1.5, xmax = 2.5, ymin = 0.5, ymax = 1.5, fill = "transparent", linetype=2, colour="black")
 
 mh_plot_sub1
 
@@ -606,13 +606,13 @@ mh_plot_sub1
 md_sub2 <- subset(md, Apic %in% c("High", "Bimodal"), )
 md_sub2 <- droplevels(md_sub2)
 
-mh_plot_sub2 <- qplot(x=Acar, y=Apic, data=md_sub2, fill=value, geom="tile", ylim = rev(levels(md_sub2$Apic))) + 
+mh_plot_sub2 <- qplot(y=Acar, x=Apic, data=md_sub2, fill=value, geom="tile", xlim = rev(levels(md_sub2$Apic))) + 
   scale_fill_gradient2(limits=c(-700, 600), low="#f1a340", high="#998ec3") +
   theme(axis.title = element_text(face="italic")) +
-  labs(x = "A. carolinensis", y = "A. picea") + 
-  theme(legend.position = "bottom") + 
-  geom_rect(xmin = 2.5, xmax = 3.5, ymin = 1.5, ymax = 2.5, fill = "transparent", linetype=2, colour="black") +
-  geom_rect(xmin = 3.5, xmax = 4.5, ymin = 0.5, ymax = 1.5, fill = "transparent", linetype=2, colour="black")
+  labs(y = "A. carolinensis", x = "A. picea") + 
+  theme(legend.position = "right") + 
+  geom_rect(xmin = 0.5, xmax = 1.5, ymin = 3.5, ymax = 4.5, fill = "transparent", linetype=2, colour="black") +
+  geom_rect(xmin = 1.5, xmax = 2.5, ymin = 2.5, ymax = 3.5, fill = "transparent", linetype=2, colour="black")
 
 mh_plot_sub2
 
@@ -621,7 +621,7 @@ mh_plot_sub1 <- mh_plot_sub1 + ggtitle('A') + theme(plot.title = element_text(hj
 mh_plot_sub2 <- mh_plot_sub2 + ggtitle('B') + theme(plot.title = element_text(hjust=0))
 
 png("results/matched_observations_Fig2.png")
-grid.arrange(mh_plot_sub1, mh_plot_sub2, ncol=1, heights = c(0.45, 0.6))
+grid.arrange(mh_plot_sub1, mh_plot_sub2, ncol=2)
 dev.off()
 
 # full figure for supplemental
@@ -632,7 +632,7 @@ dev.off()
 
 Per suggestion of a reviewer, make a cartoon figure that shows the contrasting results of the *enhance defense* and the *tolerance* hypotheses.
 
-The *enhanced defense hypothesis* posits that temperature adaptation uses existing defense mechanisms, which should result in significant overlap in response. This pattern would be apparent as an excess of transcripts with the same response pattern between species (e.g. more shared "Low" transcripts) and a deficit of transcripts that shift to other response patterns or become not responsive. 
+The *enhanced response hypothesis* posits that temperature adaptation uses existing defense mechanisms, which should result in significant overlap in response. This pattern would be apparent as an excess of transcripts with the same response pattern between species (e.g. more shared "Low" transcripts) and a deficit of transcripts that shift to other response patterns or become not responsive. 
 
 ```{r ed_cartoon}
 enhanced_defense_dat <- md_sub1
@@ -647,16 +647,16 @@ enhanced_defense_dat[which(enhanced_defense_dat$Acar == "Bimodal" & enhanced_def
 enhanced_defense_dat
 
 # plot
-enhanced_defense_plot <- qplot(x=Apic, y=Acar, data=enhanced_defense_dat, fill=value, geom="tile", ylim = rev(levels(enhanced_defense_dat$Acar))) + 
+enhanced_defense_plot <- qplot(y=Apic, x=Acar, data=enhanced_defense_dat, fill=value, geom="tile", xlim = rev(levels(enhanced_defense_dat$Acar))) + 
   scale_fill_gradient2(limits=c(-500, 500), low="#f1a340", high="#998ec3") +
   theme(axis.title = element_text(face="italic")) +
-  labs(x = "A. picea", y = "A. carolinensis") +
+  labs(y = "A. picea", x = "A. carolinensis") +
   theme(legend.position = "none") + 
-  geom_rect(xmin = 0.5, xmax = 1.5, ymin = 1.5, ymax = 2.5, fill = "transparent", linetype=2, colour="black") +
-  geom_rect(xmin = 3.5, xmax = 4.5, ymin = 0.5, ymax = 1.5, fill = "transparent", linetype=2, colour="black")
+  geom_rect(xmin = 0.5, xmax = 1.5, ymin = 3.5, ymax = 4.5, fill = "transparent", linetype=2, colour="black") +
+  geom_rect(xmin = 1.5, xmax = 2.5, ymin = 0.5, ymax = 1.5, fill = "transparent", linetype=2, colour="black")
 
 # title
-enhanced_defense_plot <- enhanced_defense_plot + ggtitle('Enhanced defense hypothesis') + theme(plot.title = element_text(hjust=0))
+enhanced_defense_plot <- enhanced_defense_plot + ggtitle('Enhanced Response hypothesis') + theme(plot.title = element_text(hjust=0))
 enhanced_defense_plot
 ```
 
@@ -675,13 +675,13 @@ tolerance_dat[which(tolerance_dat$Acar == "Bimodal" & tolerance_dat$Apic == "Bim
 tolerance_dat
 
 # plot
-tolerance_plot <- qplot(x=Apic, y=Acar, data=tolerance_dat, fill=value, geom="tile", ylim = rev(levels(tolerance_dat$Acar))) + 
+tolerance_plot <- qplot(y=Apic, x=Acar, data=tolerance_dat, fill=value, geom="tile", xlim = rev(levels(tolerance_dat$Acar))) + 
   scale_fill_gradient2(limits=c(-500, 500), low="#f1a340", high="#998ec3") +
   theme(axis.title = element_text(face="italic")) +
-  labs(x = "A. picea", y = "A. carolinensis") +
+  labs(y = "A. picea", x = "A. carolinensis") +
   theme(legend.position = "bottom") + 
-  geom_rect(xmin = 0.5, xmax = 1.5, ymin = 1.5, ymax = 2.5, fill = "transparent", linetype=2, colour="black") +
-  geom_rect(xmin = 3.5, xmax = 4.5, ymin = 0.5, ymax = 1.5, fill = "transparent", linetype=2, colour="black")
+  geom_rect(xmin = 0.5, xmax = 1.5, ymin = 3.5, ymax = 4.5, fill = "transparent", linetype=2, colour="black") +
+  geom_rect(xmin = 1.5, xmax = 2.5, ymin = 0.5, ymax = 1.5, fill = "transparent", linetype=2, colour="black")
 
 # title
 tolerance_plot <- tolerance_plot + ggtitle('Tolerance hypothesis') + theme(plot.title = element_text(hjust=0))
@@ -689,7 +689,7 @@ tolerance_plot
 
 # plot together
 png("results/predictions_Fig1.png")
-grid.arrange(enhanced_defense_plot, tolerance_plot, ncol=1, heights = c(0.45, 0.6))
+grid.arrange(enhanced_defense_plot, tolerance_plot, ncol=2)
 dev.off()
 ```
 
@@ -1228,7 +1228,10 @@ w5 = wilcox.test(mean.exp[which(mean.exp$colony == "A22"), "mean.TPM"],
 
 
 plot(log(mean.exp[which(mean.exp$colony == "A22"), "mean.TPM"]), 
-     log(mean.exp[which(mean.exp$colony == "Ar"), "mean.TPM"]))
+     log(mean.exp[which(mean.exp$colony == "Ar"), "mean.TPM"]),
+     xlab = "log(expression) A. picea",
+     ylab = "log(expression) A. carolinensis")
+abline(a=0, b=1)
 ```
 
 
@@ -1258,11 +1261,6 @@ write.csv(responsive.lms.ann.type, file = paste(resultsdir, "Ap_responsive_genes
 ### Proportion of responsive transcripts annotated
 
 Of the responsive transcripts, `r round(length(which(responsive.lms.ann.type$best.hit.to.nr != "-"))/length(responsive.lms.ann.type$best.hit.to.nr)*100, 0)`% are annotated, while `r round(length(which(annotation.table$best.hit.to.nr != "-"))/nrow(annotation.table) * 100, 0)`% of all transcripts are annotated.
-
-
-length(which(responsive.lms.ann.type$Transcript %in% annotation.table[which(annotation.table$best.hit.to.nr != "-"), "Sequence.Name"]))
-
-best.hit.to.nr != "-")
 
 ### Candidate gene enrichment
 
