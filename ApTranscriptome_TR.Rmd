@@ -512,8 +512,6 @@ bimodal.table
 
 The total number of responsive transcripts does not differ between species, though their groupings into expression categories does differ. 
 
-
-
 ```{r mosaic_plot}
 # Reorganize for plotting to show overlap among categories between colonies
 type.table <- table(Acar = Ap.response.type$Ar.type, Apic = Ap.response.type$A22.type)
@@ -596,7 +594,7 @@ mh_plot_sub1 <- qplot(y=Apic, x=Acar, data=md_sub1, fill=value, geom="tile", xli
   scale_fill_gradient2(limits=c(-700, 600), low="#f1a340", high="#998ec3") +
   theme(axis.title = element_text(face="italic")) +
   labs(y = "A. picea", x = "A. carolinensis") +
-  theme(legend.position = "none") + 
+  theme(legend.position = "right") + 
   geom_rect(xmin = 0.5, xmax = 1.5, ymin = 3.5, ymax = 4.5, fill = "transparent", linetype=2, colour="black") +
   geom_rect(xmin = 1.5, xmax = 2.5, ymin = 0.5, ymax = 1.5, fill = "transparent", linetype=2, colour="black")
 
@@ -610,7 +608,7 @@ mh_plot_sub2 <- qplot(y=Acar, x=Apic, data=md_sub2, fill=value, geom="tile", xli
   scale_fill_gradient2(limits=c(-700, 600), low="#f1a340", high="#998ec3") +
   theme(axis.title = element_text(face="italic")) +
   labs(y = "A. carolinensis", x = "A. picea") + 
-  theme(legend.position = "right") + 
+  theme(legend.position = "none") + 
   geom_rect(xmin = 0.5, xmax = 1.5, ymin = 3.5, ymax = 4.5, fill = "transparent", linetype=2, colour="black") +
   geom_rect(xmin = 1.5, xmax = 2.5, ymin = 2.5, ymax = 3.5, fill = "transparent", linetype=2, colour="black")
 
@@ -621,7 +619,7 @@ mh_plot_sub1 <- mh_plot_sub1 + ggtitle('A') + theme(plot.title = element_text(hj
 mh_plot_sub2 <- mh_plot_sub2 + ggtitle('B') + theme(plot.title = element_text(hjust=0))
 
 png("results/matched_observations_Fig2.png")
-grid.arrange(mh_plot_sub1, mh_plot_sub2, ncol=2)
+grid.arrange(mh_plot_sub1, mh_plot_sub2, ncol=2, widths = c(3.75, 3))
 dev.off()
 
 # full figure for supplemental
@@ -651,12 +649,12 @@ enhanced_defense_plot <- qplot(y=Apic, x=Acar, data=enhanced_defense_dat, fill=v
   scale_fill_gradient2(limits=c(-500, 500), low="#f1a340", high="#998ec3") +
   theme(axis.title = element_text(face="italic")) +
   labs(y = "A. picea", x = "A. carolinensis") +
-  theme(legend.position = "none") + 
+  theme(legend.position = "right") + 
   geom_rect(xmin = 0.5, xmax = 1.5, ymin = 3.5, ymax = 4.5, fill = "transparent", linetype=2, colour="black") +
   geom_rect(xmin = 1.5, xmax = 2.5, ymin = 0.5, ymax = 1.5, fill = "transparent", linetype=2, colour="black")
 
 # title
-enhanced_defense_plot <- enhanced_defense_plot + ggtitle('Enhanced Response hypothesis') + theme(plot.title = element_text(hjust=0))
+enhanced_defense_plot <- enhanced_defense_plot + ggtitle('Enhanced Response hypothesis') + theme(plot.title = element_text(hjust=0, size = 12))
 enhanced_defense_plot
 ```
 
@@ -679,17 +677,17 @@ tolerance_plot <- qplot(y=Apic, x=Acar, data=tolerance_dat, fill=value, geom="ti
   scale_fill_gradient2(limits=c(-500, 500), low="#f1a340", high="#998ec3") +
   theme(axis.title = element_text(face="italic")) +
   labs(y = "A. picea", x = "A. carolinensis") +
-  theme(legend.position = "bottom") + 
+  theme(legend.position = "none") + 
   geom_rect(xmin = 0.5, xmax = 1.5, ymin = 3.5, ymax = 4.5, fill = "transparent", linetype=2, colour="black") +
   geom_rect(xmin = 1.5, xmax = 2.5, ymin = 0.5, ymax = 1.5, fill = "transparent", linetype=2, colour="black")
 
 # title
-tolerance_plot <- tolerance_plot + ggtitle('Tolerance hypothesis') + theme(plot.title = element_text(hjust=0))
+tolerance_plot <- tolerance_plot + ggtitle('Tolerance hypothesis') + theme(plot.title = element_text(hjust=0, size = 12))
 tolerance_plot
 
 # plot together
 png("results/predictions_Fig1.png")
-grid.arrange(enhanced_defense_plot, tolerance_plot, ncol=2)
+grid.arrange(enhanced_defense_plot, tolerance_plot, ncol=2, widths = c(3.75,3))
 dev.off()
 ```
 
@@ -1930,7 +1928,7 @@ To assist visualization of specific transcripts, I made a interactive web-app us
 Export data for interactive shiny app. 
 
 ```{r shiny_file, eval=FALSE, echo=FALSE}
-shiny.dt <- TPM.dt.sub[responsive.lms.ann.type[,list(Transcript, best.hit.to.nr.1, GO.Biological.Process.1)]]
+shiny.dt <- TPM.dt.sub[responsive.lms.ann.type[,list(Transcript, best.hit.to.nr, GO.Biological.Process)]]
 
 # scale expression values 
 shiny.dt[,TPM.scaled:=scale(TPM), by = Transcript]
