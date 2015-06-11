@@ -1,12 +1,13 @@
 ---
-output: word_document
+output: pdf_document
 ---
-Thermal reactionome of the common ant species *Aphaenogaster picea* and *A. carolinensis*
+
+Technical Report for **Thermal reactionomes reveal divergent responses to thermal extremes in warm and cool-climate ant species**
 ========================================================================================
    
 **Author:** [John Stanton-Geddes](john.stantongeddes.research@gmail.com)
 
-**October 14, 2014**
+**`r format(Sys.time(), '%d %B, %Y')`**
 
 **Technical Report No. 3**
 
@@ -14,7 +15,7 @@ Thermal reactionome of the common ant species *Aphaenogaster picea* and *A. caro
 
 **University of Vermont**
 
-```{r setup, echo=FALSE, results='hide', message = FALSE}
+```{r setup, echo=FALSE, results='hide', message = FALSE, warning=FALSE}
 # Global settings
 options(stringsAsFactors=FALSE, digits = 3, scipen = 1)
 
@@ -37,7 +38,7 @@ library(coin)
 library(gridExtra)
 
 # Load Bioconductor libraries
-source("http://bioconductor.org/biocLite.R")
+#source("http://bioconductor.org/biocLite.R")
 #biocLite("topGO")
 #biocLite("Rgraphviz")
 #biocLite("GOSemSim")
@@ -57,16 +58,12 @@ resultsdir <- "results/"
 
 ## Summary ##
   
-In this technical report, which accompanies the manuscript **Patterns of stress tolerance versus resistance in genome-wide expression data of parapatric ant species** (Stanton-Geddes et al., in press), we:
+In this technical report, which accompanies the manuscript **Thermal reactionomes reveal divergent responses to thermal extremes in warm and cool-climate ant species** (Stanton-Geddes et al., in press), we:
 
-1. describe the *de novo* assembly of the transcriptome for two ant species within the *Aphaenogaster rudis-picea-fulva* species complex `r citep("10.1155/2012/752815")`
-2. identify thermally-responsive genes
-3. evaluate differences in reaction norms of expression for each thermally-responsive gene between the two species
-4. perform gene set enrichment analysis of thermally-responsive genes for the two species
-
-This script is completely reproducible assuming that R, `knitr` and the other required libraries (listed within the source document) are installed on a standard linux system using the following:
-    
-    Rscript -e "library(knitr); knit('ApTranscriptome_TR.Rmd')"
+1. Describe the *de novo* assembly of the transcriptome for two ant species within the *Aphaenogaster rudis-picea-fulva* species complex `r citep("10.1155/2012/752815")`.
+2. Identify thermally-responsive genes.
+3. Evaluate differences in transcriptome-wide patterns of thermal responsiveness (i.e. the thermal reactionome) between the two species
+4. Perform gene set enrichment analysis of thermally-responsive genes for the two species.
 
 
 ## Data ##
@@ -433,22 +430,21 @@ stopifnot(nrow(interaction.response.type) == length(interaction.lms))
 temperature.response.type <- ldply(temperature.lms, .progress = "none", .inform = TRUE, RxNtype)
 stopifnot(nrow(temperature.response.type) == length(temperature.lms))
 
-# merge results
-Ap.response.type <- rbind(interaction.response.type, temperature.response.type)
-colnames(Ap.response.type)[which(colnames(Ap.response.type) == ".id")] <- "Transcript"
-Ap.response.type <- data.table(Ap.response.type)
-setkey(Ap.response.type, Transcript)
-str(Ap.response.type)
+# for subsequent analyses, focus on the transcripts with significant temperature x species interaction only
+colnames(interaction.response.type)[which(colnames(interaction.response.type) == ".id")] <- "Transcript"
+interaction.response.type <- data.table(interaction.response.type)
+setkey(interaction.response.type, Transcript)
+str(interaction.response.type)
 
 # save results to file
-write.table(file = paste(resultsdir, "Ap_responsive_transcripts_", Sys.Date(), ".txt", sep = ""), Ap.response.type, row.names = FALSE, col.names = TRUE, quote = FALSE, sep = "\t")
+write.table(file = paste(resultsdir, "Ap_responsive_transcripts_", Sys.Date(), ".txt", sep = ""), interaction.response.type, row.names = FALSE, col.names = TRUE, quote = FALSE, sep = "\t")
 ```
 
 Next, I compare the number of thermally-responsive in each response category between the two colonies. 
 
 ```{r temperature_response}
-A22.type.table <- table(Ap.response.type$A22.type)
-Ar.type.table <- table(Ap.response.type$Ar.type)
+A22.type.table <- table(interaction.response.type$A22.type)
+Ar.type.table <- table(interaction.response.type$Ar.type)
 
 # table
 (Ap.type.table <- rbind(A22.type.table, Ar.type.table))
@@ -514,7 +510,7 @@ The total number of responsive transcripts does not differ between species, thou
 
 ```{r mosaic_plot}
 # Reorganize for plotting to show overlap among categories between colonies
-type.table <- table(Acar = Ap.response.type$Ar.type, Apic = Ap.response.type$A22.type)
+type.table <- table(Acar = interaction.response.type$Ar.type, Apic = interaction.response.type$A22.type)
 # reorder
 tt2 <- type.table[c("Low", "Intermediate", "High", "Bimodal", "NotResp"), c("Low", "Intermediate", "High", "Bimodal", "NotResp")]
 
@@ -636,11 +632,11 @@ The *enhanced response hypothesis* posits that temperature adaptation uses exist
 enhanced_defense_dat <- md_sub1
 enhanced_defense_dat$value <- 0
 # set non-shared response to random negative value 
-enhanced_defense_dat[which(enhanced_defense_dat$Acar == "Low"), "value"] <- runif(5, min = -300, max = 0)
-enhanced_defense_dat[which(enhanced_defense_dat$Acar == "Bimodal"), "value"] <- runif(5, min = -300, max = 0)
+enhanced_defense_dat[which(enhanced_defense_dat$Acar == "Low"), "value"] <- runif(5, min=140, max=150)
+enhanced_defense_dat[which(enhanced_defense_dat$Acar == "Bimodal"), "value"] <- rep(-200, 5)
 # change shared response to positive
-enhanced_defense_dat[which(enhanced_defense_dat$Acar == "Low" & enhanced_defense_dat$Apic == "Low"), "value"] <- 500
-enhanced_defense_dat[which(enhanced_defense_dat$Acar == "Bimodal" & enhanced_defense_dat$Apic == "Bimodal"), "value"] <- 300
+enhanced_defense_dat[which(enhanced_defense_dat$Acar == "Low" & enhanced_defense_dat$Apic == "Low"), "value"] <- 50
+enhanced_defense_dat[which(enhanced_defense_dat$Acar == "Bimodal" & enhanced_defense_dat$Apic == "Bimodal"), "value"] <- 50
 
 enhanced_defense_dat
 
@@ -664,10 +660,10 @@ In contrast, the *tolerance hypothesis* predicts that genes involved in active d
 tolerance_dat <- md_sub1
 tolerance_dat$value <- 0
 # set non-shared response to random positive value 
-tolerance_dat[which(tolerance_dat$Acar == "Low"), "value"] <- runif(5, min = 100, max = 300)
-tolerance_dat[which(tolerance_dat$Acar == "Bimodal"), "value"] <- runif(5, min = 100, max = 200)
+tolerance_dat[which(tolerance_dat$Acar == "Low"), "value"] <- runif(5, min=140, max=160)
+tolerance_dat[which(tolerance_dat$Acar == "Bimodal"), "value"] <- runif(5, min=140, max=150)
 # change shared response to near zero
-tolerance_dat[which(tolerance_dat$Acar == "Low" & tolerance_dat$Apic == "Low"), "value"] <- 30
+tolerance_dat[which(tolerance_dat$Acar == "Low" & tolerance_dat$Apic == "Low"), "value"] <- 20
 tolerance_dat[which(tolerance_dat$Acar == "Bimodal" & tolerance_dat$Apic == "Bimodal"), "value"] <- 20
 
 tolerance_dat
@@ -718,7 +714,7 @@ Table 4 shows the number of transcripts that fall into each expression type for 
 An interesting observation from the matched observations plot (Fig. 1) is that for **NotResp** genes in *A. carolinensis* the **High** and **Bimodal** categories in *A. picea* are over-represented. Finding that the mean expression level of these genes in *A. carolinensis* is greater than the expression level at the optimum temperature (19.5°C) in *A. picea* would be consistent with genetic assimilation.
 
 ```{r gen_assimilation_high}
-Ap.high.Ac.nr <- Ap.response.type[which(Ap.response.type$A22.type == "High" & Ap.response.type$Ar.type == "NotResp"), ]
+Ap.high.Ac.nr <- interaction.response.type[which(interaction.response.type$A22.type == "High" & interaction.response.type$Ar.type == "NotResp"), ]
 
 # get mean expression level for Ar transcripts
 Ap.high.Ac.nr.TPM <- TPM.dt.sub[Ap.high.Ac.nr$Transcript]
@@ -735,7 +731,7 @@ Contrary to expectations, mean expression of the non-responsive *A. carolinensis
 Next, I check the same for the **Bimodal** genes in *A. picea*.
 
 ```{r gen_assimilation_bim}
-Ap.bim.Ac.nr <- Ap.response.type[which(Ap.response.type$A22.type == "Bimodal" & Ap.response.type$Ar.type == "NotResp"), ]
+Ap.bim.Ac.nr <- interaction.response.type[which(interaction.response.type$A22.type == "Bimodal" & interaction.response.type$Ar.type == "NotResp"), ]
 
 # get mean expression level for Ar transcripts
 Ap.bim.Ac.nr.TPM <- TPM.dt.sub[Ap.bim.Ac.nr$Transcript]
@@ -776,7 +772,7 @@ Probability density function of peak expression for transcripts that differ in e
 
 ```{r max_exp_PDF, warning = FALSE, message = FALSE}
 # reshape data
-Ap.df <- data.frame(Transcript = rep(Ap.response.type$Transcript, times = 2), colony = rep(c("ApVT", "AcNC"), each = length(Ap.response.type$Transcript)), max.val = c(Ap.response.type$A22.max, Ap.response.type$Ar.max))
+Ap.df <- data.frame(Transcript = rep(interaction.response.type$Transcript, times = 2), colony = rep(c("ApVT", "AcNC"), each = length(interaction.response.type$Transcript)), max.val = c(interaction.response.type$A22.max, interaction.response.type$Ar.max))
 
 maxexplot <- ggplot(Ap.df, aes(x=max.val, fill=colony)) + 
   geom_density(alpha=0.2, position="identity") + 
@@ -798,7 +794,7 @@ Genes upregulated in response to thermal stress in one species may have greater 
 
 ```{r optimum_expression_comparison}
 # list of transcripts that are 'high' expressed in A22
-A22.high.transcripts.df <- Ap.response.type[which(Ap.response.type$A22.type == "High"), ]
+A22.high.transcripts.df <- interaction.response.type[which(interaction.response.type$A22.type == "High"), ]
 
 # Compare expression at optimum temp (A22.opt) between colonies using t-test
 t.test(A22.high.transcripts.df$A22.opt, A22.high.transcripts.df$Ar.opt)
@@ -822,7 +818,7 @@ Next I test the converse: do genes up-regulated at low temperatures in *Ar* have
 
 ```{r Ar_low_wilcoxon}
 # list of transcripts that are 'high' expressed in Ar
-Ar.low.transcripts.df <- Ap.response.type[which(Ap.response.type$Ar.type == "Low"), ]
+Ar.low.transcripts.df <- interaction.response.type[which(interaction.response.type$Ar.type == "Low"), ]
 
 # t-test with log values
 t.test(log(Ar.low.transcripts.df$A22.opt+1), log(Ar.low.transcripts.df$Ar.opt+1))
@@ -839,7 +835,7 @@ To confirm that there are not sample-level issues, I performed the same comparis
 
 ```{r intermediate_transcripts}
 # list of transcripts that are 'Intermediate' expressed in either colony
-Ap.int.transcripts <- Ap.response.type[which(Ap.response.type$Ar.type == "Intermediate" | Ap.response.type$A22.type == "Intermediate"), ]
+Ap.int.transcripts <- interaction.response.type[which(interaction.response.type$Ar.type == "Intermediate" | interaction.response.type$A22.type == "Intermediate"), ]
 # T test
 t.test(log(Ap.int.transcripts$A22.opt+1), log(Ap.int.transcripts$Ar.opt+1))
 # Wilcoxon signed rank-test
@@ -862,30 +858,30 @@ Ap.induction.wide <- dcast(Ap.induction, Transcript ~ colony, value.var = "upreg
 names(Ap.induction.wide)[names(Ap.induction.wide)=="A22"] <- "A22.upreg"
 names(Ap.induction.wide)[names(Ap.induction.wide)=="Ar"] <- "Ar.upreg"
 
-# merge optimum expression, in Ap.response.type data.frame, with predicted TPM data
+# merge optimum expression, in interaction.response.type data.frame, with predicted TPM data
 Ap.induction.wide <- data.table(Ap.induction.wide)
 setkey(Ap.induction.wide, Transcript)
-Ap.response.type2 <- Ap.induction.wide[Ap.response.type]
+interaction.response.type2 <- Ap.induction.wide[interaction.response.type]
 ```
 
 I extract the **High** transcripts for *A. picea* and examine the log ratio of inducibility against the log ratio of constitutive expression in *A. picea* over *A. carolinensis**. According to the *genetic assimilation hypothesis* there should be a negative relationship between these ratios. That is, transcripts with greater constitutive expression in *A. carolinensis* should have greater inducibility in response to **High** temperatures in *A. picea*.
 
 
 ```{r log_inducibility}
-Ap.response.type2.A22.high <- Ap.response.type2[Ap.response.type2$Transcript %in% A22.high.transcripts.df$Transcript, ]
-str(Ap.response.type2.A22.high)
+interaction.response.type2.A22.high <- interaction.response.type2[interaction.response.type2$Transcript %in% A22.high.transcripts.df$Transcript, ]
+str(interaction.response.type2.A22.high)
 
 # filter out NotResp transcripts in Ar
-Ap.response.type2.A22.high <- Ap.response.type2.A22.high[which(Ap.response.type2.A22.high$Ar.type != "NotResp"), ]
+interaction.response.type2.A22.high <- interaction.response.type2.A22.high[which(interaction.response.type2.A22.high$Ar.type != "NotResp"), ]
 
 # ratio of upregulation in A22 vs Ar
-Ap.response.type2.A22.high$A22.Ar.upreg <- Ap.response.type2.A22.high$A22.upreg / Ap.response.type2.A22.high$Ar.upreg
+interaction.response.type2.A22.high$A22.Ar.upreg <- interaction.response.type2.A22.high$A22.upreg / interaction.response.type2.A22.high$Ar.upreg
 
 # ratio of constitutive expression in Ar vs A22
-Ap.response.type2.A22.high$A22.Ar.constitutive <- Ap.response.type2.A22.high$A22.opt / Ap.response.type2.A22.high$Ar.opt
+interaction.response.type2.A22.high$A22.Ar.constitutive <- interaction.response.type2.A22.high$A22.opt / interaction.response.type2.A22.high$Ar.opt
 
 # plot!
-gg11 <- ggplot(Ap.response.type2.A22.high, aes(x = log(A22.Ar.upreg), y = log(A22.Ar.constitutive))) + 
+gg11 <- ggplot(interaction.response.type2.A22.high, aes(x = log(A22.Ar.upreg), y = log(A22.Ar.constitutive))) + 
   geom_point() + 
   geom_smooth(method = "lm") +
   labs(x = expression(paste("log(inducibility ", italic("A. picea / A. carolinensis"), ")")),
@@ -893,7 +889,7 @@ gg11 <- ggplot(Ap.response.type2.A22.high, aes(x = log(A22.Ar.upreg), y = log(A2
 
 gg11
 
-A22.high.lm <- lm(log(A22.Ar.constitutive) ~ log(A22.Ar.upreg), data = Ap.response.type2.A22.high)
+A22.high.lm <- lm(log(A22.Ar.constitutive) ~ log(A22.Ar.upreg), data = interaction.response.type2.A22.high)
 
 summary(A22.high.lm)
 ```
@@ -904,19 +900,19 @@ I repeated the above but for **Low** transcripts in *A. carolinensis*.
 
 ```{r assimilation_Ar_low}
 ### filter for A. carolinensis *Low* transcripts
-Ap.response.type2.Ar.low <- Ap.response.type2[Ap.response.type2$Transcript %in% Ar.low.transcripts.df$Transcript, ]
-str(Ap.response.type2.Ar.low)
+interaction.response.type2.Ar.low <- interaction.response.type2[interaction.response.type2$Transcript %in% Ar.low.transcripts.df$Transcript, ]
+str(interaction.response.type2.Ar.low)
 
 # filter out NotResp transcripts in A22
-Ap.response.type2.Ar.low <- Ap.response.type2.Ar.low[which(Ap.response.type2.Ar.low$A22.type != "NotResp"), ]
+interaction.response.type2.Ar.low <- interaction.response.type2.Ar.low[which(interaction.response.type2.Ar.low$A22.type != "NotResp"), ]
 
 # ratio of upregulation
-Ap.response.type2.Ar.low$Ar.A22.upreg <- Ap.response.type2.Ar.low$Ar.upreg / Ap.response.type2.Ar.low$A22.upreg
+interaction.response.type2.Ar.low$Ar.A22.upreg <- interaction.response.type2.Ar.low$Ar.upreg / interaction.response.type2.Ar.low$A22.upreg
 
 # ratio of constitutive expression
-Ap.response.type2.Ar.low$Ar.A22.constitutive <- Ap.response.type2.Ar.low$Ar.opt / Ap.response.type2.Ar.low$A22.opt
+interaction.response.type2.Ar.low$Ar.A22.constitutive <- interaction.response.type2.Ar.low$Ar.opt / interaction.response.type2.Ar.low$A22.opt
 
-gg12 <- ggplot(Ap.response.type2.Ar.low, aes(x = log(Ar.A22.upreg), y = log(Ar.A22.constitutive))) + 
+gg12 <- ggplot(interaction.response.type2.Ar.low, aes(x = log(Ar.A22.upreg), y = log(Ar.A22.constitutive))) + 
   geom_point() + 
   geom_smooth(method = "lm") +
   labs(x = expression(paste("log(inducibility ", italic("A. carolinensis / A. picea"), ")")),
@@ -924,7 +920,7 @@ gg12 <- ggplot(Ap.response.type2.Ar.low, aes(x = log(Ar.A22.upreg), y = log(Ar.A
 
 gg12
 
-Ar.low.lm <- lm(log(Ar.A22.constitutive) ~ log(Ar.A22.upreg), data = Ap.response.type2.Ar.low)
+Ar.low.lm <- lm(log(Ar.A22.constitutive) ~ log(Ar.A22.upreg), data = interaction.response.type2.Ar.low)
 
 summary(Ar.low.lm)
 ```
@@ -963,18 +959,18 @@ resp.TPM.dt.sub$colony2 <- ifelse(resp.TPM.dt.sub$colony == "A22", "ApVT", "AcNC
 For next analyses, extract list of gene names by response type.
 
 ```{r extract_Transcripts}
-Ap.response.type <- as.data.frame(Ap.response.type)
-A22.high.transcripts <-  Ap.response.type[which(Ap.response.type$A22.type == "High"), "Transcript"]
-Ar.high.transcripts <- Ap.response.type[which(Ap.response.type$Ar.type == "High"), "Transcript"]
+interaction.response.type <- as.data.frame(interaction.response.type)
+A22.high.transcripts <-  interaction.response.type[which(interaction.response.type$A22.type == "High"), "Transcript"]
+Ar.high.transcripts <- interaction.response.type[which(interaction.response.type$Ar.type == "High"), "Transcript"]
 
-A22.low.transcripts <- Ap.response.type[which(Ap.response.type$A22.type == "Low"), "Transcript"]
-Ar.low.transcripts <- Ap.response.type[which(Ap.response.type$Ar.type == "Low"), "Transcript"]
+A22.low.transcripts <- interaction.response.type[which(interaction.response.type$A22.type == "Low"), "Transcript"]
+Ar.low.transcripts <- interaction.response.type[which(interaction.response.type$Ar.type == "Low"), "Transcript"]
 
-A22.bim.transcripts <- Ap.response.type[which(Ap.response.type$A22.type == "Bimodal"), "Transcript"]
-Ar.bim.transcripts <- Ap.response.type[which(Ap.response.type$Ar.type == "Bimodal"), "Transcript"]
+A22.bim.transcripts <- interaction.response.type[which(interaction.response.type$A22.type == "Bimodal"), "Transcript"]
+Ar.bim.transcripts <- interaction.response.type[which(interaction.response.type$Ar.type == "Bimodal"), "Transcript"]
 
-A22.int.transcripts <- Ap.response.type[which(Ap.response.type$A22.type == "Intermediate"), "Transcript"]
-Ar.int.transcripts <- Ap.response.type[which(Ap.response.type$Ar.type == "Intermediate"), "Transcript"]
+A22.int.transcripts <- interaction.response.type[which(interaction.response.type$A22.type == "Intermediate"), "Transcript"]
+Ar.int.transcripts <- interaction.response.type[which(interaction.response.type$Ar.type == "Intermediate"), "Transcript"]
 ```
 
 
@@ -1204,12 +1200,12 @@ dev.off()
 Does the mean expression level for all responsive genes differ among colonies?
 
 ```{r mean_exp}
-t.test(log(Ap.response.type$A22.opt), log(Ap.response.type$Ar.opt))
+t.test(log(interaction.response.type$A22.opt), log(interaction.response.type$Ar.opt))
 # expression level at optimum temp greater in Ar than A22
 
 # non-parametric test
-w4 = wilcox.test(Ap.response.type$A22.opt, 
-                 Ap.response.type$Ar.opt,
+w4 = wilcox.test(interaction.response.type$A22.opt, 
+                 interaction.response.type$Ar.opt,
                  alternative = "two.sided", paired = TRUE, conf.int = TRUE)
 
 
@@ -1250,7 +1246,7 @@ setnames(signif.transcripts, "Sequence.Name", "Transcript")
 ```{r ann_responsive, echo=TRUE}
 responsive.lms.ann.type <- signif.transcripts[names(responsive.lms)]
 # combine responsive.lms.ann with "type" information
-responsive.lms.ann.type <- merge(responsive.lms.ann.type, Ap.response.type[,c("Transcript", "A22.type", "Ar.type")], by = "Transcript", all = TRUE)
+responsive.lms.ann.type <- merge(responsive.lms.ann.type, interaction.response.type[,c("Transcript", "A22.type", "Ar.type")], by = "Transcript", all = TRUE)
 str(responsive.lms.ann.type)
 write.csv(responsive.lms.ann.type, file = paste(resultsdir, "Ap_responsive_genes_", Sys.Date(), ".csv", sep = ""), row.names = FALSE)
 ```
@@ -1372,7 +1368,7 @@ As the molecular processes involved in cold and hot temperature tolerance are di
 
 ```{r gsea_Ap_high, results = 'hide'}
 ## Genes with *High* expression in both colonies
-Ap.high <- Ap.response.type[which(Ap.response.type$Ar.type == "High" & Ap.response.type$A22.type == "High"), "Transcript"]
+Ap.high <- interaction.response.type[which(interaction.response.type$Ar.type == "High" & interaction.response.type$A22.type == "High"), "Transcript"]
 Ap.geneList.high <- rep(0, length = length(Ap.geneList))
 names(Ap.geneList.high) <- names(Ap.geneList)
 Ap.geneList.high[(which(names(Ap.geneList.high) %in% Ap.high))] <- 1
@@ -1406,7 +1402,7 @@ for(i in 1:length(Ap.high.hclust.report)) {
 
 ```{r gsea_Ap_low, results = "hide"}
 ## Genes with *Low* expression in both colonies
-Ap.low <- Ap.response.type[which(Ap.response.type$Ar.type == "Low" & Ap.response.type$A22.type == "Low"), "Transcript"]
+Ap.low <- interaction.response.type[which(interaction.response.type$Ar.type == "Low" & interaction.response.type$A22.type == "Low"), "Transcript"]
 Ap.geneList.low <- rep(0, length = length(Ap.geneList))
 names(Ap.geneList.low) <- names(Ap.geneList)
 Ap.geneList.low[(which(names(Ap.geneList.low) %in% Ap.low))] <- 1
@@ -1441,7 +1437,7 @@ for(i in 1:length(Ap.low.hclust.report)) {
 
 ```{r gsea_Ap_bim, resuts = 'hide'}
 # Genes with *Bimodal* expression in both colonies
-Ap.bim <- Ap.response.type[which(Ap.response.type$A22.type == "Bimodal" & Ap.response.type$Ar.type == "Bimodal"), "Transcript"]
+Ap.bim <- interaction.response.type[which(interaction.response.type$A22.type == "Bimodal" & interaction.response.type$Ar.type == "Bimodal"), "Transcript"]
 # create gene list, setting value to 1 for "bim" transcripts
 Ap.geneList.bim <- rep(0, length = length(Ap.geneList))
 names(Ap.geneList.bim) <- names(Ap.geneList)
@@ -1476,7 +1472,7 @@ for(i in 1:length(Ap.bim.hclust.report)) {
 
 ```{r gsea_Ap_int, results = 'hide'}
 # genes with *Intermediate* expression in both colonies
-Ap.int <- Ap.response.type[which(Ap.response.type$A22.type == "Intermediate" & Ap.response.type$Ar.type == "Intermediate"), "Transcript"]
+Ap.int <- interaction.response.type[which(interaction.response.type$A22.type == "Intermediate" & interaction.response.type$Ar.type == "Intermediate"), "Transcript"]
 # create gene list, setting value to 1 for "int" transcripts
 Ap.geneList.int <- rep(0, length = length(Ap.geneList))
 names(Ap.geneList.int) <- names(Ap.geneList)
@@ -1526,7 +1522,7 @@ GSEA for genes that are *Intermediate* in A. carolinensis and *Bimodal* in A. pi
 
 ```{r gsea_Ar_int_A22_bim, results = 'hide'}
 # genes with *Intermediate* expression in Ar and *Bimodal* in A22
-Ar.int.A22.bim <- Ap.response.type[which(Ap.response.type$Ar.type == "Intermediate" & Ap.response.type$A22.type == "Bimodal"), "Transcript"]
+Ar.int.A22.bim <- interaction.response.type[which(interaction.response.type$Ar.type == "Intermediate" & interaction.response.type$A22.type == "Bimodal"), "Transcript"]
 Ar.int.A22.bim.geneList <- rep(0, length = length(Ap.geneList))
 names(Ar.int.A22.bim.geneList) <- names(Ap.geneList)
 Ar.int.A22.bim.geneList[(which(names(Ar.int.A22.bim.geneList) %in% Ar.int.A22.bim))] <- 1
@@ -1556,7 +1552,7 @@ GSEA for genes that are *Intermediate* in A. carolinensis and *Low* in A. picea
 
 ```{r gsea_Ar_int_A22_low, results = 'hide'}
 # genes with *Intermediate* expression in Ar and *Low* in A22
-Ar.int.A22.low <- Ap.response.type[which(Ap.response.type$Ar.type == "Intermediate" & Ap.response.type$A22.type == "Low"), "Transcript"]
+Ar.int.A22.low <- interaction.response.type[which(interaction.response.type$Ar.type == "Intermediate" & interaction.response.type$A22.type == "Low"), "Transcript"]
 Ar.int.A22.low.geneList <- rep(0, length = length(Ap.geneList))
 names(Ar.int.A22.low.geneList) <- names(Ap.geneList)
 Ar.int.A22.low.geneList[(which(names(Ar.int.A22.low.geneList) %in% Ar.int.A22.low))] <- 1
