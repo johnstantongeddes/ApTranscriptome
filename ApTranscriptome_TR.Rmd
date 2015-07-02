@@ -1,22 +1,22 @@
 ---
-output: word_document
+output: html_document
 ---
-Thermal reactionome of the common ant species *Aphaenogaster picea* and *A. carolinensis*
+
+Technical Report for *Thermal reactionomes reveal divergent responses to thermal extremes in warm and cool-climate ant species*
 ========================================================================================
    
 **Author:** [John Stanton-Geddes](john.stantongeddes.research@gmail.com)
 
-**October 14, 2014**
-
-**Technical Report No. 3**
+**June 24, 2015**
 
 **Department of Biology**
 
 **University of Vermont**
 
-```{r setup, echo=FALSE, results='hide', message = FALSE}
+```{r setup, echo=FALSE, results='hide', message = FALSE, warning = FALSE}
 # Global settings
 options(stringsAsFactors=FALSE, digits = 3, scipen = 1)
+options(width = 80)
 
 # Load libraries
 library(R.utils)
@@ -37,7 +37,7 @@ library(coin)
 library(gridExtra)
 
 # Load Bioconductor libraries
-source("http://bioconductor.org/biocLite.R")
+#source("http://bioconductor.org/biocLite.R")
 #biocLite("topGO")
 #biocLite("Rgraphviz")
 #biocLite("GOSemSim")
@@ -57,28 +57,27 @@ resultsdir <- "results/"
 
 ## Summary ##
   
-In this technical report, which accompanies the manuscript **Patterns of stress tolerance versus resistance in genome-wide expression data of parapatric ant species** (Stanton-Geddes et al., in press), we:
+In this technical report, which accompanies the manuscript **Thermal reactionomes reveal divergent responses to thermal extremes in warm and cool-climate ant species**, we:
 
-1. describe the *de novo* assembly of the transcriptome for two ant species within the *Aphaenogaster rudis-picea-fulva* species complex `r citep("10.1155/2012/752815")`
-2. identify thermally-responsive genes
-3. evaluate differences in reaction norms of expression for each thermally-responsive gene between the two species
-4. perform gene set enrichment analysis of thermally-responsive genes for the two species
-
-This script is completely reproducible assuming that R, `knitr` and the other required libraries (listed within the source document) are installed on a standard linux system using the following:
-    
-    Rscript -e "library(knitr); knit('ApTranscriptome_TR.Rmd')"
-
+1. Describe the *de novo* assembly of the transcriptome for two ant species within the *Aphaenogaster rudis-picea-fulva* species complex `r citep("10.1155/2012/752815")`.
+2. Measure the reaction norm across a thermal gradient (0°C to 38.5°C) for all transcripts and characterize the *thermal reactionome* as the set of transcripts that are thermally-responsive.
+3. Quantitatively test three mechanistic hypotheses of thermal adapation:.
+  - The *Enhanced response* hypothesis proposes that species extend their thermal limits through a stronger induced response to provide greater protection from more frequently encountered stressors.
+  - The *Tolerance hypothesis* proposes that existing inducible stress responses become insufficient or prohibitively costly as environmental stressors increase in frequency.
+  - The *Genetic assimilation hypothesis* proposes that exposure to more extreme stressors selects for a shift from inducible to constitutive expression of stress-response genes.
+  
+We quantify the relative importance of each of these mechanisms to thermal adaptation in these two species by evalutating differences in the reactionomes between species. We use gene set enrichment analysis to provide additional insight on the cellular processes underlying the transcriptome-wide changes in expression. 
 
 ## Data ##
 
-The raw Illumina fastq files are available from the NCBI short read archive [link tbd]. The assembled transcriptome, annotation and expression values are downloaded rather than re-run due to the computational demands, but the exact commands for each of these steps are documented below.
+The raw Illumina fastq files are available from the NCBI short read archive [link tbd]. The assembled transcriptome, annotation and expression values are available from the Harvard Forest Archives, HF-113 [http://harvardforest.fas.harvard.edu/data-archive] datasets [hf113-36](http://harvardforest.fas.harvard.edu/data/p11/hf113/hf113-36-ap-ann-table.csv), [hf113-40](http://harvardforest.fas.harvard.edu/data/p11/hf113/hf113-40-ap-trans.tar) and [hf113-41](http://harvardforest.fas.harvard.edu/data/p11/hf113/hf113-41-ap-gene-exp-quant.tgz). These processed files are used for this analysis due to the computational demands of re-generating the files, but the exact commands for each of these steps are documented below.
+
 
 ## Sample description ##
 
-Two ant colonies were used for the transcriptome sequencing. The first, designated *A22*, was collected at Molly Bog, Vermont in August 2012 by Nick Gotelli and Andrew Nguyen. The second colony, designated *Ar*, was collected by Lauren Nichols in Raleigh, North Carolina. These colonies were maintained in the lab for 6 months prior to sample collection. Bernice DeMarco (Michigan State University) identified colony *A22* as *A. picea* and *Ar* as *A. carolinensis*. For historical reasons, I sometimes refer to these species as colonies at times throughout this technical report.
+Two ant colonies were used for the transcriptome sequencing. The first, designated *A22*, was collected at Molly Bog, Vermont in August 2012 by Nick Gotelli and Andrew Nguyen. The second colony, designated *Ar*, was collected by Lauren Nichols in Raleigh, North Carolina. These colonies were maintained in the lab for 6 months prior to sample collection. Bernice DeMarco (Michigan State University) identified colony *A22* as *A. picea* and *Ar* as *A. carolinensis*. 
 
-For each colony, three ants were exposed to one of 12 temperature treatments, every 3.5C ranging from 0C to 38.5C, for one hour in glass tubes in a water bath. The ants were flash frozen and stored at -80C until RNA was extracted using a two step extraction; [RNAzol RT](http://www.mrcgene.com/rnazol.htm) (Molecular Research Center, Inc) followed by an [RNeasy Micro](http://www.qiagen.com/products/catalog/sample-technologies/rna-sample-technologies/total-rna/rneasy-micro-kit) column (Qiagen). Samples from each colony were pooled and sequenced in separate lanes on a 100bp paired-end run of an Illumina HiSeq at the University of Minnesota Genomics Center, yielding 20e6 and 16e6 reads for the A22 and Ar samples, respectively.
-
+For each colony, three ants were exposed to one of 12 temperature treatments, every 3.5°C ranging from 0°C to 38.5°C, for one hour in glass tubes in a water bath. The ants were flash frozen and stored at -80C until RNA was extracted using a two step extraction; [RNAzol RT](http://www.mrcgene.com/rnazol.htm) (Molecular Research Center, Inc) followed by an [RNeasy Micro](http://www.qiagen.com/products/catalog/sample-technologies/rna-sample-technologies/total-rna/rneasy-micro-kit) column (Qiagen). Samples from each colony were pooled and sequenced in separate lanes on a 100bp paired-end run of an Illumina HiSeq at the University of Minnesota Genomics Center, yielding 20e6 and 16e6 reads for the A22 and Ar samples, respectively.
 
 
 ## Transcriptome assembly ##
@@ -86,18 +85,22 @@ For each colony, three ants were exposed to one of 12 temperature treatments, ev
 The Illumina reads were filtered using the program [Trimmomatic](http://www.usadellab.org/cms/?page=trimmomatic) `r citep("10.1093/nar/gks540")` to remove Ilumina adapter sequences, trim bases with PHRED quality scores less than 15 in a 4 bp sliding window and remove final trimmed sequences with length less than 36 bp. The code used was 
 
 ~~~
-java -jar trimmomatic-0.30.jar PE -threads 40 -phred33 -trimlog trimmomatic.log sample.R1.fastq sample.R2.fastq sample.R1.trimmed.paired.fastq sample.R1.trimmed.unpaired.fastq sample.R2.trimmed.paired.fastq sample.R2.trimmed.unpaired.fastq ILLUMINACLIP:TruSeq3-PE.fa:2:30:10 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15 MINLEN:36
+java -jar trimmomatic-0.30.jar PE -threads 40 -phred33 -trimlog trimmomatic.log \\
+sample.R1.fastq sample.R2.fastq sample.R1.trimmed.paired.fastq sample.R1.trimmed \\
+.unpaired.fastq sample.R2.trimmed.paired.fastq sample.R2.trimmed.unpaired.fastq \\
+ILLUMINACLIP:TruSeq3-PE.fa:2:30:10 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15 MINLEN:36
 ~~~
 
 where "sample" was replaced by each sample. This filtering yielded 339,845,787 properly paired reads and 16,860,885 unpaired reads. 
 
-Properly paired and unpaired reads passing the Trimmomatic filter were combined and used in de novo transcriptome assembly using the program [Trinity](http://trinityrnaseq.sourceforge.net/) `r citep("10.1038/nbt.1883")`. Unpaired reads resulting from Trimmomatic were concatenated to the set of left (R1) reads per Trinity usage documentation. Assembly on a single 40 CPU machine with 1TB of memory required 20 hours of compute time.
+Properly paired and unpaired reads passing the Trimmomatic filter were combined and used in de novo transcriptome assembly using the program [Trinity](http://trinityrnaseq.sourceforge.net/) `r citep("10.1038/nbt.1883")`. Unpaired reads resulting from Trimmomatic were concatenated to the set of left (R1) reads per Trinity usage documentation. Assembly on a single 40 CPU machine with 1TB of memory required about 20 hours of compute time.
 
 ~~~
-Trinity.pl --seqType=fq --JM=90G —left=all.R1.trimmed.fastq —right=all.R2.trimmed.fastq --output=trinity --CPU=40 --inchworm_cpu=40 --bflyCPU=5
+Trinity.pl --seqType=fq --JM=90G —left=all.R1.trimmed.fastq —right=all.R2.trimmed.fastq \\
+--output=trinity --CPU=40 --inchworm_cpu=40 --bflyCPU=5
 ~~~
 
-This assembly contained 100,381 unique components (roughly genes) in 126,172 total transcripts (Table 1). 
+This assembly contained 100,381 unique components (~genes) in 126,172 total transcripts (Table 1). 
 
 As we were assembling two divergent colonies into a single transcriptome, we suspected that this assembly would be susceptible to known problems of errors during assembly (e.g. chimeric transcripts that are fusions of two transcripts) and redundancy `r citep("10.1186/1471-2164-14-328")`. To account for this, we performed two post-assembly processing steps.
 
@@ -131,10 +134,10 @@ These post-processing step removed `r round((126172-105536)/126172 * 100, 0)`% o
 
 ```{r assemstats, results = "asis", echo=FALSE}
 # make table
-trinity <- c("126,172", "100,389,539", "358", "795", "16,201", "1,631")
-reduced <- c("105,536", "62,648,997", "320", "593", "15,491", "895")
+Trinity <- c("126,172", "100,389,539", "358", "795", "16,201", "1,631")
+Reduced <- c("105,536", "62,648,997", "320", "593", "15,491", "895")
 
-assemstats <- rbind(trinity, reduced)
+assemstats <- rbind(Trinity, Reduced)
 colnames(assemstats) <- c("Total contigs", "Total length", "Median contig size", "Mean contig size", "N50 contig", "N50 Length")
 
 pandoc.table(assemstats, style="rmarkdown", caption = "Statistics for Trinity and cap3+uclust reduced transcriptome assemblies")
@@ -142,24 +145,22 @@ pandoc.table(assemstats, style="rmarkdown", caption = "Statistics for Trinity an
 
 To remove contigs that are likely contaminants from bacterial, archael, virus or human sources, we used the program [DeconSeq](http://deconseq.sourceforge.net/) r citep("10.1371/journal.pone.0017288"). We downloaded the bacteria, virus, archae and human [databases of contaminants](ftp://edwards.sdsu.edu:7009/deconseq/db), modified the `DeconSeqConfig.pm` file as described [here](http://www.vcru.wisc.edu/simonlab/bioinformatics/programs/install/deconseq.htm) to point to the databases, and ran DeconSeq specifiying 95% identity over 50% the length of contig
 
-    deconseq.pl -c 50 -i 95 -f Trinity_cap3_uclust.fasta -d Trinity_cap3_uclust -dbs hsref,bast,vir,arch
+    deconseq.pl -c 50 -i 95 -f Trinity_cap3_uclust.fasta -d Trinity_cap3_uclust \\
+    -dbs hsref,bast,vir,arch
 	
 This resulted in removing 5,675 contigs as contaminants, leaving 99,861 "clean" contigs. We spot-checked the contaminants by BLAST and confirmed that they matched bacteria, human or viral sources by greater than 95%. For expression quantification, we use the full assembly to ensure that "contaminant" reads are assigned to the contaminants. After quantification, these transcripts will then be removed from further analyses.
 
-Running Trinity and subsequent programs is time and memory-intensive so the final assembly can be downloaded and used for all further analyses. In addition, the compressed archive contains the "clean" and "contaminant" sequences after filtering with DeconSeq.
+Running Trinity and subsequent programs is time and memory-intensive so the final assembly is downloaded and used for all further analyses. The downloaded archive contains the "clean" and "contaminant" sequences after filtering with DeconSeq.
 
 ~~~
 # download filtered Trinity assembly, uncompress and move
-wget http://johnstantongeddes.org/assets/files/ApTranscriptome/Aphaenogaster_transcriptome.tar
-# check md5sum
-md5sum Aphaenogaster_transcriptome.tar
-# fd6dbb0b3e88e1c797c9e74611b245b2
+wget http://harvardforest.fas.harvard.edu/data/p11/hf113/hf113-40-ap-trans.tar
 
 # move and extract
 mkdir -p results/
 mkdir -p results/trinity-full/
-mv Aphaenogaster_transcriptome.tar results/trinity-full/.
-tar -xvf Aphaenogaster_transcriptome.tar
+mv hf113-40-ap-trans.tar results/trinity-full/.
+tar -xvf hf113-40-ap-trans.tar
 ~~~
 
 To examine the species distribution of BLAST hits in the transcriptome assembly, I used the program [Krona](http://sourceforge.net/p/krona/home/krona/) r citep("doi:10.1186/1471-2105-12-385") which provides a taxonomic profile of all transcripts by BLAST annotation to species.
@@ -171,13 +172,14 @@ The interactive visualization is available [here](http://johnstantongeddes.org/a
 
 Annotation was performed by uploading the reduced assembly "Trinity_cap3_uclust.fasta" to the web-based annotation program [FastAnnotator](http://fastannotator.cgu.edu.tw/index.php).
 
-Results are available as job ID [13894410176993](http://fastannotator.cgu.edu.tw/job.php?jobid=13894410176993#page=basicinfo).
+Results were available as job ID [13894410176993](http://fastannotator.cgu.edu.tw/job.php?jobid=13894410176993#page=basicinfo).
 
-This annotation file can be read directly to R:
+This annotation file can be downloaded from the Harvard Forest [archive](http://harvardforest.fas.harvard.edu/data/p11/hf113/hf113-36-ap-ann-table.csv), or read directly into R.  
 
 ```{r download, echo = TRUE}
 # URL for annotation file
 annotation.URL <- getURL("http://johnstantongeddes.org/assets/files/ApTranscriptome/ApTranscriptome_AnnotationTable_20140113.txt")
+
 # load 
 annotation.file <- read.csv(textConnection(annotation.URL), header = TRUE, sep = "\t", stringsAsFactors = FALSE)
 str(annotation.file)
@@ -192,7 +194,7 @@ Note that I used the reduced assembly, prior to cleaning out contaminants. As I 
 
 ## Identification of thermally-responsive genes ##
 
-### Quantify gene expression ###
+### Gene expression ###
 
 I quantified gene expression using [sailfish](http://www.cs.cmu.edu/~ckingsf/software/sailfish/index.html). To run this program, first make sure that PATHs to the software libraries are set up correctly as described on the sailfish website. 
                                                  
@@ -209,8 +211,6 @@ Once this is done, expression is quantified for the Trimmomatic filtered reads f
 - unpaired.left.fastq
 - unpaired.right.fastq
 
-
-
 ~~~
 # make a directory for the expression values
 mkdir -p results/trinity-full/sailfish-expression-Trinity-cap3-uclust
@@ -226,7 +226,8 @@ These files are downloaded for convenience:
 
 ~~~
 # download gene expression quantification
-wget http://johnstantongeddes.org/assets/files/ApTranscriptome/sailfish_quant_20140916.tar
+wget http://harvardforest.fas.harvard.edu/data/p11/hf113/hf113-41-ap-gene-exp-quant.tgz
+# http://johnstantongeddes.org/assets/files/ApTranscriptome/sailfish_quant_20140916.tar
 # check md5sum
 md5sum sailfish_quant_20140916.tar
 # 26102c7ef86cf30b5f8e923640378185
@@ -295,11 +296,13 @@ str(TPM.dt.sub)
 unique(TPM.dt.sub$val)
 ```
 
-Note that expression levels at each temperature treatment are highly correlated between the two colonies.
-
 ```{r exp_correlations, echo=FALSE, results='hide'}
 cortable <- ddply(TPM.dt.sub, .(val), summarize, cor(TPM[which(colony=="A22")], TPM[which(colony=="Ar")]))
 ```
+
+\newpage
+
+Note that expression levels at each temperature treatment are highly correlated between the two colonies.
 
 ```{r exp_correlations_table, echo=FALSE, results='asis'}
 colnames(cortable) <- c("Temperature", "r")
@@ -380,16 +383,15 @@ At the 5% FDR significance threshold, there are `r nrow(signif.transcripts)` tra
 RxNlmAIC <- try(dlply(sig.TPM.dt.sub, .(Transcript), lmFunc))
 ```
 
-
-### Grouping of thermally-responsive transcripts
-
-The set of transcripts with significant expression patterns include those with expression that differs by species, temperature and the interaction of species and temperature. In this section, I am specifically interested in the thermally-responsive transcripts (temperature and species x temperature) so I subset the significant transcripts to examine these. 
+The set of transcripts with significant expression patterns include those with expression that differs by species, temperature and the interaction of species and temperature. I am specifically interested in the thermally-responsive transcripts (temperature and species x temperature) so I subset the significant transcripts to examine these. 
 
 ```{r responsive_transcripts}
 interaction.lms <- RxNlmAIC[which(Map(grepFunc, RxNlmAIC, term = "colonyAr:") == TRUE)]
 other.lms <- RxNlmAIC[setdiff(names(RxNlmAIC), names(interaction.lms))]
 temperature.lms <- other.lms[which(Map(grepFunc, other.lms, term = "val") == TRUE)]
 colony.lms <- other.lms[setdiff(names(other.lms), names(temperature.lms))]
+
+# combine all responsive transcripts
 responsive.lms <- c(temperature.lms, interaction.lms)
 rm(other.lms)
 
@@ -410,19 +412,28 @@ sigtable <- data.frame(Coefficient = clist, "Number significant" = siglist)
 pandoc.table(sigtable, style="rmarkdown", big.mark = ",", caption = "Number of transcripts with expression that depends on species, temperature or their interaction at 5% FDR  out of 98,186 total transcripts.")
 ```
 
+I checked the proportion of responsive transcripts against those that have a BLAST hit.
 
-### Thermal-response functional types ###
+```{r responsive_with_BLAST}
+annotation.table.responsive <- annotation.table[which(annotation.table$best.hit.to.nr != "-"), ]
 
-The previous section identified the transcripts with thermally-responsive expression. In this section, I determine the shape of the expression response to temperature for each transcript. Catego
-ries of expression response are:
+responsive_transcripts_w_BLAST <- length(which(unique(resp.TPM.dt.sub$Transcript) %in% annotation.table.responsive$Sequence.Name))
 
-* High - increase expression with temperature
-* Low - decrease expression with temperature
-* Intermediate - maximum expression at intermediate temperatures (14 - 28C)
-* Bimodal - expressed greater than one standard deviation of expression at both low and high temperatures
+responsive_transcripts_w_BLAST / round(nrow(annotation.table.responsive))
+```
 
-I do this first for the thermally-responsive transcripts where there is no interaction with species. For the transcripts where thermal-responsive expression depends on species, I determine the functional type of the expression response separately for each species. 
 
+### Thermal-response expression categories ###
+
+The previous section identified the transcripts with thermally-responsive expression. In this section, I determined the shape of the expression response to temperature for each transcript. Categories of expression response are:
+
+- **High** - increase expression with temperature
+- **Low** - decrease expression with temperature
+- **Intermediate** - maximum expression at intermediate temperatures (14 - 28C)
+- **Bimodal** - expressed greater than one standard deviation of expression at both low and high temperatures
+- **Not Responsive** - not thermally-responsive in one species but does respond in the other
+
+For the transcripts where thermal-responsive expression depends on species, I determined the functional type of the expression response separately for each species. 
 
 ```{r expression_shape, eval=TRUE, echo=TRUE}
 # calculate response type for responsive transcripts
@@ -444,7 +455,7 @@ str(Ap.response.type)
 write.table(file = paste(resultsdir, "Ap_responsive_transcripts_", Sys.Date(), ".txt", sep = ""), Ap.response.type, row.names = FALSE, col.names = TRUE, quote = FALSE, sep = "\t")
 ```
 
-Next, I compare the number of thermally-responsive in each response category between the two colonies. 
+Next, I compared the number of thermally-responsive in each response category between the two colonies. 
 
 ```{r temperature_response}
 A22.type.table <- table(Ap.response.type$A22.type)
@@ -452,6 +463,9 @@ Ar.type.table <- table(Ap.response.type$Ar.type)
 
 # table
 (Ap.type.table <- rbind(A22.type.table, Ar.type.table))
+
+# proportion
+Ap.type.table.prop <- round(Ap.type.table / (sum(Ap.type.table)/2) * 100)
 
 # test if the number of transcripts in each category differs from null expectations using Pearson Chi-square test
 (chi1 <- chisq.test(Ap.type.table))
@@ -553,7 +567,7 @@ abs(d5)/dsum
 # e2 (Acar Intermediate) contributes ~44% to Z~0~
 ```
 
-To identify specific cells that deviate from null expectation, calculate expected observations assuming that marginal frequencies equal the overall frequency for each expression category, then determine which cells have deviations between observed and expected that are greater than the overall X^2^ statistic.
+To identify specific cells that deviate from null expectation, I calculated the expected observations assuming that marginal frequencies equal the overall frequency for each expression category, then determined which cells have deviations between observed and expected that are greater than the overall X^2^ statistic.
 
 ```{r chi_posthoc}
 # overall mean for each class
@@ -573,7 +587,7 @@ Ec.cells <- sign(tt2 - Ec) * (tt2 - Ec)^2 / Ec
 # which of these are significantly great than expected chi-squared?
 ```
 
-To visualize this, make a heatmap that shows deviation from expected count.
+To visualize this, I made a heatmap that showed the deviation of the actual number of transcripts in each cell from the expected count.
 
 ```{r mh_plot}
 md <- reshape2::melt(Ec.dev)
@@ -628,24 +642,33 @@ mh_plot
 dev.off()
 ```
 
-Per suggestion of a reviewer, make a cartoon figure that shows the contrasting results of the *enhance defense* and the *tolerance* hypotheses.
 
-The *enhanced response hypothesis* posits that temperature adaptation uses existing defense mechanisms, which should result in significant overlap in response. This pattern would be apparent as an excess of transcripts with the same response pattern between species (e.g. more shared "Low" transcripts) and a deficit of transcripts that shift to other response patterns or become not responsive. 
+The *enhanced response hypothesis* posits that temperature adaptation uses existing response mechanisms, which should result in significant overlap in response. This pattern would be apparent as an excess of transcripts with the same response pattern between species (e.g. more shared "Low" transcripts) and a deficit of transcripts that shift to other response patterns or become not responsive. 
 
-```{r ed_cartoon}
-enhanced_defense_dat <- md_sub1
-enhanced_defense_dat$value <- 0
+```{r er_cartoon}
+enhanced_response_dat <- md_sub1
+enhanced_response_dat$value <- 0
 # set non-shared response to random negative value 
-enhanced_defense_dat[which(enhanced_defense_dat$Acar == "Low"), "value"] <- runif(5, min = -300, max = 0)
-enhanced_defense_dat[which(enhanced_defense_dat$Acar == "Bimodal"), "value"] <- runif(5, min = -300, max = 0)
+enhanced_response_dat[which(enhanced_response_dat$Acar == "Low"), "value"] <- runif(5, min = -100, max = -150)
+enhanced_response_dat[which(enhanced_response_dat$Acar == "Bimodal"), "value"] <- runif(5, min = -100, max = -150)
 # change shared response to positive
-enhanced_defense_dat[which(enhanced_defense_dat$Acar == "Low" & enhanced_defense_dat$Apic == "Low"), "value"] <- 500
-enhanced_defense_dat[which(enhanced_defense_dat$Acar == "Bimodal" & enhanced_defense_dat$Apic == "Bimodal"), "value"] <- 300
+enhanced_response_dat[which(enhanced_response_dat$Acar == "Low" & enhanced_response_dat$Apic == "Low"), "value"] <- 10
+enhanced_response_dat[which(enhanced_response_dat$Acar == "Bimodal" & enhanced_response_dat$Apic == "Bimodal"), "value"] <- 10
 
-enhanced_defense_dat
+enhanced_response_dat
 
 # plot
-enhanced_defense_plot <- qplot(y=Apic, x=Acar, data=enhanced_defense_dat, fill=value, geom="tile", xlim = rev(levels(enhanced_defense_dat$Acar))) + 
+enhanced_response_plot <- qplot(y=Apic, x=Acar, data=enhanced_response_dat, fill=value, geom="tile", xlim = rev(levels(enhanced_response_dat$Acar))) + 
+  scale_fill_gradient2(limits=c(-500, 500), low="#f1a340", high="#998ec3") +
+  theme(axis.title = element_text(face="italic")) +
+  labs(y = "A. picea", x = "A. carolinensis") +
+  theme(legend.position = "right") + 
+  geom_rect(xmin = 0.5, xmax = 1.5, ymin = 3.5, ymax = 4.5, fill = "transparent", linetype=2, colour="black") +
+  geom_rect(xmin = 1.5, xmax = 2.5, ymin = 0.5, ymax = 1.5, fill = "transparent", linetype=2, colour="black")
+
+enhanced_response_plot <- ggplot(enhanced_response_dat, aes(y = Apic, x = Acar, fill=value)) + 
+  geom_tile(colour = "#ffffff", size =1) +
+  xlim(rev(levels(enhanced_response_dat$Acar))) + 
   scale_fill_gradient2(limits=c(-500, 500), low="#f1a340", high="#998ec3") +
   theme(axis.title = element_text(face="italic")) +
   labs(y = "A. picea", x = "A. carolinensis") +
@@ -654,26 +677,28 @@ enhanced_defense_plot <- qplot(y=Apic, x=Acar, data=enhanced_defense_dat, fill=v
   geom_rect(xmin = 1.5, xmax = 2.5, ymin = 0.5, ymax = 1.5, fill = "transparent", linetype=2, colour="black")
 
 # title
-enhanced_defense_plot <- enhanced_defense_plot + ggtitle('Enhanced Response hypothesis') + theme(plot.title = element_text(hjust=0, size = 12))
-enhanced_defense_plot
+enhanced_response_plot <- enhanced_response_plot + ggtitle('Enhanced Response hypothesis') + theme(plot.title = element_text(hjust=0, size = 10))
+enhanced_response_plot
 ```
 
-In contrast, the *tolerance hypothesis* predicts that genes involved in active defense will become non-responsive or shift to other response categories in the better-adapted species. 
+In contrast, the *tolerance hypothesis* predicts that genes involved in active response will become non-responsive or shift to other response categories in the better-adapted species. 
 
 ```{r tol_cartoon}
 tolerance_dat <- md_sub1
 tolerance_dat$value <- 0
 # set non-shared response to random positive value 
-tolerance_dat[which(tolerance_dat$Acar == "Low"), "value"] <- runif(5, min = 100, max = 300)
-tolerance_dat[which(tolerance_dat$Acar == "Bimodal"), "value"] <- runif(5, min = 100, max = 200)
+tolerance_dat[which(tolerance_dat$Acar == "Low"), "value"] <- runif(5, min = 250, max = 300)
+tolerance_dat[which(tolerance_dat$Acar == "Bimodal"), "value"] <- runif(5, min = 250, max = 300)
 # change shared response to near zero
-tolerance_dat[which(tolerance_dat$Acar == "Low" & tolerance_dat$Apic == "Low"), "value"] <- 30
-tolerance_dat[which(tolerance_dat$Acar == "Bimodal" & tolerance_dat$Apic == "Bimodal"), "value"] <- 20
+tolerance_dat[which(tolerance_dat$Acar == "Low" & tolerance_dat$Apic == "Low"), "value"] <- -100
+tolerance_dat[which(tolerance_dat$Acar == "Bimodal" & tolerance_dat$Apic == "Bimodal"), "value"] <- -100
 
 tolerance_dat
 
 # plot
-tolerance_plot <- qplot(y=Apic, x=Acar, data=tolerance_dat, fill=value, geom="tile", xlim = rev(levels(tolerance_dat$Acar))) + 
+tolerance_plot <- ggplot(tolerance_dat, aes(y=Apic, x=Acar, fill=value)) + 
+  geom_tile(colour = "#ffffff", size =1) +
+  xlim(rev(levels(enhanced_response_dat$Acar))) + 
   scale_fill_gradient2(limits=c(-500, 500), low="#f1a340", high="#998ec3") +
   theme(axis.title = element_text(face="italic")) +
   labs(y = "A. picea", x = "A. carolinensis") +
@@ -682,17 +707,17 @@ tolerance_plot <- qplot(y=Apic, x=Acar, data=tolerance_dat, fill=value, geom="ti
   geom_rect(xmin = 1.5, xmax = 2.5, ymin = 0.5, ymax = 1.5, fill = "transparent", linetype=2, colour="black")
 
 # title
-tolerance_plot <- tolerance_plot + ggtitle('Tolerance hypothesis') + theme(plot.title = element_text(hjust=0, size = 12))
+tolerance_plot <- tolerance_plot + ggtitle('Tolerance hypothesis') + theme(plot.title = element_text(hjust=0, size = 10))
 tolerance_plot
 
 # plot together
 png("results/predictions_Fig1.png")
-grid.arrange(enhanced_defense_plot, tolerance_plot, ncol=2, widths = c(3.75,3))
+grid.arrange(enhanced_response_plot, tolerance_plot, ncol=2, widths = c(3.7, 3))
 dev.off()
 ```
 
 
-The number of thermally-responsive in each response category differs between the colonies, with the msot transcripts expressed at *Low* temperatures in both colonies. For *ApVT*, an equal number of transcripts are expressed at *High* and *Bimodal*, followed by *Intermediate* transcripts. For *AcNC*, transcripts expressed at *Intermediate* temperatures are next most common, followed by *High* and *Bimodal*. 
+The number of thermally-responsive in each response category differed between the colonies, with the msot transcripts expressed at *Low* temperatures in both colonies. For *ApVT*, an equal number of transcripts are expressed at *High* and *Bimodal*, followed by *Intermediate* transcripts. For *AcNC*, transcripts expressed at *Intermediate* temperatures are next most common, followed by *High* and *Bimodal*. 
 
 Interestingly, nearly half of the *High* genes in *AcNC* are *Low* in *ApVT*, and vice versa. In contrast, most of the *Low* genes in one species are also *Low* in the other species.
 
@@ -715,7 +740,7 @@ pandoc.table(tt3, style="rmarkdown", caption = "Number of transcripts with maxim
 
 Table 4 shows the number of transcripts that fall into each expression type for each each species. The totals for each species include the `r length(temperature.lms)` transcripts that have consistent temperature responses between the two colonies. 
 
-An interesting observation from the matched observations plot (Fig. 1) is that for **NotResp** genes in *A. carolinensis* the **High** and **Bimodal** categories in *A. picea* are over-represented. Finding that the mean expression level of these genes in *A. carolinensis* is greater than the expression level at the optimum temperature (19.5°C) in *A. picea* would be consistent with genetic assimilation.
+An interesting observation from the matched observations plot (Fig. 1) is that for **NotResp** genes in *A. carolinensis* the **High** and **Bimodal** categories in *A. picea* are over-represented. Finding that the mean expression level of these genes in *A. carolinensis* is greater than the expression level at the rearing temperature (25°C) in *A. picea* would be consistent with genetic assimilation.
 
 ```{r gen_assimilation_high}
 Ap.high.Ac.nr <- Ap.response.type[which(Ap.response.type$A22.type == "High" & Ap.response.type$Ar.type == "NotResp"), ]
@@ -732,7 +757,7 @@ t.test(Ap.high.Ac.nr.mean.exp.NR$meanTPM, Ap.high.Ac.nr.opt.exp)
 
 Contrary to expectations, mean expression of the non-responsive *A. carolinensis* genes is less than expression of the **High** genes in *A. picea*.
 
-Next, I check the same for the **Bimodal** genes in *A. picea*.
+Next, I checked the same for the **Bimodal** genes in *A. picea*.
 
 ```{r gen_assimilation_bim}
 Ap.bim.Ac.nr <- Ap.response.type[which(Ap.response.type$A22.type == "Bimodal" & Ap.response.type$Ar.type == "NotResp"), ]
@@ -747,7 +772,8 @@ Ap.bim.Ac.nr.opt.exp <- Ap.bim.Ac.nr$A22.opt
 t.test(Ap.bim.Ac.nr.mean.exp.NR$meanTPM, Ap.bim.Ac.nr.opt.exp)
 ```
 
-As with the **High** transcripts, expression much higher for the responsive *A. picea* transcripts than for the non-responsive *A. carolinensis* transcripts.
+As with the **High** transcripts, expression was much higher for the responsive *A. picea* transcripts than for the non-responsive *A. carolinensis* transcripts.
+
 
 ## Species comparisons
 
@@ -762,6 +788,9 @@ In this section, I perform a number of comparisons of the thermal reactionomes b
 Predict expression for responsive transcripts.
 
 ```{r responsive_pred}
+# subset to transcripts with significant temperature x species interaction
+resp.TPM.dt.sub <- TPM.dt.sub[names(interaction.lms)]
+
 # apply predFunc to all responsive transcripts
 resp.TPM.dt.sub.pred <- ddply(resp.TPM.dt.sub, .(Transcript), .inform="TRUE", predFunc)
 
@@ -1923,7 +1952,7 @@ dev.off()
 
 ## Shiny interactive web-app
 
-To assist visualization of specific transcripts, I made a interactive web-app using the [shiny](http://www.rstudio.com/shiny/) package. The scripts for this app are in the sub-directory `.\ApRxN-shinyapp`.
+To assist visualization of specific transcripts, I made a interactive web-app using the [shiny](http://www.rstudio.com/shiny/) package. The scripts for this app are in the sub-directory `.\ApRxN-shinyapp`. The web app is available at https://johnsg.shinyapps.io/ApRxN-shinyapp/
 
 Export data for interactive shiny app. 
 
@@ -1941,7 +1970,7 @@ write.csv(shiny.dt, file = "ApRxN-shinyapp/responsive.lms.TPM.csv", quote = TRUE
 # save RData for manuscript file
 save(TPM.dt.sub, RxNpval, sigtable, chi1, chi2, chi3, chi4, chi5, resp.TPM.dt.sub, Ap.type.table, tt2, tt3, GO.stress.Xsq, GO0006950.responsive, Ap.df, w1, w2, w3, hsp_responsive, hsp_all, mh.test, mh_plot, Ap.BP.resultParentChild, resp.stress.responsive.count, T_on.high.ttest, T_on.low.ttest, T_off.int.high.ttest, T_off.int.low.ttest, Ap.gsea.intersect, Ar.int.A22.bim.gsea, Ar.int.A22.low.gsea, Ar.int.A22.lowbim.gsea, quadratic.lms, resp.TPM.dt.sub.pred, md, file = paste("doc/ms_", Sys.Date(), ".RData", sep = ""))
 
-save(sigtable, chi1, chi2, chi3, chi4, chi5, chi6, resp.TPM.dt.sub, Ap.type.table, tt2, tt3, GO.stress.Xsq, GO0006950.responsive, Ap.df, w1, w2, w3, hsp_responsive, hsp_all, mh.test, mh_plot, T_on.high.ttest, T_on.low.ttest, T_off.int.high.ttest, T_off.int.low.ttest, Ar.int.A22.bim.gsea, Ar.int.A22.low.gsea, Ar.int.A22.lowbim.gsea, md, file = paste("doc/ms_slim_", Sys.Date(), ".RData", sep = ""))
+save(sigtable, chi1, chi2, chi3, chi4, chi5, chi6, resp.TPM.dt.sub, Ap.type.table, Ap.type.table.prop, tt2, tt3, GO.stress.Xsq, GO0006950.responsive, Ap.df, w1, w2, w3, hsp_responsive, hsp_all, mh.test, mh_plot, T_on.high.ttest, T_on.low.ttest, T_off.int.high.ttest, T_off.int.low.ttest, Ar.int.A22.bim.gsea, Ar.int.A22.low.gsea, Ar.int.A22.lowbim.gsea, md, responsive_transcripts_w_BLAST, annotation.table.responsive, file = paste("doc/ms_slim.RData", sep = ""))
 ```
 
 
