@@ -3,7 +3,6 @@
 ## 2014-06-04
 
 # Ignore these directories
-data
 results
 cache
 figure
@@ -22,7 +21,7 @@ comments
 *.log
 *.out
 *.map
-*.csv
+#*.csv
 *.txt
 *~
 *.tgz
