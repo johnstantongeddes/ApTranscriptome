@@ -1,19 +1,19 @@
 ---
-output: pdf_document
+title: Technical Report for **Thermal reactionomes reveal divergent responses to thermal extremes in warm and cool-climate ant species**
+author: [John Stanton-Geddes](john.stantongeddes.research@gmail.com)
+output:
+  word_document: default
+  pdf_document:
+    fig_caption: yes
+    includes:
+      in_header: header.tex
+    keep_tex: yes
+    latex_engine: xelatex
+    number_sections: no
+    toc_depth: 2
+  html_document:
+    keep_md: yes
 ---
-
-Technical Report for **Thermal reactionomes reveal divergent responses to thermal extremes in warm and cool-climate ant species**
-========================================================================================
-   
-**Author:** [John Stanton-Geddes](john.stantongeddes.research@gmail.com)
-
-**`r format(Sys.time(), '%d %B, %Y')`**
-
-**Technical Report No. 3**
-
-**Department of Biology**
-
-**University of Vermont**
 
 ```{r setup, echo=FALSE, results='hide', message = FALSE, warning=FALSE}
 # Global settings
@@ -41,11 +41,7 @@ library(gridExtra)
 # Load Bioconductor libraries
 #source("http://bioconductor.org/biocLite.R")
 #biocLite("topGO")
-#biocLite("Rgraphviz")
-#biocLite("GOSemSim")
 library(topGO) 
-library(Rgraphviz)	
-library(GOSemSim)
 
 # load custom functions
 source("scripts/RxNseq.R")
@@ -68,7 +64,7 @@ In this technical report, which accompanies the manuscript **Thermal reactionome
   - The *Tolerance hypothesis* proposes that existing inducible stress responses become insufficient or prohibitively costly as environmental stressors increase in frequency.
   - The *Genetic assimilation hypothesis* proposes that exposure to more extreme stressors selects for a shift from inducible to constitutive expression of stress-response genes.
   
-We quantify the relative importance of each of these mechanisms to thermal adaptation in these two species by evalutating differences in the reactionomes between species. We use gene set enrichment analysis to provide additional insight on the cellular processes underlying the transcriptome-wide changes in expression. 
+We quantified the relative importance of each of these mechanisms to thermal adaptation in these two species by evalutating differences in the reactionomes between species. We used gene set enrichment analysis to provide additional insight on the cellular processes underlying the transcriptome-wide changes in expression. 
 
 ## Data ##
 
@@ -191,15 +187,12 @@ annotation.table <- data.table(annotation.file)
 str(annotation.table)
 ```
 
-Note that I used the reduced assembly, prior to cleaning out contaminants. As I use the "clean" assembly for read mapping and identification of responsive genes, the contaminants are dis-regarded in downstream analyses. 
-
-
 ## Identification of thermally-responsive genes ##
 
 ### Gene expression ###
 
 I quantified gene expression using [sailfish](http://www.cs.cmu.edu/~ckingsf/software/sailfish/index.html). To run this program, first make sure that PATHs to the software libraries are set up correctly as described on the sailfish website. 
-                                                 
+
 An index of the assembly is built with the command:                                                 
 
 ~~~
@@ -304,7 +297,7 @@ cortable <- ddply(TPM.dt.sub, .(val), summarize, cor(TPM[which(colony=="A22")], 
 
 \newpage
 
-Note that expression levels at each temperature treatment are highly correlated between the two colonies.
+Note that expression levels at each temperature treatment are highly correlated between the two colonies, indicating common patterns of expression response to temperature.
 
 ```{r exp_correlations_table, echo=FALSE, results='asis'}
 colnames(cortable) <- c("Temperature", "r")
@@ -314,7 +307,7 @@ pandoc.table(cortable, style="rmarkdown", caption = "Correlations between specie
 
 ### Remove *contaminant* transcripts
 
-With gene expression quantified using all reads, I now remove the transcripts identified as contaminants by DeconSeq.
+With gene expression quantified using all reads, I removed the transcripts identified as contaminants by DeconSeq.
 
 ```{r remove_contaminants}
 # extract transcript names from fasta file rather than loading whole file
@@ -322,6 +315,8 @@ system("grep '^>' results/trinity-full/Trinity_cap3_uclust_cont.fa | cut -f 1 -d
 
 # read file
 cont.list <- read.table("results/trinity-full/cont.list")
+# remote ">" leader
+cont.list$V1 <- gsub(">", "", cont.list$V1)
 str(cont.list)
 
 # remove from TPM.dt.sub
@@ -344,7 +339,6 @@ $$ log(TPM + 1) = \beta_0 + \beta_1(species) + \beta_2(temp) + \beta_3(temp^2) +
 
 where TPM is transcripts per million. 
 
-
 (1) Identify transcripts with overall significant model fit. Adjust *P* values for multiple testing using FDR and retain transcripts with FDR < 0.05. Use log-transformed response to account for outliers.
 
 
@@ -358,7 +352,7 @@ RxNpval <- ddply(TPM.dt.sub, .(Transcript), .inform="TRUE", modpFunc)
 
 Of the `r nrow(RxNpval)` transcripts, `r length(which(RxNpval$pval < 0.05))` have models with P < 0.05.
 
-Many of these are likely false positives, so I adjust P-values using false discovery rate (FDR). Only those transcripts with less than 5% FDR are retained as significant. 
+Many of these are likely false positives, so I adjusted P-values using false discovery rate (FDR).
 
 ```{r padjust}
 RxNpval$padj <- p.adjust(RxNpval$pval, method = "fdr")
@@ -368,16 +362,34 @@ hist(RxNpval$pval)
 hist(RxNpval$padj)
 
 # subset to significant transcripts
-signif.transcripts <- RxNpval[which(RxNpval$padj < 0.05), ]
+pre.signif.transcripts <- RxNpval[which(RxNpval$padj < 0.05), ]
+```
+
+At the 5% FDR significance threshold, there are `r nrow(pre.signif.transcripts)` transcripts with an overall significant model.
+
+Feedback from reviewers questioned whether this was sufficient to remove all false positives. To examine this, we performed a resampling simulation to determine how many transcripts would be identified as significant using the above approach. Specifically, we randomly re-assigned the expression levels to the temperature treatments for each species, fit the same linear model as for the real data, calculated the number of significant transcripts under the 5% FDR threshold, and repeated this 100 times. We then took the 95th percentile of the distribution of significant transcripts from the resampled datasets as the true null level of false positives.
+
+As this resampling is slow, I ran it in a separate file (ApTranscriptome_resample.Rmd) and load the results here.
+
+```{r resample}
+# load resampling results
+load("data/resample.Rda")
+```
+
+Using this approach, the empirical false positive, *after* adjusting *P*-values for FDR, is `r quantile (D$num_signif, probs = 0.95)`, indicating that only `r nrow(pre.signif.transcripts) - quantile(D$num_signif, probs = 0.95)` are true positives.
+
+```{r}
+# order by padj
+pre.signif.transcripts <- pre.signif.transcripts[order(pre.signif.transcripts$padj), ]
+# number to keep
+keep <- nrow(pre.signif.transcripts) - quantile(D$num_signif, probs = 0.95)
+signif.transcripts <- pre.signif.transcripts[1:keep, ]
 
 # extract significant transcripts
 sig.TPM.dt.sub <- TPM.dt.sub[signif.transcripts$Transcript]
 ```
 
-At the 5% FDR significance threshold, there are `r nrow(signif.transcripts)` transcripts with an overall significant model.
-
-
-(2) Fit linear model to overall significant transcripts; perform stepAIC to retain only significant terms, and save `lm` output to list
+(2) Fit linear model to significantly responsive transcripts, perform stepAIC to retain only significant terms, and save `lm` output to list
 
 ```{r RxNlmAIC, echo=TRUE, eval=TRUE, results='hide'}
 # perform model selection for responsive transcripts
@@ -414,17 +426,6 @@ sigtable <- data.frame(Coefficient = clist, "Number significant" = siglist)
 pandoc.table(sigtable, style="rmarkdown", big.mark = ",", caption = "Number of transcripts with expression that depends on species, temperature or their interaction at 5% FDR  out of 98,186 total transcripts.")
 ```
 
-I checked the proportion of responsive transcripts against those that have a BLAST hit.
-
-```{r responsive_with_BLAST}
-annotation.table.responsive <- annotation.table[which(annotation.table$best.hit.to.nr != "-"), ]
-
-responsive_transcripts_w_BLAST <- length(which(unique(resp.TPM.dt.sub$Transcript) %in% annotation.table.responsive$Sequence.Name))
-
-responsive_transcripts_w_BLAST / round(nrow(annotation.table.responsive))
-```
-
-
 ### Thermal-response expression categories ###
 
 The previous section identified the transcripts with thermally-responsive expression. In this section, I determined the shape of the expression response to temperature for each transcript. Categories of expression response are:
@@ -438,29 +439,32 @@ The previous section identified the transcripts with thermally-responsive expres
 For the transcripts where thermal-responsive expression depends on species, I determined the functional type of the expression response separately for each species. 
 
 ```{r expression_shape, eval=TRUE, echo=TRUE}
-# calculate response type for responsive transcripts
+# calculate response type for all temperature responsive transcripts
+sig.response.type <- ldply(responsive.lms, .progress = "none", .inform = TRUE, RxNtype)
+colnames(sig.response.type)[which(colnames(sig.response.type) == ".id")] <- "Transcript"
+sig.response.type <- data.table(sig.response.type)
+setkey(sig.response.type, Transcript)
+str(sig.response.type)
+
+# calculate response type for transcripts with species x temperature interaction only
 interaction.response.type <- ldply(interaction.lms, .progress = "none", .inform = TRUE, RxNtype)
-stopifnot(nrow(interaction.response.type) == length(interaction.lms))
-
-# calculate response types for transcripts without interactions
-temperature.response.type <- ldply(temperature.lms, .progress = "none", .inform = TRUE, RxNtype)
-stopifnot(nrow(temperature.response.type) == length(temperature.lms))
-
-# for subsequent analyses, focus on the transcripts with significant temperature x species interaction only
 colnames(interaction.response.type)[which(colnames(interaction.response.type) == ".id")] <- "Transcript"
 interaction.response.type <- data.table(interaction.response.type)
 setkey(interaction.response.type, Transcript)
 str(interaction.response.type)
 
+# calculate response types for transcripts without interactions
+temperature.response.type <- ldply(temperature.lms, .progress = "none", .inform = TRUE, RxNtype)
+
 # save results to file
-write.table(file = paste(resultsdir, "Ap_responsive_transcripts_", Sys.Date(), ".txt", sep = ""), interaction.response.type, row.names = FALSE, col.names = TRUE, quote = FALSE, sep = "\t")
+write.table(file = paste(resultsdir, "Ap_responsive_transcripts_", Sys.Date(), ".txt", sep = ""), sig.response.type, row.names = FALSE, col.names = TRUE, quote = FALSE, sep = "\t")
 ```
 
 Next, I compared the number of thermally-responsive in each response category between the two colonies. 
 
 ```{r temperature_response}
-A22.type.table <- table(interaction.response.type$A22.type)
-Ar.type.table <- table(interaction.response.type$Ar.type)
+A22.type.table <- table(sig.response.type$A22.type)
+Ar.type.table <- table(sig.response.type$Ar.type)
 
 # table
 (Ap.type.table <- rbind(A22.type.table, Ar.type.table))
@@ -491,7 +495,6 @@ low.table
 
 (chi3 <- chisq.test(low.table))
 
-
 # test if the number of Intermediate responsive transcripts differs between species 
 intermediate.table <- matrix(nrow=2, ncol=2, dimnames = list(c("Intermediate", "Others"), c("Ap", "Ac")))
 intermediate.table[1,1] <- A22.type.table[which(names(A22.type.table) == "Intermediate")]
@@ -502,7 +505,6 @@ intermediate.table
 
 (chi4 <- chisq.test(intermediate.table))
 
-
 # test if the number of High responsive transcripts differs between species 
 high.table <- matrix(nrow=2, ncol=2, dimnames = list(c("High", "Others"), c("Ap", "Ac")))
 high.table[1,1] <- A22.type.table[which(names(A22.type.table) == "High")]
@@ -512,7 +514,6 @@ high.table[2,2] <- sum(Ar.type.table[which(names(Ar.type.table) != "High")])
 high.table
 
 (chi5 <- chisq.test(high.table))
-
 
 # test if the number of Bimodal responsive transcripts differs between species 
 bimodal.table <- matrix(nrow=2, ncol=2, dimnames = list(c("Bimodal", "Others"), c("Ap", "Ac")))
@@ -527,27 +528,16 @@ bimodal.table
 
 The total number of responsive transcripts does not differ between species, though their groupings into expression categories does differ. 
 
-```{r mosaic_plot}
-# Reorganize for plotting to show overlap among categories between colonies
-type.table <- table(Acar = interaction.response.type$Ar.type, Apic = interaction.response.type$A22.type)
-# reorder
-tt2 <- type.table[c("Low", "Intermediate", "High", "Bimodal", "NotResp"), c("Low", "Intermediate", "High", "Bimodal", "NotResp")]
-
-# plot
-png("mosaic_plot.png")
-mosaic.colors <- brewer.pal(5, "Blues")
-par(mar = c(5.1, 3.1, 2.1, 7.5))
-mosaicplot(tt2, ylab = expression(italic("A. picea")), xlab = "", main = "", color = mosaic.colors, cex.axis = 0.01)
-labels <- c("Low", "Intermediate", "High", "Bimodal", "NotResp")
-text(c(.1,.5,.75,.85,.99), par("usr")[3] - 0.05, srt = 45, adj = 1, labels = labels, xpd = TRUE, font = 1)
-text(.5, par("usr")[4], "A. carolinensis", xpd = TRUE, font = 3)
-legend(1.05, .75, fill = mosaic.colors, c("Low", "Intermediate", "High", "Bimodal", "NotResp"), xpd=TRUE)
-dev.off()
-```
+## Test of marginal frequencies between transcripts in each expression category between species
 
 The question of biological interest is whether the marginal frequencies differ between the two species. Statistically, this can be addressed using the generalized [McNemar's test](http://en.wikipedia.org/wiki/McNemar's_test) of marginal homogeneity. 
 
 ```{r mh_test}
+type.table <- table(Acar = sig.response.type$Ar.type, Apic = sig.response.type$A22.type)
+# reorder
+tt2 <- type.table[c("Low", "Intermediate", "High", "Bimodal", "NotResp"), c("Low", "Intermediate", "High", "Bimodal", "NotResp")]
+
+# McNemar's test
 mh.test <- mh_test(as.table(tt2))
 
 # calculate contribution of each off-diagonal to Z~0~
@@ -565,7 +555,7 @@ abs(d3)/dsum
 abs(d4)/dsum
 abs(d5)/dsum
 
-# e2 (Acar Intermediate) contributes ~44% to Z~0~
+# e2 (Acar Intermediate) contributes ~48% to Z~0~
 ```
 
 To identify specific cells that deviate from null expectation, I calculated the expected observations assuming that marginal frequencies equal the overall frequency for each expression category, then determined which cells have deviations between observed and expected that are greater than the overall X^2^ statistic.
@@ -594,7 +584,7 @@ To visualize this, I made a heatmap that showed the deviation of the actual numb
 md <- reshape2::melt(Ec.dev)
   
 mh_plot <- qplot(x=Apic, y=Acar, data=md, fill=value, geom="tile", ylim = rev(levels(md$Acar))) +
-  scale_fill_gradient2(limits=c(-700, 600), low="#f1a340", high="#998ec3") +
+  scale_fill_gradient2(limits=c(-200, 200), low="#f1a340", high="#998ec3") +
   theme(axis.title = element_text(face="italic")) +
   labs(x = "A. picea", y = "A. carolinensis")
 
@@ -606,7 +596,7 @@ md_sub1 <- subset(md, Acar %in% c("Bimodal", "Low"), )
 md_sub1 <- droplevels(md_sub1)
 
 mh_plot_sub1 <- qplot(y=Apic, x=Acar, data=md_sub1, fill=value, geom="tile", xlim = rev(levels(md_sub1$Acar))) + 
-  scale_fill_gradient2(limits=c(-700, 600), low="#f1a340", high="#998ec3") +
+  scale_fill_gradient2(limits=c(-200, 200), low="#f1a340", high="#998ec3") +
   theme(axis.title = element_text(face="italic")) +
   labs(y = "A. picea", x = "A. carolinensis") +
   theme(legend.position = "right") + 
@@ -620,7 +610,7 @@ md_sub2 <- subset(md, Apic %in% c("High", "Bimodal"), )
 md_sub2 <- droplevels(md_sub2)
 
 mh_plot_sub2 <- qplot(y=Acar, x=Apic, data=md_sub2, fill=value, geom="tile", xlim = rev(levels(md_sub2$Apic))) + 
-  scale_fill_gradient2(limits=c(-700, 600), low="#f1a340", high="#998ec3") +
+  scale_fill_gradient2(limits=c(-200, 200), low="#f1a340", high="#998ec3") +
   theme(axis.title = element_text(face="italic")) +
   labs(y = "A. carolinensis", x = "A. picea") + 
   theme(legend.position = "none") + 
@@ -650,27 +640,19 @@ The *enhanced response hypothesis* posits that temperature adaptation uses exist
 enhanced_response_dat <- md_sub1
 enhanced_response_dat$value <- 0
 # set non-shared response to random negative value 
-enhanced_defense_dat[which(enhanced_defense_dat$Acar == "Low"), "value"] <- runif(5, min=140, max=150)
-enhanced_defense_dat[which(enhanced_defense_dat$Acar == "Bimodal"), "value"] <- rep(-200, 5)
+enhanced_response_dat[which(enhanced_response_dat$Acar == "Low"), "value"] <- runif(5, min=-20, max=-10)
+enhanced_response_dat[which(enhanced_response_dat$Acar == "Bimodal"), "value"] <- runif(5, min=-20, max=-10)
 # change shared response to positive
-enhanced_defense_dat[which(enhanced_defense_dat$Acar == "Low" & enhanced_defense_dat$Apic == "Low"), "value"] <- 50
-enhanced_defense_dat[which(enhanced_defense_dat$Acar == "Bimodal" & enhanced_defense_dat$Apic == "Bimodal"), "value"] <- 50
+enhanced_response_dat[which(enhanced_response_dat$Acar == "Low" & enhanced_response_dat$Apic == "Low"), "value"] <- 30
+enhanced_response_dat[which(enhanced_response_dat$Acar == "Bimodal" & enhanced_response_dat$Apic == "Bimodal"), "value"] <- 30
 
 enhanced_response_dat
 
 # plot
-enhanced_response_plot <- qplot(y=Apic, x=Acar, data=enhanced_response_dat, fill=value, geom="tile", xlim = rev(levels(enhanced_response_dat$Acar))) + 
-  scale_fill_gradient2(limits=c(-500, 500), low="#f1a340", high="#998ec3") +
-  theme(axis.title = element_text(face="italic")) +
-  labs(y = "A. picea", x = "A. carolinensis") +
-  theme(legend.position = "right") + 
-  geom_rect(xmin = 0.5, xmax = 1.5, ymin = 3.5, ymax = 4.5, fill = "transparent", linetype=2, colour="black") +
-  geom_rect(xmin = 1.5, xmax = 2.5, ymin = 0.5, ymax = 1.5, fill = "transparent", linetype=2, colour="black")
-
 enhanced_response_plot <- ggplot(enhanced_response_dat, aes(y = Apic, x = Acar, fill=value)) + 
   geom_tile(colour = "#ffffff", size =1) +
   xlim(rev(levels(enhanced_response_dat$Acar))) + 
-  scale_fill_gradient2(limits=c(-500, 500), low="#f1a340", high="#998ec3") +
+  scale_fill_gradient2(limits=c(-100, 100), low="#f1a340", high="#998ec3") +
   theme(axis.title = element_text(face="italic")) +
   labs(y = "A. picea", x = "A. carolinensis") +
   theme(legend.position = "right") + 
@@ -688,11 +670,11 @@ In contrast, the *tolerance hypothesis* predicts that genes involved in active r
 tolerance_dat <- md_sub1
 tolerance_dat$value <- 0
 # set non-shared response to random positive value 
-tolerance_dat[which(tolerance_dat$Acar == "Low"), "value"] <- runif(5, min=140, max=160)
-tolerance_dat[which(tolerance_dat$Acar == "Bimodal"), "value"] <- runif(5, min=140, max=150)
+tolerance_dat[which(tolerance_dat$Acar == "Low"), "value"] <- runif(5, min=40, max=60)
+tolerance_dat[which(tolerance_dat$Acar == "Bimodal"), "value"] <- runif(5, min=40, max=60)
 # change shared response to near zero
-tolerance_dat[which(tolerance_dat$Acar == "Low" & tolerance_dat$Apic == "Low"), "value"] <- 20
-tolerance_dat[which(tolerance_dat$Acar == "Bimodal" & tolerance_dat$Apic == "Bimodal"), "value"] <- 20
+tolerance_dat[which(tolerance_dat$Acar == "Low" & tolerance_dat$Apic == "Low"), "value"] <- -20
+tolerance_dat[which(tolerance_dat$Acar == "Bimodal" & tolerance_dat$Apic == "Bimodal"), "value"] <- -20
 
 tolerance_dat
 
@@ -700,7 +682,7 @@ tolerance_dat
 tolerance_plot <- ggplot(tolerance_dat, aes(y=Apic, x=Acar, fill=value)) + 
   geom_tile(colour = "#ffffff", size =1) +
   xlim(rev(levels(enhanced_response_dat$Acar))) + 
-  scale_fill_gradient2(limits=c(-500, 500), low="#f1a340", high="#998ec3") +
+  scale_fill_gradient2(limits=c(-100, 100), low="#f1a340", high="#998ec3") +
   theme(axis.title = element_text(face="italic")) +
   labs(y = "A. picea", x = "A. carolinensis") +
   theme(legend.position = "none") + 
@@ -718,9 +700,9 @@ dev.off()
 ```
 
 
-The number of thermally-responsive in each response category differed between the colonies, with the msot transcripts expressed at *Low* temperatures in both colonies. For *ApVT*, an equal number of transcripts are expressed at *High* and *Bimodal*, followed by *Intermediate* transcripts. For *AcNC*, transcripts expressed at *Intermediate* temperatures are next most common, followed by *High* and *Bimodal*. 
+The number of thermally-responsive in each response category differed between the colonies. For *A. picea*, the majority of the responsive transcripts were in the *Low* category, followed by *Bimodal*, *High*, *Intermediate* and *Not Responsive*. For *A. carolinensis*, the majority of responsive transcripts were in the *Bimodal* and *High* categories, followed by *Intermediate*, *Low* and *Not Responsive*.  
 
-Interestingly, nearly half of the *High* genes in *AcNC* are *Low* in *ApVT*, and vice versa. In contrast, most of the *Low* genes in one species are also *Low* in the other species.
+Interestingly, over half of the *High* genes in *AcNC* are *Low* in *ApVT*, and vice versa. In contrast, most of the *Low* genes in one species are also *Low* in the other species.
 
 
 ```{r temperature_response_table, echo=FALSE, results='asis'}
@@ -739,29 +721,12 @@ colnames(tt3) <- c("**ApVT**", "", "", "", "", "", "")
 pandoc.table(tt3, style="rmarkdown", caption = "Number of transcripts with maximum expression at high, low, intermediate, both high and low (bimodal) temperatures or are not thermally-responsivefor each species and their overlap.", split.tables = "Inf")
 ```
 
-Table 4 shows the number of transcripts that fall into each expression type for each each species. The totals for each species include the `r length(temperature.lms)` transcripts that have consistent temperature responses between the two colonies. 
+Table 4 shows the number of transcripts that fall into each expression type for each each species. The totals for each species *do not* include the `r length(temperature.lms)` transcripts that have consistent temperature responses between the two colonies. 
 
-An interesting observation from the matched observations plot (Fig. 1) is that for **NotResp** genes in *A. carolinensis* the **High** and **Bimodal** categories in *A. picea* are over-represented. Finding that the mean expression level of these genes in *A. carolinensis* is greater than the expression level at the rearing temperature (25°C) in *A. picea* would be consistent with genetic assimilation.
-
-```{r gen_assimilation_high}
-Ap.high.Ac.nr <- interaction.response.type[which(interaction.response.type$A22.type == "High" & interaction.response.type$Ar.type == "NotResp"), ]
-
-# get mean expression level for Ar transcripts
-Ap.high.Ac.nr.TPM <- TPM.dt.sub[Ap.high.Ac.nr$Transcript]
-Ap.high.Ac.nr.mean.exp.NR <- ddply(Ap.high.Ac.nr.TPM, .(Transcript), summarize, meanTPM = mean(TPM))
-
-# get expression at optimum for A22 transcripts
-Ap.high.Ac.nr.opt.exp <- Ap.high.Ac.nr$A22.opt
-
-t.test(Ap.high.Ac.nr.mean.exp.NR$meanTPM, Ap.high.Ac.nr.opt.exp)
-```
-
-Contrary to expectations, mean expression of the non-responsive *A. carolinensis* genes is less than expression of the **High** genes in *A. picea*.
-
-Next, I checked the same for the **Bimodal** genes in *A. picea*.
+An interesting observation from the matched observations plot (Fig. 1) is that for **NotResp** genes in *A. carolinensis* the **Bimodal** category in *A. picea* is over-represented. Finding that the mean expression level of these genes in *A. carolinensis* is greater than the expression level at the rearing temperature (25°C) in *A. picea* would be consistent with genetic assimilation. That is, they have evolved to be constitutively activated in *A. carolinensis* and thus are no longer thermally-responsive as they are in *A. picea*.
 
 ```{r gen_assimilation_bim}
-Ap.bim.Ac.nr <- interaction.response.type[which(interaction.response.type$A22.type == "Bimodal" & interaction.response.type$Ar.type == "NotResp"), ]
+Ap.bim.Ac.nr <- sig.response.type[which(sig.response.type$A22.type == "Bimodal" & sig.response.type$Ar.type == "NotResp"), ]
 
 # get mean expression level for Ar transcripts
 Ap.bim.Ac.nr.TPM <- TPM.dt.sub[Ap.bim.Ac.nr$Transcript]
@@ -773,20 +738,19 @@ Ap.bim.Ac.nr.opt.exp <- Ap.bim.Ac.nr$A22.opt
 t.test(Ap.bim.Ac.nr.mean.exp.NR$meanTPM, Ap.bim.Ac.nr.opt.exp)
 ```
 
-As with the **High** transcripts, expression was much higher for the responsive *A. picea* transcripts than for the non-responsive *A. carolinensis* transcripts.
-
+This hypothesis was not supported as expression was higher for the **Bimodal** transcripts in *A. picea* than the non-responsive *A. carolinensis* transcripts.
 
 ## Species comparisons
 
-In this section, I perform a number of comparisons of the thermal reactionomes between the *Ar* and *A22* species. Specifically, I:
+In this section, I performed a number of comparisons of the thermal reactionomes between the *Ar* and *A22* species. Specifically, I:
 
-- compare profiles of the temperature of maximum expression for thermally-responsive transcripts
-- compare basal expression at optimal temperature for thermally-responsive genes
-- compare degree of upregulation to constitutive expression
-- compare the critical temperature of transcript upregulation, T~on~, between species for transcripts induced in response to high or low temperatures 
-- compare the critical temperature of transcript downregulation, T~off~, between species for transcripts induced in response to high or low temperatures 
+- compared profiles of the temperature of maximum expression for thermally-responsive transcripts
+- compared basal expression at optimal temperature for thermally-responsive genes
+- compared degree of upregulation to constitutive expression
+- compared the critical temperature of transcript upregulation, T~on~, between species for transcripts induced in response to high or low temperatures 
+- compared the critical temperature of transcript downregulation, T~off~, between species for transcripts induced in response to high or low temperatures 
 
-Predict expression for responsive transcripts.
+For these tests, I predicted expression for responsive transcripts.
 
 ```{r responsive_pred}
 # subset to transcripts with significant temperature x species interaction
@@ -800,13 +764,27 @@ resp.TPM.dt.sub.pred <- data.table(resp.TPM.dt.sub.pred)
 setkey(resp.TPM.dt.sub.pred, Transcript, colony)
 ```
 
+I checked the proportion of responsive transcripts against those that have a BLAST hit.
+
+```{r responsive_with_BLAST}
+annotation.table.responsive <- annotation.table[which(annotation.table$best.hit.to.nr != "-"), ]
+
+responsive_transcripts_w_BLAST <- length(which(unique(resp.TPM.dt.sub$Transcript) %in% annotation.table.responsive$Sequence.Name))
+
+responsive_transcripts_w_BLAST / round(nrow(annotation.table.responsive))
+```
+
+
 ### Compare temperature of maximum expression between species
 
-Probability density function of peak expression for transcripts that differ in expression between *A22* and *Ar*
+Probability density function of peak expression for transcripts that differ in expression between *A22* and *Ar*. For this analysis, I used only the transcripts with a significant temperature by species interaction.
 
 ```{r max_exp_PDF, warning = FALSE, message = FALSE}
 # reshape data
-Ap.df <- data.frame(Transcript = rep(interaction.response.type$Transcript, times = 2), colony = rep(c("ApVT", "AcNC"), each = length(interaction.response.type$Transcript)), max.val = c(interaction.response.type$A22.max, interaction.response.type$Ar.max))
+Ap.df <- data.frame(Transcript = rep(interaction.response.type$Transcript, times = 2), 
+                    colony = rep(c("ApVT", "AcNC"), 
+                                 each = length(interaction.response.type$Transcript)), 
+                    max.val = c(interaction.response.type$A22.max, interaction.response.type$Ar.max))
 
 maxexplot <- ggplot(Ap.df, aes(x=max.val, fill=colony)) + 
   geom_density(alpha=0.2, position="identity") + 
@@ -824,7 +802,7 @@ dev.off()
 
 ### Compare basal expression at optimal temperature for thermally-responsive genes
 
-Genes upregulated in response to thermal stress in one species may have greater basal levels of expression in the other species that experiences those stressful conditions more often. To test this hypothesis, we compared expression levels at the rearing temperature (25C) between the two species for genes in that are either in the 'High' or 'Low' expression group in the other species. Specifically, do genes upregulated at high temperatures in *A22* have greater basal expression at optimal temperatures in *Ar*?
+Genes upregulated in response to thermal stress in one species may have greater basal levels of expression in the other species that experiences those stressful conditions more often. To test this hypothesis, we compared expression levels at the rearing temperature (25C) between the two species for genes in that are either in the 'High' or 'Low' expression group in the other species. Specifically, do genes upregulated at high temperatures in *A22* have greater basal expression at optimal temperatures in *Ar*? 
 
 ```{r optimum_expression_comparison}
 # list of transcripts that are 'high' expressed in A22
@@ -839,14 +817,14 @@ t.test(log(A22.high.transcripts.df$A22.opt+1), log(A22.high.transcripts.df$Ar.op
 boxplot(log(A22.high.transcripts.df$A22.opt+1), log(A22.high.transcripts.df$Ar.opt+1))
 ```
 
-The `t.test` fails to account for the many orders of magnitude difference in expression among transcripts, e.g. non-equal variances. This problem is the key issue in the analysis of differential expression `r citep(c("10.1186/1471-2105-11-94", "10.1038/nprot.2013.099"))`. As my goal is simply to determine if expression is typically greater at optimal temperatures (19.5 C) in *Ar* than *A22* for genes that are up-regulated at high temperatures in *A22*, I use a non-parametric Wilcoxon signed rank-test
+The `t.test` fails to account for the many orders of magnitude difference in expression among transcripts, e.g. non-equal variances. This problem is the key issue in the analysis of differential expression `r citep(c("10.1186/1471-2105-11-94", "10.1038/nprot.2013.099"))`. As my goal is simply to determine if expression is typically greater at optimal temperatures (19.5 C) in *Ar* than *A22* for genes that are up-regulated at high temperatures in *A22*, I use a non-parametric Wilcoxon signed rank-test.
 
 ```{r A22_high_wilcoxon}
 w1 <- wilcox.test(A22.high.transcripts.df$A22.opt, A22.high.transcripts.df$Ar.opt, alternative = "two.sided", paired = TRUE, conf.int = TRUE)
 w1
 ```
 
-Consistent with expectations, there is greater expression at 25C for *Ar* than *A22* transcripts for the set of transcripts that are transcripts that are up-regulated at high temperatures in *A22*. Note that A22 had the larger library size so if this was due to TPM not correctly accounting for differences in reads between samples, we would expect to see a positive instead of negative value here.
+Consistent with expectations, there is greater expression at 25C for *Ar* than *A22* transcripts for the set of transcripts that are transcripts that are up-regulated at high temperatures in *A22*. Note that *A22* had the larger library size so if this was due to TPM not correctly accounting for differences in reads between samples, we would expect to see a positive instead of negative value here.
 
 Next I test the converse: do genes up-regulated at low temperatures in *Ar* have greater basal expression near optimal temperatures in *A22*?
 
@@ -898,8 +876,7 @@ setkey(Ap.induction.wide, Transcript)
 interaction.response.type2 <- Ap.induction.wide[interaction.response.type]
 ```
 
-I extract the **High** transcripts for *A. picea* and examine the log ratio of inducibility against the log ratio of constitutive expression in *A. picea* over *A. carolinensis**. According to the *genetic assimilation hypothesis* there should be a negative relationship between these ratios. That is, transcripts with greater constitutive expression in *A. carolinensis* should have greater inducibility in response to **High** temperatures in *A. picea*.
-
+I extracted the **High** transcripts for *A. picea* and examined the log ratio of inducibility against the log ratio of constitutive expression in *A. picea* over *A. carolinensis**. According to the *genetic assimilation hypothesis* there should be a negative relationship between these ratios. That is, transcripts with greater constitutive expression in *A. carolinensis* should have greater inducibility in response to **High** temperatures in *A. picea*.
 
 ```{r log_inducibility}
 interaction.response.type2.A22.high <- interaction.response.type2[interaction.response.type2$Transcript %in% A22.high.transcripts.df$Transcript, ]
@@ -971,12 +948,11 @@ grid.arrange(gg11, gg12, nrow = 1)
 dev.off()
 ```
 
-As with the previous comparison, I also find no evidence for the genetic assimilation hypothesis. 
-
+As with the previous comparison, I also found no evidence for the genetic assimilation hypothesis. 
 
 ### Compare the critical temperature of transcript upregulation, T~on~, between species for transcripts induced in response to high or low temperatures
 
-Thermally-responsive genes could also differ in the critical temperature of gene induction. To examine this, I determine the temperature at which each responsive gene has the greatest increase or decrease in expression.
+Thermally-responsive genes could also differ in the critical temperature of gene induction. To examine this, I determined the temperature at which each responsive gene had the greatest increase or decrease in expression.
 
 ```{r responsive_TPM}
 # extract TPM data for thermally-responsive transcripts
@@ -990,7 +966,7 @@ resp.TPM.dt.sub[,TPM.scaled:=scale(TPM), by = Transcript]
 resp.TPM.dt.sub$colony2 <- ifelse(resp.TPM.dt.sub$colony == "A22", "ApVT", "AcNC")
 ```
 
-For next analyses, extract list of gene names by response type.
+For next analyses, I extracted the list of gene names by response type.
 
 ```{r extract_Transcripts}
 interaction.response.type <- as.data.frame(interaction.response.type)
@@ -1007,9 +983,7 @@ A22.int.transcripts <- interaction.response.type[which(interaction.response.type
 Ar.int.transcripts <- interaction.response.type[which(interaction.response.type$Ar.type == "Intermediate"), "Transcript"]
 ```
 
-
-Calculate T~on~ for *High* genes in each species. I use the observed (rather than predicted) values for each species as by nature of fitting a quadratic function, the maximum change tends to be at the extremes (38.5 or 0) for the predicted values.
-
+I calculated T~on~ for *High* genes in each species using the observed (rather than predicted) values for each species as by nature of fitting a quadratic function, the maximum change tends to be at the extremes (38.5 or 0) for the predicted values.
 
 ```{r T_on_high}
 # transcripts expressed at *High* and *Bimodal* temperatures in A22
@@ -1050,9 +1024,9 @@ for(i in unique(Ar.high.TPM.dt.sub$Transcript)) {
 (T_on.high.ttest <- t.test(Ar.high.T_on$T_on, A22.high.T_on$T_on))
 ```
 
-Genes with increased expression at *High* temperatures are on average turned on 1°C higher in *AcNC* than *ApVT*.
+This test revealed no differences among species in T~on~ for *High* genes.
 
-Repeat analysis for *Low* genes.
+I performed the same test comparing T~on~ for *Low* genes.
 
 ```{r T_on_low}
 # transcripts expressed at *Low* temperatures in A22
@@ -1117,7 +1091,6 @@ print(T_on_plot)
 
 This analysis is comparable to the one above, but for the *Intermediate* genes that are downregulated, split into the low and high temperature extremes.
 
-
 ```{r T_int_off}
 # transcripts expressed at *Intermediate* temperatures in A22
 A22.int.TPM.dt.sub <- resp.TPM.dt.sub.pred[J(A22.int.transcripts, "A22")]
@@ -1169,7 +1142,7 @@ for(i in unique(Ar.int.TPM.dt.sub$Transcript)) {
 (T_off.int.low.ttest <- t.test(Ar.int.T_off$Low, A22.int.T_off$Low))
 ```
 
-As with genes turned on at high temperatures, *A. carolinensis* **Intermediate** genes are down-regulated on at higher temperatures than *A. picea* **Intermediate** genes. Towards low temperatures, the mean temperature of downregulation was marginally higher for *A. carolinensis* than *A. picea*.
+As with genes turned on at high temperatures, *A. carolinensis* **Intermediate** genes are down-regulated on at higher temperatures than *A. picea* **Intermediate** genes. Towards low temperatures, the mean temperature of downregulation was not different between species.
 
 Visualize T~off~ for both *Low* and *High* genes on the same plot.
 
@@ -1205,7 +1178,7 @@ T_off_plot <- ggplot(Ap.T_off, aes(x = T_off, y = ..density.., colour = Species,
 print(T_off_plot)
 ```
 
-Make a plot with all 4 gene activation comparisons.
+I combined these gene activation comparisons into a single plot.
 
 ```{r combined_plot}
 gg2 <- ggplot(Ap.T_on, aes(x = T_on, y = ..density.., colour = Species, group = Species, fill = Species)) +
@@ -1231,7 +1204,7 @@ grid.arrange(gg2, gg3, nrow = 2, heights = c(.5,.6))
 dev.off()
 ```
 
-Does the mean expression level for all responsive genes differ among colonies?
+Next, I tested if the mean expression level for all responsive genes differed among colonies.
 
 ```{r mean_exp}
 t.test(log(interaction.response.type$A22.opt), log(interaction.response.type$Ar.opt))
@@ -1262,6 +1235,7 @@ plot(log(mean.exp[which(mean.exp$colony == "A22"), "mean.TPM"]),
 abline(a=0, b=1)
 ```
 
+On average, *A. carolinensis* has higher expression than *A. picea*.
 
 ## Gene set enrichment analysis for thermal-responsive genes
 
@@ -1280,7 +1254,10 @@ setnames(signif.transcripts, "Sequence.Name", "Transcript")
 ```{r ann_responsive, echo=TRUE}
 responsive.lms.ann.type <- signif.transcripts[names(responsive.lms)]
 # combine responsive.lms.ann with "type" information
-responsive.lms.ann.type <- merge(responsive.lms.ann.type, interaction.response.type[,c("Transcript", "A22.type", "Ar.type")], by = "Transcript", all = TRUE)
+cols <- c("Transcript", "A22.type", "Ar.type")
+subtab <- sig.response.type[, cols, with = FALSE]
+setkey(subtab, "Transcript")
+responsive.lms.ann.type <- base::merge(responsive.lms.ann.type, subtab, by = "Transcript", all = TRUE)
 str(responsive.lms.ann.type)
 write.csv(responsive.lms.ann.type, file = paste(resultsdir, "Ap_responsive_genes_", Sys.Date(), ".csv", sep = ""), row.names = FALSE)
 ```
@@ -1328,14 +1305,13 @@ hsp_all <- annotation.table[grep("shock", annotation.table$best.hit.to.nr), list
 nrow(hsp_all)
 ```
 
-There are also `r nrow(hsp_responsive)` heat shock related genes in the responsive transcripts, out of `r nrow(hsp_all)` total heat shock related genes in the transcriptome annotation.
-
+There are no heat shock protein-related genes in the responsive transcripts.
 
 ### Gene set enrichment analysis
 
-I use [topGO](http://www.bioconductor.org/packages/2.12/bioc/html/topGO.html) to perform gene set enrichment analysis (GSEA) seperately for each expression type (bimodal, intermediate, high, low).
+I used [topGO](http://www.bioconductor.org/packages/2.12/bioc/html/topGO.html) to perform gene set enrichment analysis (GSEA) seperately for each expression type (bimodal, intermediate, high, low). With the GSEA results, I applied the `selectFDR` function to select transcripts with adjusted P < 0.05. For many of the responsive categories, it appeared that there is considerable redundancy in the enriched GO terms. I used the [GOSemSim](http://www.bioconductor.org/packages/release/bioc/html/GOSemSim.html) package to determine semantic similarity of enriched GO terms `r citep("10.1093/bioinformatics/btq064")` and then performed hierarhichal clustering based on this information distance.
 
-First need to create gene ID to GO term map file
+For the GSEA, I first created a gene ID to GO term map file.
 
 ```{r geneid2go, echo=TRUE, eval=TRUE, cache=TRUE}
 # create geneid2go.map file from FastAnnotator annotationtable.txt
@@ -1345,7 +1321,7 @@ if(file.exists(mapname)) print("Gene ID to GO term file exists") else{
 }
 ```
 
-then read map file.
+Then I read the map file into memory.
 
 ```{r readmap, echo=TRUE, eval=TRUE}
 # read mappings file
@@ -1355,15 +1331,9 @@ str(head(geneID2GO))
 
 ### GSEA for thermally-responsive transcripts
 
-Using this gene2GO map file, perform GSEA for:
+Using this gene2GO map file, I performed GSEA for:
 
 **1) all responsive transcripts**
-
-Use `selectFDR` function to select transcripts with adjusted P < 0.05.
-
-Perform GSEA for all thermally-responsive transcripts.
-
-For many of the responsive categories, it appears that there is considerable redundancy in the enriched GO terms. I use the [GOSemSim](http://www.bioconductor.org/packages/release/bioc/html/GOSemSim.html) package to determine semantic similarity of enriched GO terms `r citep("10.1093/bioinformatics/btq064")` and then perform hierarhichal clustering based on this information distance.
 
 ```{r gsea_all, results='hide'}
 # create geneList. note that NA values cause problems with topGO
@@ -1398,11 +1368,12 @@ Ap.BP.ResTable <- GenTable(Ap.BP.GOdata, parentchild = Ap.BP.resultParentChild, 
 Ap.BP.ResTable
 ```
 
-As the molecular processes involved in cold and hot temperature tolerance are different, I perform GSEA separately for each response type and compile results in a single table.
+As the molecular processes involved in cold and hot temperature tolerance are different, I performed GSEA separately for each response type and compiled results in a single table.
 
 ```{r gsea_Ap_high, results = 'hide'}
+sig.response.type <- as.data.frame(sig.response.type)
 ## Genes with *High* expression in both colonies
-Ap.high <- interaction.response.type[which(interaction.response.type$Ar.type == "High" & interaction.response.type$A22.type == "High"), "Transcript"]
+Ap.high <- sig.response.type[which(sig.response.type$Ar.type == "High" & sig.response.type$A22.type == "High"), "Transcript"]
 Ap.geneList.high <- rep(0, length = length(Ap.geneList))
 names(Ap.geneList.high) <- names(Ap.geneList)
 Ap.geneList.high[(which(names(Ap.geneList.high) %in% Ap.high))] <- 1
@@ -1412,31 +1383,11 @@ table(Ap.geneList.high)
 Ap.high.gsea <- gsea(genelist = Ap.geneList.high, geneID2GO = geneID2GO, plotpath = NA)
 ```
 
-```{r gsea_Ap_high_cluster}
-# similarity among enriched GO terms
-Ap.high.GO.term.sim <- termSim(Ap.high.gsea$GO.ID, Ap.high.gsea$GO.ID, ont = "BP", organism = 'fly')
-# replace GO IDs with terms
-rownames(Ap.high.GO.term.sim) <- Ap.high.gsea$Term
-colnames(Ap.high.GO.term.sim) <- Ap.high.gsea$Term
-
-# distance matrix
-Ap.high.hclust <- hclust(dist(Ap.high.GO.term.sim))
-plot(Ap.high.hclust)
-
-# report items in each cluster
-Ap.high.hclust.report <- GSEAReportClusters(Ap.high.hclust, h = 1)
-
-# add cluster information
-Ap.high.gsea$Cluster <- NA
-
-for(i in 1:length(Ap.high.hclust.report)) {
-    Ap.high.gsea[Ap.high.hclust.report[[i]], "Cluster"] <- i
-}
-```
+A single GO term, *`r paste(Ap.high.gsea[, 1:2], collapse = " ")`*, is enriched for **High** genes in both species. 
 
 ```{r gsea_Ap_low, results = "hide"}
 ## Genes with *Low* expression in both colonies
-Ap.low <- interaction.response.type[which(interaction.response.type$Ar.type == "Low" & interaction.response.type$A22.type == "Low"), "Transcript"]
+Ap.low <- sig.response.type[which(sig.response.type$Ar.type == "Low" & sig.response.type$A22.type == "Low"), "Transcript"]
 Ap.geneList.low <- rep(0, length = length(Ap.geneList))
 names(Ap.geneList.low) <- names(Ap.geneList)
 Ap.geneList.low[(which(names(Ap.geneList.low) %in% Ap.low))] <- 1
@@ -1446,32 +1397,11 @@ table(Ap.geneList.low)
 Ap.low.gsea <- gsea(genelist = Ap.geneList.low, geneID2GO = geneID2GO)
 ```
 
-```{r gsea_Ap_low_cluster}
-# similarity among enriched GO terms
-Ap.low.GO.term.sim <- termSim(Ap.low.gsea$GO.ID, Ap.low.gsea$GO.ID, ont = "BP", organism = 'fly')
-# replace GO IDs with terms
-rownames(Ap.low.GO.term.sim) <- Ap.low.gsea$Term
-colnames(Ap.low.GO.term.sim) <- Ap.low.gsea$Term
-
-# distance matrix
-Ap.low.hclust <- hclust(dist(Ap.low.GO.term.sim))
-plot(Ap.low.hclust)
-
-# report items in each cluster
-Ap.low.gsea.cluster <- Ap.low.hclust.report <- GSEAReportClusters(Ap.low.hclust, h = 1.5)
-
-# add cluster information
-Ap.low.gsea$Cluster <- NA
-
-for(i in 1:length(Ap.low.hclust.report)) {
-    Ap.low.gsea[Ap.low.hclust.report[[i]], "Cluster"] <- i
-}
-```
-
+The GO terms, *`r paste(Ap.low.gsea[, 2], collapse = ", ")`*, are enriched for **Low** genes in both species. 
 
 ```{r gsea_Ap_bim, resuts = 'hide'}
 # Genes with *Bimodal* expression in both colonies
-Ap.bim <- interaction.response.type[which(interaction.response.type$A22.type == "Bimodal" & interaction.response.type$Ar.type == "Bimodal"), "Transcript"]
+Ap.bim <- sig.response.type[which(sig.response.type$A22.type == "Bimodal" & sig.response.type$Ar.type == "Bimodal"), "Transcript"]
 # create gene list, setting value to 1 for "bim" transcripts
 Ap.geneList.bim <- rep(0, length = length(Ap.geneList))
 names(Ap.geneList.bim) <- names(Ap.geneList)
@@ -1482,31 +1412,11 @@ table(Ap.geneList.bim)
 Ap.bim.gsea <- gsea(genelist = Ap.geneList.bim, geneID2GO = geneID2GO)
 ```
 
-```{r gsea_Ap_bim_cluster}
-# similarity among enriched GO terms
-Ap.bim.GO.term.sim <- termSim(Ap.bim.gsea$GO.ID, Ap.bim.gsea$GO.ID, ont = "BP", organism = 'fly')
-# replace GO IDs with terms
-rownames(Ap.bim.GO.term.sim) <- Ap.bim.gsea$Term
-colnames(Ap.bim.GO.term.sim) <- Ap.bim.gsea$Term
-
-# distance matrix
-Ap.bim.hclust <- hclust(dist(Ap.bim.GO.term.sim))
-plot(Ap.bim.hclust)
-
-# report items in each cluster
-Ap.bim.hclust.report <- GSEAReportClusters(Ap.bim.hclust, h = 1.5)
-
-# add cluster information
-Ap.bim.gsea$Cluster <- NA
-
-for(i in 1:length(Ap.bim.hclust.report)) {
-    Ap.bim.gsea[Ap.bim.hclust.report[[i]], "Cluster"] <- i
-}
-```
+The GO terms, *`r paste(Ap.bim.gsea[, 2], collapse = ", ")`*, are enriched for **Bimodal** genes in both species. 
 
 ```{r gsea_Ap_int, results = 'hide'}
 # genes with *Intermediate* expression in both colonies
-Ap.int <- interaction.response.type[which(interaction.response.type$A22.type == "Intermediate" & interaction.response.type$Ar.type == "Intermediate"), "Transcript"]
+Ap.int <- sig.response.type[which(sig.response.type$A22.type == "Intermediate" & sig.response.type$Ar.type == "Intermediate"), "Transcript"]
 # create gene list, setting value to 1 for "int" transcripts
 Ap.geneList.int <- rep(0, length = length(Ap.geneList))
 names(Ap.geneList.int) <- names(Ap.geneList)
@@ -1517,131 +1427,40 @@ table(Ap.geneList.int)
 Ap.int.gsea <- gsea(genelist = Ap.geneList.int, geneID2GO = geneID2GO)
 ```
 
-```{r gsea_Ap_int_cluster}
-# similarity among enriched GO terms
-Ap.int.GO.term.sim <- termSim(Ap.int.gsea$GO.ID, Ap.int.gsea$GO.ID, ont = "BP", organism = 'fly')
-# replace GO IDs with terms
-rownames(Ap.int.GO.term.sim) <- Ap.int.gsea$Term
-colnames(Ap.int.GO.term.sim) <- Ap.int.gsea$Term
+The GO terms, *`r paste(Ap.int.gsea[, 2], collapse = ", ")`*, are enriched for **Intermediate** genes in both species. 
 
-# distance matrix
-Ap.int.hclust <- hclust(dist(Ap.int.GO.term.sim))
-plot(Ap.int.hclust)
-
-# report items in each cluster
-(Ap.int.hclust.report <- GSEAReportClusters(Ap.int.hclust, h = 1.5))
-
-# add cluster information
-Ap.int.gsea$Cluster <- NA
-
-for(i in 1:length(Ap.int.hclust.report)) {
-    Ap.int.gsea[Ap.int.hclust.report[[i]], "Cluster"] <- i
-}
-```
-
-```{r Ap_gsea_intersect_save, echo = FALSE}
+```{r Ap_gsea_intersect_save, echo = FALSE, eval = FALSE}
 Ap.high.gsea$Type <- "High"
 Ap.low.gsea$Type <- "Low"
 Ap.bim.gsea$Type <- "Bimodal"
 Ap.int.gsea$Type <- "Intermediate"
-Ap.gsea.intersect <- rbind(Ap.low.gsea, Ap.int.gsea, Ap.high.gsea, Ap.bim.gsea)
+Ap.gsea.intersect <- rbind(Ap.high.gsea, Ap.low.gsea, Ap.int.gsea, Ap.bim.gsea)
 
-Ap.gsea.intersect <- Ap.gsea.intersect[,c("Type", "GO.ID", "Term", "Cluster", "Annotated", "Significant", "Expected", "parentchild")]
+Ap.gsea.intersect <- Ap.gsea.intersect[,c("Type", "GO.ID", "Term", "Annotated", "Significant", "Expected", "parentchild")]
 colnames(Ap.gsea.intersect)[which(colnames(Ap.gsea.intersect) == "parentchild")] <- "P"
 
 write.csv(Ap.gsea.intersect, file = paste(resultsdir, "Ap_gsea_intersect_", Sys.Date(), ".csv", sep = ""), row.names = FALSE)
 ```
 
-GSEA for genes that are *Intermediate* in A. carolinensis and *Bimodal* in A. picea
+GSEA for genes that are **Bimodal** in *A. picea* and downregulated (**Intermediate**) in *A. carolinensis*.
 
-```{r gsea_Ar_int_A22_bim, results = 'hide'}
-# genes with *Intermediate* expression in Ar and *Bimodal* in A22
-Ar.int.A22.bim <- interaction.response.type[which(interaction.response.type$Ar.type == "Intermediate" & interaction.response.type$A22.type == "Bimodal"), "Transcript"]
-Ar.int.A22.bim.geneList <- rep(0, length = length(Ap.geneList))
-names(Ar.int.A22.bim.geneList) <- names(Ap.geneList)
-Ar.int.A22.bim.geneList[(which(names(Ar.int.A22.bim.geneList) %in% Ar.int.A22.bim))] <- 1
+```{r gsea_A22_bim_Ar_int, results = 'hide'}
+A22.bim.Ar.int <- sig.response.type[which(sig.response.type$Ar.type == "Intermediate" & sig.response.type$A22.type == "Bimodal"), "Transcript"]
+A22.bim.Ar.int.geneList <- rep(0, length = length(Ap.geneList))
+names(A22.bim.Ar.int.geneList) <- names(Ap.geneList)
+A22.bim.Ar.int.geneList[(which(names(A22.bim.Ar.int.geneList) %in% A22.bim.Ar.int))] <- 1
 # check correct number of values set to 1
-table(Ar.int.A22.bim.geneList)
+table(A22.bim.Ar.int.geneList)
 # run GSEA
-Ar.int.A22.bim.gsea <- gsea(genelist = Ar.int.A22.bim.geneList, geneID2GO = geneID2GO, plotpath = NA)
+A22.bim.Ar.int.gsea <- gsea(genelist = A22.bim.Ar.int.geneList, geneID2GO = geneID2GO, plotpath = NA)
 ```
 
-Cluster by semantic similarity
-
-```{r gsea_Ar_int_A22_bim_cluster}
-# similarity among enriched GO terms
-Ar.int.A22.bim.gsea.term.sim <- termSim(Ar.int.A22.bim.gsea$GO.ID, Ar.int.A22.bim.gsea$GO.ID, ont = "BP", organism = 'fly')
-# replace GO IDs with terms
-rownames(Ar.int.A22.bim.gsea.term.sim) <- Ar.int.A22.bim.gsea$Term
-colnames(Ar.int.A22.bim.gsea.term.sim) <- Ar.int.A22.bim.gsea$Term
-# distance matrix
-Ar.int.A22.bim.gsea.term.sim.hclust <- hclust(dist(Ar.int.A22.bim.gsea.term.sim))
-plot(Ar.int.A22.bim.gsea.term.sim.hclust)
-
-# report items in each cluster at height 1.5
-(Ar.int.A22.bim.hclust.report <- GSEAReportClusters(Ar.int.A22.bim.gsea.term.sim.hclust, h = 1))
-```
-
-GSEA for genes that are *Intermediate* in A. carolinensis and *Low* in A. picea
-
-```{r gsea_Ar_int_A22_low, results = 'hide'}
-# genes with *Intermediate* expression in Ar and *Low* in A22
-Ar.int.A22.low <- interaction.response.type[which(interaction.response.type$Ar.type == "Intermediate" & interaction.response.type$A22.type == "Low"), "Transcript"]
-Ar.int.A22.low.geneList <- rep(0, length = length(Ap.geneList))
-names(Ar.int.A22.low.geneList) <- names(Ap.geneList)
-Ar.int.A22.low.geneList[(which(names(Ar.int.A22.low.geneList) %in% Ar.int.A22.low))] <- 1
-# check correct number of values set to 1
-table(Ar.int.A22.low.geneList)
-# run GSEA
-Ar.int.A22.low.gsea <- gsea(genelist = Ar.int.A22.low.geneList, geneID2GO = geneID2GO, plotpath = NA)
-```
-
-```{r gsea_Ar_int_A22_low_cluster}
-# similarity among enriched GO terms
-Ar.int.A22.low.gsea.term.sim <- termSim(Ar.int.A22.low.gsea$GO.ID, Ar.int.A22.low.gsea$GO.ID, ont = "BP", organism = 'fly')
-# replace GO IDs with terms
-rownames(Ar.int.A22.low.gsea.term.sim) <- Ar.int.A22.low.gsea$Term
-colnames(Ar.int.A22.low.gsea.term.sim) <- Ar.int.A22.low.gsea$Term
-# distance matrix
-Ar.int.A22.low.gsea.term.sim.hclust <- hclust(dist(Ar.int.A22.low.gsea.term.sim))
-plot(Ar.int.A22.low.gsea.term.sim.hclust)
-# report items in each cluster at height 1
-(Ar.int.A22.low.hclust.report <- GSEAReportClusters(Ar.int.A22.low.gsea.term.sim.hclust, h = 1.2))
-```
-
-
-
-GSEA for genes that are *Intermediate* in A. carolinensis and *Low* or *Bimodal* in A. picea
-
-```{r gsea_Ar_int_A22_lowbim, results = 'hide'}
-# genes with *Intermediate* expression in Ar and *Low* in A22
-Ar.int.A22.lowbim <- c(Ar.int.A22.low, Ar.int.A22.bim)
-Ar.int.A22.lowbim.geneList <- rep(0, length = length(Ap.geneList))
-names(Ar.int.A22.lowbim.geneList) <- names(Ap.geneList)
-Ar.int.A22.lowbim.geneList[(which(names(Ar.int.A22.lowbim.geneList) %in% Ar.int.A22.lowbim))] <- 1
-# check correct number of values set to 1
-table(Ar.int.A22.lowbim.geneList)
-# run GSEA
-Ar.int.A22.lowbim.gsea <- gsea(genelist = Ar.int.A22.lowbim.geneList, geneID2GO = geneID2GO, plotpath = NA)
-```
-
-```{r gsea_Ar_int_A22_lowbim_cluster}
-# similarity among enriched GO terms
-Ar.int.A22.lowbim.gsea.term.sim <- termSim(Ar.int.A22.lowbim.gsea$GO.ID, Ar.int.A22.lowbim.gsea$GO.ID, ont = "BP", organism = 'fly')
-# replace GO IDs with terms
-rownames(Ar.int.A22.lowbim.gsea.term.sim) <- Ar.int.A22.lowbim.gsea$Term
-colnames(Ar.int.A22.lowbim.gsea.term.sim) <- Ar.int.A22.lowbim.gsea$Term
-# distance matrix
-Ar.int.A22.lowbim.gsea.term.sim.hclust <- hclust(dist(Ar.int.A22.lowbim.gsea.term.sim))
-plot(Ar.int.A22.lowbim.gsea.term.sim.hclust)
-# report items in each cluster at height 1
-(Ar.int.A22.lowbim.hclust.report <- GSEAReportClusters(Ar.int.A22.lowbim.gsea.term.sim.hclust, h = 1.2))
-```
+The GO terms, *`r paste(A22.bim.Ar.int.gsea[, 2], collapse = ", ")`*, are enriched for genes that are **Bimodal** in *A. picea* and downregulated (**Intermediate**) in *A. carolinensis*.
 
 
 ### GSEA for each functional type in each species
 
-GO enrichment for *A. picea* **High** genes.
+*A. picea*
 
 ```{r gsea_A22_high, results = 'hide'}
 # A22 'High' genes
@@ -1649,75 +1468,19 @@ A22.geneList.high <- rep(0, length = length(Ap.geneList))
 names(A22.geneList.high) <- names(Ap.geneList)
 A22.geneList.high[(which(names(A22.geneList.high) %in% A22.high.transcripts))] <- 1
 A22.high.gsea <- gsea(genelist = A22.geneList.high, geneID2GO = geneID2GO)
-```
-Clustering of enriched GO terms for *A. picea* **High** genes.
 
-```{r gsea_A22_high_cluster}
-# similarity among enriched GO terms
-A22.high.gsea.term.sim <- termSim(A22.high.gsea$GO.ID, A22.high.gsea$GO.ID, ont = "BP", organism = 'fly')
-# replace GO IDs with terms
-rownames(A22.high.gsea.term.sim) <- A22.high.gsea$Term
-colnames(A22.high.gsea.term.sim) <- A22.high.gsea$Term
-# distance matrix
-A22.high.gsea.term.sim.hclust <- hclust(dist((A22.high.gsea.term.sim)))
-plot((A22.high.gsea.term.sim.hclust))
-# report items in each cluster at height 1.8
-GSEAReportClusters(A22.high.gsea.term.sim.hclust, h = 1.2)
-```
-
-GO enrichment for *A. picea* **Low** genes.
-
-```{r gsea_A22_low, results = 'hide'}
 # A22 'Low' genes
 A22.geneList.low <- rep(0, length = length(Ap.geneList))
 names(A22.geneList.low) <- names(Ap.geneList)
 A22.geneList.low[(which(names(A22.geneList.low) %in% A22.low.transcripts))] <- 1
 A22.low.gsea <- gsea(genelist = A22.geneList.low, geneID2GO = geneID2GO)
-```
 
-Clustering of enriched GO terms for *A. picea* **Low** genes.
-
-```{r gsea_A22_low_cluster}
-# similarity among enriched GO terms
-A22.low.gsea.term.sim <- termSim(A22.low.gsea$GO.ID, A22.low.gsea$GO.ID, ont = "BP", organism = 'fly')
-# replace GO IDs with terms
-rownames(A22.low.gsea.term.sim) <- A22.low.gsea$Term
-colnames(A22.low.gsea.term.sim) <- A22.low.gsea$Term
-# distance matrix
-A22.low.gsea.term.sim.hclust <- hclust(dist((A22.low.gsea.term.sim)))
-plot((A22.low.gsea.term.sim.hclust))
-# report items in each cluster at height 1.8
-GSEAReportClusters(A22.low.gsea.term.sim.hclust, h = 2)
-```
-
-GO enrichment for *A. picea* **Bimodal** genes.
-
-```{r gsea_A22_bim, results = 'hide'}
 # A22 'Bim' genes
 A22.geneList.bim <- rep(0, length = length(Ap.geneList))
 names(A22.geneList.bim) <- names(Ap.geneList)
 A22.geneList.bim[(which(names(A22.geneList.bim) %in% A22.bim.transcripts))] <- 1
 A22.bim.gsea <- gsea(genelist = A22.geneList.bim, geneID2GO = geneID2GO)
-```
 
-Clustering of enriched GO terms for *A. picea* **Bimodal** genes.
-
-```{r gsea_A22_bim_cluster}
-# similarity among enriched GO terms
-A22.bim.gsea.term.sim <- termSim(A22.bim.gsea$GO.ID, A22.bim.gsea$GO.ID, ont = "BP", organism = 'fly')
-# replace GO IDs with terms
-rownames(A22.bim.gsea.term.sim) <- A22.bim.gsea$Term
-colnames(A22.bim.gsea.term.sim) <- A22.bim.gsea$Term
-# distance matrix
-A22.bim.gsea.term.sim.hclust <- hclust(dist((A22.bim.gsea.term.sim)))
-plot((A22.bim.gsea.term.sim.hclust))
-# report items in each cluster at height 1.8
-GSEAReportClusters(A22.bim.gsea.term.sim.hclust, h = 1)
-```
-
-GO enrichment for *A. picea* **Intermediate** genes.
-
-```{r gsea_A22_int, results = 'hide'}
 # A22 'Int' genes
 A22.geneList.int <- rep(0, length = length(Ap.geneList))
 names(A22.geneList.int) <- names(Ap.geneList)
@@ -1725,22 +1488,7 @@ A22.geneList.int[(which(names(A22.geneList.int) %in% A22.int.transcripts))] <- 1
 A22.int.gsea <- gsea(genelist = A22.geneList.int, geneID2GO = geneID2GO)
 ```
 
-Clustering of enriched GO terms for *A. picea* **Intermediate** genes.
-
-```{r gsea_A22_int_cluster}
-# similarity among enriched GO terms
-A22.int.gsea.term.sim <- termSim(A22.int.gsea$GO.ID, A22.int.gsea$GO.ID, ont = "BP", organism = 'fly')
-# replace GO IDs with terms
-rownames(A22.int.gsea.term.sim) <- A22.int.gsea$Term
-colnames(A22.int.gsea.term.sim) <- A22.int.gsea$Term
-# distance matrix
-A22.int.gsea.term.sim.hclust <- hclust(dist((A22.int.gsea.term.sim)))
-plot((A22.int.gsea.term.sim.hclust))
-# report items in each cluster at height 1.8
-GSEAReportClusters(A22.int.gsea.term.sim.hclust, h = 1.3)
-```
-
-GO enrichment for *A. carolinensis* **High** genes.
+*A. carolinensis*
 
 ```{r gsea_Ar_high, results = 'hide'}
 # Ar 'High' genes
@@ -1748,75 +1496,19 @@ Ar.geneList.high <- rep(0, length = length(Ap.geneList))
 names(Ar.geneList.high) <- names(Ap.geneList)
 Ar.geneList.high[(which(names(Ar.geneList.high) %in% Ar.high.transcripts))] <- 1
 Ar.high.gsea <- gsea(genelist = Ar.geneList.high, geneID2GO = geneID2GO)
-```
 
-Clustering of enriched GO terms for *A. carolinensis* **High** genes.
-
-```{r gsea_Ar_high_cluster}
-# similarity among enriched GO terms
-Ar.high.gsea.term.sim <- termSim(Ar.high.gsea$GO.ID, Ar.high.gsea$GO.ID, ont = "BP", organism = 'fly')
-# replace GO IDs with terms
-rownames(Ar.high.gsea.term.sim) <- Ar.high.gsea$Term
-colnames(Ar.high.gsea.term.sim) <- Ar.high.gsea$Term
-# distance matrix
-Ar.high.gsea.term.sim.hclust <- hclust(dist((Ar.high.gsea.term.sim)))
-plot((Ar.high.gsea.term.sim.hclust))
-# report items in each cluster
-GSEAReportClusters(Ar.high.gsea.term.sim.hclust, h = 1.2)
-```
-GO enrichment for *A. carolinensis* **Low** genes.
-
-```{r gsea_Ar_low, results = 'hide'}
 # Ar 'Low' genes
 Ar.geneList.low <- rep(0, length = length(Ap.geneList))
 names(Ar.geneList.low) <- names(Ap.geneList)
 Ar.geneList.low[(which(names(Ar.geneList.low) %in% Ar.low.transcripts))] <- 1
 Ar.low.gsea <- gsea(genelist = Ar.geneList.low, geneID2GO = geneID2GO)
-```
 
-Clustering of enriched GO terms for *A. carolinensis* **Low** genes.
-
-```{r gsea_Ar_low_cluster}
-# similarity among enriched GO terms
-Ar.low.gsea.term.sim <- termSim(Ar.low.gsea$GO.ID, Ar.low.gsea$GO.ID, ont = "BP", organism = 'fly')
-# replace GO IDs with terms
-rownames(Ar.low.gsea.term.sim) <- Ar.low.gsea$Term
-colnames(Ar.low.gsea.term.sim) <- Ar.low.gsea$Term
-# distance matrix
-Ar.low.gsea.term.sim.hclust <- hclust(dist((Ar.low.gsea.term.sim)))
-plot((Ar.low.gsea.term.sim.hclust))
-# report items in each cluster at height 1.8
-GSEAReportClusters(Ar.low.gsea.term.sim.hclust, h = 2)
-```
-
-GO enrichment for *A. carolinensis* **Bimodal** genes.
-
-```{r gsea_Ar_bim, results = 'hide'}
 # Ar 'Bim' genes
 Ar.geneList.bim <- rep(0, length = length(Ap.geneList))
 names(Ar.geneList.bim) <- names(Ap.geneList)
 Ar.geneList.bim[(which(names(Ar.geneList.bim) %in% Ar.bim.transcripts))] <- 1
 Ar.bim.gsea <- gsea(genelist = Ar.geneList.bim, geneID2GO = geneID2GO)
-```
 
-Clustering of enriched GO terms for *A. carolinensis* **Bimodal** genes.
-
-```{r gsea_Ar_bim_cluster}
-# similarity among enriched GO terms
-Ar.bim.gsea.term.sim <- termSim(Ar.bim.gsea$GO.ID, Ar.bim.gsea$GO.ID, ont = "BP", organism = 'fly')
-# replace GO IDs with terms
-rownames(Ar.bim.gsea.term.sim) <- Ar.bim.gsea$Term
-colnames(Ar.bim.gsea.term.sim) <- Ar.bim.gsea$Term
-# distance matrix
-Ar.bim.gsea.term.sim.hclust <- hclust(dist((Ar.bim.gsea.term.sim)))
-plot((Ar.bim.gsea.term.sim.hclust))
-# report items in each cluster at height 1.8
-GSEAReportClusters(Ar.bim.gsea.term.sim.hclust, h = 1)
-```
-
-GO enrichment for *A. carolinensis* **Intermediate** genes.
-
-```{r gsea_Ar_int, results = 'hide'}
 # Ar 'Int' genes
 Ar.geneList.int <- rep(0, length = length(Ap.geneList))
 names(Ar.geneList.int) <- names(Ap.geneList)
@@ -1824,22 +1516,7 @@ Ar.geneList.int[(which(names(Ar.geneList.int) %in% Ar.int.transcripts))] <- 1
 Ar.int.gsea <- gsea(genelist = Ar.geneList.int, geneID2GO = geneID2GO)
 ```
 
-Clustering of enriched GO terms for *A. carolinensis* **Intermediate** genes.
-
-```{r gsea_Ar_int_cluster}
-# similarity among enriched GO terms
-Ar.int.gsea.term.sim <- termSim(Ar.int.gsea$GO.ID, Ar.int.gsea$GO.ID, ont = "BP", organism = 'fly')
-# replace GO IDs with terms
-rownames(Ar.int.gsea.term.sim) <- Ar.int.gsea$Term
-colnames(Ar.int.gsea.term.sim) <- Ar.int.gsea$Term
-# distance matrix
-Ar.int.gsea.term.sim.hclust <- hclust(dist((Ar.int.gsea.term.sim)))
-plot((Ar.int.gsea.term.sim.hclust))
-# report items in each cluster
-GSEAReportClusters(Ar.int.gsea.term.sim.hclust, h = 1.8)
-```
-
-Combine gene set enrichment analysis for each species and category into single table.
+Combined gene set enrichment analysis for each species and category into single table.
 
 ```{r gsea_combine, eval = TRUE}
 # combine into single table
@@ -1858,98 +1535,14 @@ Ar.gsea <- rbind(Ar.high.gsea, Ar.low.gsea, Ar.int.gsea, Ar.bim.gsea)
 Ar.gsea$Species <- "AcNC"
 
 # combine
-Ap.gsea.union <- rbind(A22.gsea, Ar.gsea)
+Ap.gsea.by.species <- rbind(A22.gsea, Ar.gsea)
 # reorder
-Ap.gsea.union <- Ap.gsea.union[,c("Species", "Type", "GO.ID", "Term", "Annotated", "Significant", "Expected", "parentchild")]
-colnames(Ap.gsea.union)[8] <- "P"
+Ap.gsea.by.species <- Ap.gsea.by.species[,c("Species", "Type", "GO.ID", "Term", "Annotated", "Significant", "Expected", "parentchild")]
+colnames(Ap.gsea.by.species)[8] <- "P"
 
-write.csv(Ap.gsea.union, file = paste(resultsdir, "Ap_gsea_union", Sys.Date(), ".csv", sep = ""), row.names = FALSE)
+write.csv(Ap.gsea.by.species, file = paste(resultsdir, "Ap_gsea_by_species", Sys.Date(), ".csv", sep = ""), row.names = FALSE)
 ```
 
-
-
-## Visualize responsive transcripts
-
-Plots for all genes expressed at *High* temps in GO category "GO:0006950: response to stress"
-
-```{r plot_GOstress, echo=FALSE, eval=TRUE}
-high.stress.terms <- GO0006950.responsive[intersect(with(GO0006950.responsive, grep("High", Ar.type)), with(GO0006950.responsive, grep("High", A22.type))), ]
-
-# in low category
-low.genes <- GO0006950.responsive[union(with(GO0006950.responsive, grep("Low", Ar.type)), with(GO0006950.responsive, grep("Low", A22.type))), ]
-# in bimodal category
-bim.genes <- GO0006950.responsive[union(with(GO0006950.responsive, grep("Bimodal", Ar.type)), with(GO0006950.responsive, grep("Bimodal", A22.type))), ]
-# in intermediate category
-int.genes <- GO0006950.responsive[union(with(GO0006950.responsive, grep("Intermediate", Ar.type)), with(GO0006950.responsive, grep("Intermediate", A22.type))), ]
-
-
-# Line plot, expression against temp, faceted by species
-trp1 <- ggplot(resp.TPM.dt.sub[high.stress.terms$Transcript], aes(x=val, y=TPM.scaled, group=Transcript)) + 
-  geom_line() + 
-  facet_grid(. ~ colony2) + 
-  scale_y_continuous(name="Expression (scaled)") +
-  scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
-print(trp1)
-
-# Smooth plot, expression against temp, faceted by colony
-trp2 <- ggplot(resp.TPM.dt.sub[high.stress.terms$Transcript], aes(x=val, y=TPM.scaled, group=Transcript)) + 
-  geom_smooth(method = "lm", formula = y ~ poly(x, 2)) + 
-  facet_grid(. ~ colony2) + 
-  scale_y_continuous(name="Expression (scaled)") +
-  scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
-print(trp2)
-```
-
-Make plots for all genes expressed at *Low* temps in GO category "GO:0006950: response to stress"
-
-```{r plot_GOstress_low, echo=FALSE, eval=TRUE, cache=TRUE}
-low.stress.terms <- GO0006950.responsive[intersect(with(GO0006950.responsive, grep("Low", Ar.type)), with(GO0006950.responsive, grep("Low", A22.type))), ]
-
-# Line plot, expression against temp, faceted by colony
-trp3 <- ggplot(resp.TPM.dt.sub[low.stress.terms$Transcript], aes(x=val, y=TPM.scaled, group=Transcript)) + 
-  geom_line() + 
-  facet_grid(. ~ colony2) + 
-  scale_y_continuous(name="Expression (scaled)") +
-  scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
-print(trp3)
-
-# Smooth plot, expression against temp, faceted by colony
-trp4 <- ggplot(resp.TPM.dt.sub[low.stress.terms$Transcript], aes(x=val, y=TPM.scaled, group=Transcript)) + 
-  geom_smooth(method = "lm", formula = y ~ poly(x, 2)) + 
-  facet_grid(. ~ colony2) + 
-  scale_y_continuous(name="Expression (scaled)") +
-  scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
-print(trp4)
-```
-
-
-```{r ggplot_high}
-trp_A22_high <- ggplot(resp.TPM.dt.sub[A22.high.transcripts][1:220,], aes(x=val, y=TPM.scaled, group=Transcript)) +
-  geom_smooth(method = "lm", formula = y ~ poly(x, 2)) + 
-  facet_grid(. ~ colony2) + 
-  scale_y_continuous(name="Expression (scaled)") +
-  scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
-print(trp_A22_high)
-
-### predicted values
-resp.TPM.dt.sub.pred[,pTPM.scaled:=scale(pTPM), by = Transcript]
-setkey(resp.TPM.dt.sub.pred, "Transcript")
-
-pred_A22_high <- ggplot(resp.TPM.dt.sub.pred[A22.high.transcripts][1:220,], aes(x=val, y=pTPM.scaled, group=Transcript)) +
-  geom_line() + 
-  facet_grid(. ~ colony) + 
-  scale_y_continuous(name="Expression (scaled)") +
-  scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
-print(pred_A22_high)
-
-png("RxN_example.png")
-ggplot(resp.TPM.dt.sub.pred["100348|*|comp3450455_c0_seq1"], aes(x=val, y=pTPM.scaled, group=Transcript, color = Transcript)) +
-  geom_line() + 
-  facet_grid(. ~ colony) +
-  labs(y = "Expression (scaled)", x = expression("Temperature ", degree, "C")) +
-  theme(legend.position = "none")
-dev.off()
-```
 
 ## Shiny interactive web-app
 
@@ -1969,9 +1562,11 @@ write.csv(shiny.dt, file = "ApRxN-shinyapp/responsive.lms.TPM.csv", quote = TRUE
 
 ```{r rData, echo=FALSE}
 # save RData for manuscript file
-save(TPM.dt.sub, RxNpval, sigtable, chi1, chi2, chi3, chi4, chi5, resp.TPM.dt.sub, Ap.type.table, tt2, tt3, GO.stress.Xsq, GO0006950.responsive, Ap.df, w1, w2, w3, hsp_responsive, hsp_all, mh.test, mh_plot, Ap.BP.resultParentChild, resp.stress.responsive.count, T_on.high.ttest, T_on.low.ttest, T_off.int.high.ttest, T_off.int.low.ttest, Ap.gsea.intersect, Ar.int.A22.bim.gsea, Ar.int.A22.low.gsea, Ar.int.A22.lowbim.gsea, quadratic.lms, resp.TPM.dt.sub.pred, md, file = paste("doc/ms_", Sys.Date(), ".RData", sep = ""))
-
-save(sigtable, chi1, chi2, chi3, chi4, chi5, chi6, resp.TPM.dt.sub, Ap.type.table, Ap.type.table.prop, tt2, tt3, GO.stress.Xsq, GO0006950.responsive, Ap.df, w1, w2, w3, hsp_responsive, hsp_all, mh.test, mh_plot, T_on.high.ttest, T_on.low.ttest, T_off.int.high.ttest, T_off.int.low.ttest, Ar.int.A22.bim.gsea, Ar.int.A22.low.gsea, Ar.int.A22.lowbim.gsea, md, responsive_transcripts_w_BLAST, annotation.table.responsive, file = paste("doc/ms_slim.RData", sep = ""))
+save(Ap.type.table, annotation.table, annotation.table.responsive, Ap.type.table.prop, 
+     chi1, chi2, chi3, chi4, chi5, chi6, D, mh.test, pre.signif.transcripts,  
+     responsive_transcripts_w_BLAST, sigtable, signif.transcripts, T_on.low.ttest, 
+     T_on.high.ttest, T_off.int.high.ttest, T_off.int.low.ttest, w3, 
+     file = paste("doc/ms_", Sys.Date(), ".RData", sep = ""))
 ```
 
 
