@@ -1,0 +1,44 @@
+# script to calculate empirical false-positive rate 
+
+library(MASS)
+library(plyr)
+library(dplyr)
+
+# load functions
+source("scripts/RxNseq.R") 
+
+# load real data
+load("ApTranscriptome_exp_data.Rda")
+str(TPM.dt.sub)
+
+# dataframe to collect results
+D <- data.frame(
+  resamp = 1:10,
+  num_signif = rep(NA, 10))
+
+for(i in 1:100) {
+  RxNresample <- TPM.dt.sub %>%
+    group_by(Transcript, colony) %>%
+    select(TPM) %>%
+    sample_frac() %>%
+    mutate(val = c(0, 3.5, 10.5, 14, 17.5, 21, 24.5, 28, 31.5, 35, 38.5))
+  
+  # define model for RxN function
+  model <-  "log(TPM+1) ~ colony + val + I(val^2) + colony:val + colony:I(val^2)"
+  
+  # calculate overall P value and R^2 for each transcript
+  RxNpval_resamp <- ddply(RxNresample, .(Transcript), .inform= TRUE, modpFunc, .parallel = TRUE)
+  
+  # adjust FDR
+  RxNpval_resamp$padj <- p.adjust(RxNpval_resamp$pval, method = "fdr")
+  
+  # number of transcripts with FDR < 0.05
+  numsignif <- length(which(RxNpval_resamp$padj < 0.05))
+  
+  # add to dataframe
+  D[i, "num_signif"] <- numsignif
+  print(D)
+  }
+
+save(D, file = "resample.out")
+
