@@ -1,8 +1,10 @@
 ---
-title: Technical Report for **Thermal reactionomes reveal divergent responses to thermal extremes in warm and cool-climate ant species**
-author: [John Stanton-Geddes](john.stantongeddes.research@gmail.com)
+title: Technical Report for **Thermal reactionomes reveal divergent responses to thermal
+  extremes in warm and cool-climate ant species**
+author: '[John Stanton-Geddes](john.stantongeddes.research@gmail.com)'
 output:
-  word_document: default
+  html_document:
+    keep_md: yes
   pdf_document:
     fig_caption: yes
     includes:
@@ -11,8 +13,7 @@ output:
     latex_engine: xelatex
     number_sections: no
     toc_depth: 2
-  html_document:
-    keep_md: yes
+  word_document: default
 ---
 
 ```{r setup, echo=FALSE, results='hide', message = FALSE, warning=FALSE}
@@ -596,7 +597,7 @@ md_sub1 <- subset(md, Acar %in% c("Bimodal", "Low"), )
 md_sub1 <- droplevels(md_sub1)
 
 mh_plot_sub1 <- qplot(y=Apic, x=Acar, data=md_sub1, fill=value, geom="tile", xlim = rev(levels(md_sub1$Acar))) + 
-  scale_fill_gradient2(limits=c(-200, 200), low="#f1a340", high="#998ec3") +
+  scale_fill_gradient2(limits=c(-205, 205), low="#f1a340", high="#998ec3") +
   theme(axis.title = element_text(face="italic")) +
   labs(y = "A. picea", x = "A. carolinensis") +
   theme(legend.position = "right") + 
@@ -610,7 +611,7 @@ md_sub2 <- subset(md, Apic %in% c("High", "Bimodal"), )
 md_sub2 <- droplevels(md_sub2)
 
 mh_plot_sub2 <- qplot(y=Acar, x=Apic, data=md_sub2, fill=value, geom="tile", xlim = rev(levels(md_sub2$Apic))) + 
-  scale_fill_gradient2(limits=c(-200, 200), low="#f1a340", high="#998ec3") +
+  scale_fill_gradient2(limits=c(-205, 205), low="#f1a340", high="#998ec3") +
   theme(axis.title = element_text(face="italic")) +
   labs(y = "A. carolinensis", x = "A. picea") + 
   theme(legend.position = "none") + 
@@ -1541,22 +1542,6 @@ Ap.gsea.by.species <- Ap.gsea.by.species[,c("Species", "Type", "GO.ID", "Term", 
 colnames(Ap.gsea.by.species)[8] <- "P"
 
 write.csv(Ap.gsea.by.species, file = paste(resultsdir, "Ap_gsea_by_species", Sys.Date(), ".csv", sep = ""), row.names = FALSE)
-```
-
-
-## Shiny interactive web-app
-
-To assist visualization of specific transcripts, I made a interactive web-app using the [shiny](http://www.rstudio.com/shiny/) package. The scripts for this app are in the sub-directory `.\ApRxN-shinyapp`. The web app is available at https://johnsg.shinyapps.io/ApRxN-shinyapp/
-
-Export data for interactive shiny app. 
-
-```{r shiny_file, eval=FALSE, echo=FALSE}
-shiny.dt <- TPM.dt.sub[responsive.lms.ann.type[,list(Transcript, best.hit.to.nr, GO.Biological.Process)]]
-
-# scale expression values 
-shiny.dt[,TPM.scaled:=scale(TPM), by = Transcript]
-str(shiny.dt)
-write.csv(shiny.dt, file = "ApRxN-shinyapp/responsive.lms.TPM.csv", quote = TRUE, row.names = FALSE)
 ```
 
 

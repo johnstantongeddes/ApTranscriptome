@@ -1,42 +1,31 @@
-Thermal reactionome of the common ant species *Aphaenogaster picea* and *A. carolinensis*
-========================================================================================
-   
-**Author:** [John Stanton-Geddes](john.stantongeddes.research@gmail.com)
-
-**October 14, 2014**
-
-**Technical Report No. 3**
-
-**Department of Biology**
-
-**University of Vermont**
+# Technical Report for **Thermal reactionomes reveal divergent responses to thermal extremes in warm and cool-climate ant species**
+[John Stanton-Geddes](john.stantongeddes.research@gmail.com)  
 
 
 
 ## Summary ##
   
-In this technical report, which accompanies the manuscript **Patterns of stress tolerance versus resistance in genome-wide expression data of parapatric ant species** (Stanton-Geddes et al., in press), we:
+In this technical report, which accompanies the manuscript **Thermal reactionomes reveal divergent responses to thermal extremes in warm and cool-climate ant species**, we:
 
-1. describe the *de novo* assembly of the transcriptome for two ant species within the *Aphaenogaster rudis-picea-fulva* species complex (Lubertazzi, 2012)
-2. identify thermally-responsive genes
-3. evaluate differences in reaction norms of expression for each thermally-responsive gene between the two species
-4. perform gene set enrichment analysis of thermally-responsive genes for the two species
-
-This script is completely reproducible assuming that R, `knitr` and the other required libraries (listed within the source document) are installed on a standard linux system using the following:
-    
-    Rscript -e "library(knitr); knit('ApTranscriptome_TR.Rmd')"
-
+1. Describe the *de novo* assembly of the transcriptome for two ant species within the *Aphaenogaster rudis-picea-fulva* species complex (Lubertazzi, 2012).
+2. Measure the reaction norm across a thermal gradient (0°C to 38.5°C) for all transcripts and characterize the *thermal reactionome* as the set of transcripts that are thermally-responsive.
+3. Quantitatively test three mechanistic hypotheses of thermal adapation:.
+  - The *Enhanced response* hypothesis proposes that species extend their thermal limits through a stronger induced response to provide greater protection from more frequently encountered stressors.
+  - The *Tolerance hypothesis* proposes that existing inducible stress responses become insufficient or prohibitively costly as environmental stressors increase in frequency.
+  - The *Genetic assimilation hypothesis* proposes that exposure to more extreme stressors selects for a shift from inducible to constitutive expression of stress-response genes.
+  
+We quantified the relative importance of each of these mechanisms to thermal adaptation in these two species by evalutating differences in the reactionomes between species. We used gene set enrichment analysis to provide additional insight on the cellular processes underlying the transcriptome-wide changes in expression. 
 
 ## Data ##
 
-The raw Illumina fastq files are available from the NCBI short read archive [link tbd]. The assembled transcriptome, annotation and expression values are downloaded rather than re-run due to the computational demands, but the exact commands for each of these steps are documented below.
+The raw Illumina fastq files are available from the NCBI short read archive [link tbd]. The assembled transcriptome, annotation and expression values are available from the Harvard Forest Archives, HF-113 [http://harvardforest.fas.harvard.edu/data-archive] datasets [hf113-36](http://harvardforest.fas.harvard.edu/data/p11/hf113/hf113-36-ap-ann-table.csv), [hf113-40](http://harvardforest.fas.harvard.edu/data/p11/hf113/hf113-40-ap-trans.tar) and [hf113-41](http://harvardforest.fas.harvard.edu/data/p11/hf113/hf113-41-ap-gene-exp-quant.tgz). These processed files are used for this analysis due to the computational demands of re-generating the files, but the exact commands for each of these steps are documented below.
+
 
 ## Sample description ##
 
-Two ant colonies were used for the transcriptome sequencing. The first, designated *A22*, was collected at Molly Bog, Vermont in August 2012 by Nick Gotelli and Andrew Nguyen. The second colony, designated *Ar*, was collected by Lauren Nichols in Raleigh, North Carolina. These colonies were maintained in the lab for 6 months prior to sample collection. Bernice DeMarco (Michigan State University) identified colony *A22* as *A. picea* and *Ar* as *A. carolinensis*. For historical reasons, I sometimes refer to these species as colonies at times throughout this technical report.
+Two ant colonies were used for the transcriptome sequencing. The first, designated *A22*, was collected at Molly Bog, Vermont in August 2012 by Nick Gotelli and Andrew Nguyen. The second colony, designated *Ar*, was collected by Lauren Nichols in Raleigh, North Carolina. These colonies were maintained in the lab for 6 months prior to sample collection. Bernice DeMarco (Michigan State University) identified colony *A22* as *A. picea* and *Ar* as *A. carolinensis*. 
 
-For each colony, three ants were exposed to one of 12 temperature treatments, every 3.5C ranging from 0C to 38.5C, for one hour in glass tubes in a water bath. The ants were flash frozen and stored at -80C until RNA was extracted using a two step extraction; [RNAzol RT](http://www.mrcgene.com/rnazol.htm) (Molecular Research Center, Inc) followed by an [RNeasy Micro](http://www.qiagen.com/products/catalog/sample-technologies/rna-sample-technologies/total-rna/rneasy-micro-kit) column (Qiagen). Samples from each colony were pooled and sequenced in separate lanes on a 100bp paired-end run of an Illumina HiSeq at the University of Minnesota Genomics Center, yielding 20e6 and 16e6 reads for the A22 and Ar samples, respectively.
-
+For each colony, three ants were exposed to one of 12 temperature treatments, every 3.5°C ranging from 0°C to 38.5°C, for one hour in glass tubes in a water bath. The ants were flash frozen and stored at -80C until RNA was extracted using a two step extraction; [RNAzol RT](http://www.mrcgene.com/rnazol.htm) (Molecular Research Center, Inc) followed by an [RNeasy Micro](http://www.qiagen.com/products/catalog/sample-technologies/rna-sample-technologies/total-rna/rneasy-micro-kit) column (Qiagen). Samples from each colony were pooled and sequenced in separate lanes on a 100bp paired-end run of an Illumina HiSeq at the University of Minnesota Genomics Center, yielding 20e6 and 16e6 reads for the A22 and Ar samples, respectively.
 
 
 ## Transcriptome assembly ##
@@ -44,19 +33,23 @@ For each colony, three ants were exposed to one of 12 temperature treatments, ev
 The Illumina reads were filtered using the program [Trimmomatic](http://www.usadellab.org/cms/?page=trimmomatic) (Lohse, Bolger, Nagel, Fernie, Lunn, Stitt, and Usadel, 2012) to remove Ilumina adapter sequences, trim bases with PHRED quality scores less than 15 in a 4 bp sliding window and remove final trimmed sequences with length less than 36 bp. The code used was 
 
 ~~~
-java -jar trimmomatic-0.30.jar PE -threads 40 -phred33 -trimlog trimmomatic.log sample.R1.fastq sample.R2.fastq sample.R1.trimmed.paired.fastq sample.R1.trimmed.unpaired.fastq sample.R2.trimmed.paired.fastq sample.R2.trimmed.unpaired.fastq ILLUMINACLIP:TruSeq3-PE.fa:2:30:10 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15 MINLEN:36
+java -jar trimmomatic-0.30.jar PE -threads 40 -phred33 -trimlog trimmomatic.log \\
+sample.R1.fastq sample.R2.fastq sample.R1.trimmed.paired.fastq sample.R1.trimmed \\
+.unpaired.fastq sample.R2.trimmed.paired.fastq sample.R2.trimmed.unpaired.fastq \\
+ILLUMINACLIP:TruSeq3-PE.fa:2:30:10 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15 MINLEN:36
 ~~~
 
 where "sample" was replaced by each sample. This filtering yielded 339,845,787 properly paired reads and 16,860,885 unpaired reads. 
 
 Properly paired and unpaired reads passing the Trimmomatic filter were combined and used in de novo transcriptome assembly using the program [Trinity](http://trinityrnaseq.sourceforge.net/) (Grabherr, Haas, Yassour, Levin, Thompson, Amit, Adiconis, Fan, Raychowdhury, Zeng, Chen, Mauceli, Hacohen, Gnirke, Rhind, di
-Palma, Birren, Nusbaum, Lindblad-Toh, Friedman, and Regev, 2011). Unpaired reads resulting from Trimmomatic were concatenated to the set of left (R1) reads per Trinity usage documentation. Assembly on a single 40 CPU machine with 1TB of memory required 20 hours of compute time.
+Palma, Birren, Nusbaum, Lindblad-Toh, Friedman, and Regev, 2011). Unpaired reads resulting from Trimmomatic were concatenated to the set of left (R1) reads per Trinity usage documentation. Assembly on a single 40 CPU machine with 1TB of memory required about 20 hours of compute time.
 
 ~~~
-Trinity.pl --seqType=fq --JM=90G —left=all.R1.trimmed.fastq —right=all.R2.trimmed.fastq --output=trinity --CPU=40 --inchworm_cpu=40 --bflyCPU=5
+Trinity.pl --seqType=fq --JM=90G —left=all.R1.trimmed.fastq —right=all.R2.trimmed.fastq \\
+--output=trinity --CPU=40 --inchworm_cpu=40 --bflyCPU=5
 ~~~
 
-This assembly contained 100,381 unique components (roughly genes) in 126,172 total transcripts (Table 1). 
+This assembly contained 100,381 unique components (~genes) in 126,172 total transcripts (Table 1). 
 
 As we were assembling two divergent colonies into a single transcriptome, we suspected that this assembly would be susceptible to known problems of errors during assembly (e.g. chimeric transcripts that are fusions of two transcripts) and redundancy (Yang and Smith, 2013). To account for this, we performed two post-assembly processing steps.
 
@@ -91,8 +84,8 @@ These post-processing step removed 16% of the initial reads (Table 1).
 
 |    &nbsp;     |  Total contigs  |  Total length  |  Median contig size  |
 |:-------------:|:---------------:|:--------------:|:--------------------:|
-|  **trinity**  |     126,172     |  100,389,539   |         358          |
-|  **reduced**  |     105,536     |   62,648,997   |         320          |
+|  **Trinity**  |     126,172     |  100,389,539   |         358          |
+|  **Reduced**  |     105,536     |   62,648,997   |         320          |
 
 Table: Statistics for Trinity and cap3+uclust reduced transcriptome assemblies (continued below)
 
@@ -100,52 +93,47 @@ Table: Statistics for Trinity and cap3+uclust reduced transcriptome assemblies (
 
 |    &nbsp;     |  Mean contig size  |  N50 contig  |  N50 Length  |
 |:-------------:|:------------------:|:------------:|:------------:|
-|  **trinity**  |        795         |    16,201    |    1,631     |
-|  **reduced**  |        593         |    15,491    |     895      |
+|  **Trinity**  |        795         |    16,201    |    1,631     |
+|  **Reduced**  |        593         |    15,491    |     895      |
 
 To remove contigs that are likely contaminants from bacterial, archael, virus or human sources, we used the program [DeconSeq](http://deconseq.sourceforge.net/) r citep("10.1371/journal.pone.0017288"). We downloaded the bacteria, virus, archae and human [databases of contaminants](ftp://edwards.sdsu.edu:7009/deconseq/db), modified the `DeconSeqConfig.pm` file as described [here](http://www.vcru.wisc.edu/simonlab/bioinformatics/programs/install/deconseq.htm) to point to the databases, and ran DeconSeq specifiying 95% identity over 50% the length of contig
 
-    deconseq.pl -c 50 -i 95 -f Trinity_cap3_uclust.fasta -d Trinity_cap3_uclust -dbs hsref,bast,vir,arch
+    deconseq.pl -c 50 -i 95 -f Trinity_cap3_uclust.fasta -d Trinity_cap3_uclust \\
+    -dbs hsref,bast,vir,arch
 	
 This resulted in removing 5,675 contigs as contaminants, leaving 99,861 "clean" contigs. We spot-checked the contaminants by BLAST and confirmed that they matched bacteria, human or viral sources by greater than 95%. For expression quantification, we use the full assembly to ensure that "contaminant" reads are assigned to the contaminants. After quantification, these transcripts will then be removed from further analyses.
 
-Running Trinity and subsequent programs is time and memory-intensive so the final assembly can be downloaded and used for all further analyses. In addition, the compressed archive contains the "clean" and "contaminant" sequences after filtering with DeconSeq.
+Running Trinity and subsequent programs is time and memory-intensive so the final assembly is downloaded and used for all further analyses. The downloaded archive contains the "clean" and "contaminant" sequences after filtering with DeconSeq.
 
 ~~~
 # download filtered Trinity assembly, uncompress and move
-wget http://johnstantongeddes.org/assets/files/ApTranscriptome/Aphaenogaster_transcriptome.tar
-# check md5sum
-md5sum Aphaenogaster_transcriptome.tar
-# fd6dbb0b3e88e1c797c9e74611b245b2
+wget http://harvardforest.fas.harvard.edu/data/p11/hf113/hf113-40-ap-trans.tar
 
 # move and extract
 mkdir -p results/
 mkdir -p results/trinity-full/
-mv Aphaenogaster_transcriptome.tar results/trinity-full/.
-tar -xvf Aphaenogaster_transcriptome.tar
+mv hf113-40-ap-trans.tar results/trinity-full/.
+tar -xvf hf113-40-ap-trans.tar
 ~~~
 
-To examine the species distribution of BLAST hits in the transcriptome assembly, I used the program [Krona](http://sourceforge.net/p/krona/home/krona/) r citep("doi:10.1186/1471-2105-12-385"). I ... 
+To examine the species distribution of BLAST hits in the transcriptome assembly, I used the program [Krona](http://sourceforge.net/p/krona/home/krona/) r citep("doi:10.1186/1471-2105-12-385") which provides a taxonomic profile of all transcripts by BLAST annotation to species.
 
-~~~
-KRONA code
-~~~
-
-The interactive visualization is available [here]().
+The interactive visualization is available [here](http://johnstantongeddes.org/assets/files/ApTranscriptome_FA.html).
 
 
 ## Transcriptome annotation ##
 
 Annotation was performed by uploading the reduced assembly "Trinity_cap3_uclust.fasta" to the web-based annotation program [FastAnnotator](http://fastannotator.cgu.edu.tw/index.php).
 
-Results are available as job ID [13894410176993](http://fastannotator.cgu.edu.tw/job.php?jobid=13894410176993#page=basicinfo).
+Results were available as job ID [13894410176993](http://fastannotator.cgu.edu.tw/job.php?jobid=13894410176993#page=basicinfo).
 
-This annotation file can be read directly to R:
+This annotation file can be downloaded from the Harvard Forest [archive](http://harvardforest.fas.harvard.edu/data/p11/hf113/hf113-36-ap-ann-table.csv), or read directly into R.  
 
 
 ```r
 # URL for annotation file
 annotation.URL <- getURL("http://johnstantongeddes.org/assets/files/ApTranscriptome/ApTranscriptome_AnnotationTable_20140113.txt")
+
 # load 
 annotation.file <- read.csv(textConnection(annotation.URL), header = TRUE, sep = "\t", stringsAsFactors = FALSE)
 str(annotation.file)
@@ -190,15 +178,12 @@ str(annotation.table)
 ##  - attr(*, ".internal.selfref")=<externalptr>
 ```
 
-Note that I used the reduced assembly, prior to cleaning out contaminants. As I use the "clean" assembly for read mapping and identification of responsive genes, the contaminants are dis-regarded in downstream analyses. 
-
-
 ## Identification of thermally-responsive genes ##
 
-### Quantify gene expression ###
+### Gene expression ###
 
 I quantified gene expression using [sailfish](http://www.cs.cmu.edu/~ckingsf/software/sailfish/index.html). To run this program, first make sure that PATHs to the software libraries are set up correctly as described on the sailfish website. 
-                                                 
+
 An index of the assembly is built with the command:                                                 
 
 ~~~
@@ -211,8 +196,6 @@ Once this is done, expression is quantified for the Trimmomatic filtered reads f
 - paired.right.fastq
 - unpaired.left.fastq
 - unpaired.right.fastq
-
-
 
 ~~~
 # make a directory for the expression values
@@ -229,7 +212,8 @@ These files are downloaded for convenience:
 
 ~~~
 # download gene expression quantification
-wget http://johnstantongeddes.org/assets/files/ApTranscriptome/sailfish_quant_20140916.tar
+wget http://harvardforest.fas.harvard.edu/data/p11/hf113/hf113-41-ap-gene-exp-quant.tgz
+# http://johnstantongeddes.org/assets/files/ApTranscriptome/sailfish_quant_20140916.tar
 # check md5sum
 md5sum sailfish_quant_20140916.tar
 # 26102c7ef86cf30b5f8e923640378185
@@ -249,14 +233,18 @@ For each sample, there is a directory containting a file *quant_bias_corrected.s
 
 The TPM column for each sample was extracted and combined into a matrix for each species.
 
-**Preliminary [examination](https://minilims1.uvm.edu/BCProject-26-Cahan/methods.html#clustering-of-samples) of the data indicated that the A22_7 and Ar_7 samples may have been switched, so I remove these values from the combined expression data set for the two species.** 
+**Preliminary [examination](https://minilims1.uvm.edu/BCProject-26-Cahan/methods.html#clustering-of-samples) of the data indicated that the A22_7 and Ar_7 samples may have been switched, so I remove these values from the combined expression data set for the two species.**  The 'Ar_7' sample clusters with all the other A22 samples, while the 'A22_7' sample clusters with all the other Ar samples. The parsimonious explanation for this is a labeling mistake. Removing these samples, rather than relabeling, is the conservative approach. 
+
+![clustering](results/aphaenogaster_sample_clustering.png)
 
 
 
 
-Note that expression levels at each temperature treatment are highly correlated between the two colonies.
 
 
+\newpage
+
+Note that expression levels at each temperature treatment are highly correlated between the two colonies, indicating common patterns of expression response to temperature.
 
 
 |  Temperature  |  r   |
@@ -278,15 +266,17 @@ Table: Correlations between species for gene expression at temperature treatment
 
 ### Remove *contaminant* transcripts
 
-With gene expression quantified using all reads, I now remove the transcripts identified as contaminants by DeconSeq.
+With gene expression quantified using all reads, I removed the transcripts identified as contaminants by DeconSeq.
 
 
 ```r
 # extract transcript names from fasta file rather than loading whole file
-system("grep '^>' results/trinity-full/Trinity_cap3_uclust_cont.fa | cut -f 1 -d ' ' | sed -r 's/^.{1}//' > results/trinity-full/cont.list")
+system("grep '^>' results/trinity-full/Trinity_cap3_uclust_cont.fa | cut -f 1 -d ' ' | sed 's/^.{1}//' > results/trinity-full/cont.list")
 
 # read file
 cont.list <- read.table("results/trinity-full/cont.list")
+# remote ">" leader
+cont.list$V1 <- gsub(">", "", cont.list$V1)
 str(cont.list)
 ```
 
@@ -359,7 +349,6 @@ $$ log(TPM + 1) = \beta_0 + \beta_1(species) + \beta_2(temp) + \beta_3(temp^2) +
 
 where TPM is transcripts per million. 
 
-
 (1) Identify transcripts with overall significant model fit. Adjust *P* values for multiple testing using FDR and retain transcripts with FDR < 0.05. Use log-transformed response to account for outliers.
 
 
@@ -374,7 +363,7 @@ RxNpval <- ddply(TPM.dt.sub, .(Transcript), .inform="TRUE", modpFunc)
 
 Of the 98186 transcripts, 22089 have models with P < 0.05.
 
-Many of these are likely false positives, so I adjust P-values using false discovery rate (FDR). Only those transcripts with less than 5% FDR are retained as significant. 
+Many of these are likely false positives, so I adjusted P-values using false discovery rate (FDR).
 
 
 ```r
@@ -385,20 +374,40 @@ hist(RxNpval$pval)
 hist(RxNpval$padj)
 ```
 
-![plot of chunk padjust](figure/padjust.png) 
+![](ApTranscriptome_TR_files/figure-html/padjust-1.png) 
 
 ```r
 # subset to significant transcripts
-signif.transcripts <- RxNpval[which(RxNpval$padj < 0.05), ]
+pre.signif.transcripts <- RxNpval[which(RxNpval$padj < 0.05), ]
+```
+
+At the 5% FDR significance threshold, there are 10525 transcripts with an overall significant model.
+
+Feedback from reviewers questioned whether this was sufficient to remove all false positives. To examine this, we performed a resampling simulation to determine how many transcripts would be identified as significant using the above approach. Specifically, we randomly re-assigned the expression levels to the temperature treatments for each species, fit the same linear model as for the real data, calculated the number of significant transcripts under the 5% FDR threshold, and repeated this 100 times. We then took the 95th percentile of the distribution of significant transcripts from the resampled datasets as the true null level of false positives.
+
+As this resampling is slow, I ran it in a separate file (ApTranscriptome_resample.Rmd) and load the results here.
+
+
+```r
+# load resampling results
+load("data/resample.Rda")
+```
+
+Using this approach, the empirical false positive, *after* adjusting *P*-values for FDR, is 8016, indicating that only 2509 are true positives.
+
+
+```r
+# order by padj
+pre.signif.transcripts <- pre.signif.transcripts[order(pre.signif.transcripts$padj), ]
+# number to keep
+keep <- nrow(pre.signif.transcripts) - quantile(D$num_signif, probs = 0.95)
+signif.transcripts <- pre.signif.transcripts[1:keep, ]
 
 # extract significant transcripts
 sig.TPM.dt.sub <- TPM.dt.sub[signif.transcripts$Transcript]
 ```
 
-At the 5% FDR significance threshold, there are 10525 transcripts with an overall significant model.
-
-
-(2) Fit linear model to overall significant transcripts; perform stepAIC to retain only significant terms, and save `lm` output to list
+(2) Fit linear model to significantly responsive transcripts, perform stepAIC to retain only significant terms, and save `lm` output to list
 
 
 ```r
@@ -407,10 +416,7 @@ At the 5% FDR significance threshold, there are 10525 transcripts with an overal
 RxNlmAIC <- try(dlply(sig.TPM.dt.sub, .(Transcript), lmFunc))
 ```
 
-
-### Grouping of thermally-responsive transcripts
-
-The set of transcripts with significant expression patterns include those with expression that differs by species, temperature and the interaction of species and temperature. In this section, I am specifically interested in the thermally-responsive transcripts (temperature and species x temperature) so I subset the significant transcripts to examine these. 
+The set of transcripts with significant expression patterns include those with expression that differs by species, temperature and the interaction of species and temperature. I am specifically interested in the thermally-responsive transcripts (temperature and species x temperature) so I subset the significant transcripts to examine these. 
 
 
 ```r
@@ -418,6 +424,8 @@ interaction.lms <- RxNlmAIC[which(Map(grepFunc, RxNlmAIC, term = "colonyAr:") ==
 other.lms <- RxNlmAIC[setdiff(names(RxNlmAIC), names(interaction.lms))]
 temperature.lms <- other.lms[which(Map(grepFunc, other.lms, term = "val") == TRUE)]
 colony.lms <- other.lms[setdiff(names(other.lms), names(temperature.lms))]
+
+# combine all responsive transcripts
 responsive.lms <- c(temperature.lms, interaction.lms)
 rm(other.lms)
 
@@ -428,97 +436,113 @@ quadratic.lms <- RxNlmAIC[which(Map(grepFunc, RxNlmAIC, term = "2") == TRUE)]
 
 |    Coefficient     |  Number.significant  |
 |:------------------:|:--------------------:|
-|       Total        |        10,525        |
-|       Colony       |        1,473         |
-|    Temperature     |        2,260         |
-| Temperature:Colony |        6,792         |
+|       Total        |        2,509         |
+|       Colony       |         431          |
+|    Temperature     |         525          |
+| Temperature:Colony |        1,553         |
 
 Table: Number of transcripts with expression that depends on species, temperature or their interaction at 5% FDR  out of 98,186 total transcripts.
 
+### Thermal-response expression categories ###
 
-### Thermal-response functional types ###
+The previous section identified the transcripts with thermally-responsive expression. In this section, I determined the shape of the expression response to temperature for each transcript. Categories of expression response are:
 
-The previous section identified the transcripts with thermally-responsive expression. In this section, I determine the shape of the expression response to temperature for each transcript. Catego
-ries of expression response are:
+- **High** - increase expression with temperature
+- **Low** - decrease expression with temperature
+- **Intermediate** - maximum expression at intermediate temperatures (14 - 28C)
+- **Bimodal** - expressed greater than one standard deviation of expression at both low and high temperatures
+- **Not Responsive** - not thermally-responsive in one species but does respond in the other
 
-* High - increase expression with temperature
-* Low - decrease expression with temperature
-* Intermediate - maximum expression at intermediate temperatures (14 - 28C)
-* Bimodal - expressed greater than one standard deviation of expression at both low and high temperatures
-
-I do this first for the thermally-responsive transcripts where there is no interaction with species. For the transcripts where thermal-responsive expression depends on species, I determine the functional type of the expression response separately for each species. 
-
+For the transcripts where thermal-responsive expression depends on species, I determined the functional type of the expression response separately for each species. 
 
 
 ```r
-# calculate response type for responsive transcripts
-interaction.response.type <- ldply(interaction.lms, .progress = "none", .inform = TRUE, RxNtype)
-stopifnot(nrow(interaction.response.type) == length(interaction.lms))
-
-# calculate response types for transcripts without interactions
-temperature.response.type <- ldply(temperature.lms, .progress = "none", .inform = TRUE, RxNtype)
-stopifnot(nrow(temperature.response.type) == length(temperature.lms))
-
-# merge results
-Ap.response.type <- rbind(interaction.response.type, temperature.response.type)
-colnames(Ap.response.type)[which(colnames(Ap.response.type) == ".id")] <- "Transcript"
-Ap.response.type <- data.table(Ap.response.type)
-setkey(Ap.response.type, Transcript)
-str(Ap.response.type)
+# calculate response type for all temperature responsive transcripts
+sig.response.type <- ldply(responsive.lms, .progress = "none", .inform = TRUE, RxNtype)
+colnames(sig.response.type)[which(colnames(sig.response.type) == ".id")] <- "Transcript"
+sig.response.type <- data.table(sig.response.type)
+setkey(sig.response.type, Transcript)
+str(sig.response.type)
 ```
 
 ```
-## Classes 'data.table' and 'data.frame':	9052 obs. of  9 variables:
-##  $ Transcript: chr  "100008|*|comp137625_c0_seq2" "100015|*|comp3543055_c0_seq1" "100067|*|comp3557646_c0_seq1" "100089|*|comp11313_c1_seq1" ...
-##  $ A22.max   : num  38.5 0 NA 18.5 0 NA 0 0 NA 0 ...
-##  $ A22.min   : num  0 20.5 NA 38.5 38.5 NA 23 38.5 NA 28.5 ...
-##  $ A22.opt   : num  1.025 0.945 1 1.057 2.554 ...
-##  $ A22.type  : chr  "High" "Bimodal" "NotResp" "Intermediate" ...
-##  $ Ar.max    : num  0 38.5 0 38.5 0 38.5 18 0 0 0 ...
-##  $ Ar.min    : num  38.5 0 20.5 13.5 38.5 18.5 38.5 38.5 38.5 38.5 ...
-##  $ Ar.opt    : num  1.199 1.005 0.935 0.962 3.937 ...
-##  $ Ar.type   : chr  "Low" "High" "Bimodal" "High" ...
+## Classes 'data.table' and 'data.frame':	2078 obs. of  9 variables:
+##  $ Transcript: chr  "100148|*|comp125464_c0_seq1" "100636|*|comp3558092_c0_seq1" "100709|*|comp147744_c0_seq5" "100744|*|comp3708443_c0_seq1" ...
+##  $ A22.max   : num  0 0 38.5 0 0 0 0 38.5 17.5 0 ...
+##  $ A22.min   : num  23 26 0 26 38.5 38.5 38.5 0.5 38.5 26 ...
+##  $ A22.opt   : num  5.096 0.953 1.093 0.947 1149.236 ...
+##  $ A22.type  : chr  "Bimodal" "Low" "High" "Low" ...
+##  $ Ar.max    : num  18 NA 0 NA 0 38.5 0 0 38.5 NA ...
+##  $ Ar.min    : num  38.5 NA 38.5 NA 38.5 0 38.5 38.5 12.5 NA ...
+##  $ Ar.opt    : num  1.01 1 4.56 1 1.24 ...
+##  $ Ar.type   : chr  "Intermediate" "NotResp" "Low" "NotResp" ...
 ##  - attr(*, ".internal.selfref")=<externalptr> 
 ##  - attr(*, "sorted")= chr "Transcript"
 ```
 
 ```r
-# save results to file
-write.table(file = paste(resultsdir, "Ap_responsive_transcripts_", Sys.Date(), ".txt", sep = ""), Ap.response.type, row.names = FALSE, col.names = TRUE, quote = FALSE, sep = "\t")
+# calculate response type for transcripts with species x temperature interaction only
+interaction.response.type <- ldply(interaction.lms, .progress = "none", .inform = TRUE, RxNtype)
+colnames(interaction.response.type)[which(colnames(interaction.response.type) == ".id")] <- "Transcript"
+interaction.response.type <- data.table(interaction.response.type)
+setkey(interaction.response.type, Transcript)
+str(interaction.response.type)
 ```
 
-Next, I compare the number of thermally-responsive in each response category between the two colonies. 
+```
+## Classes 'data.table' and 'data.frame':	1553 obs. of  9 variables:
+##  $ Transcript: chr  "100148|*|comp125464_c0_seq1" "100636|*|comp3558092_c0_seq1" "100709|*|comp147744_c0_seq5" "100744|*|comp3708443_c0_seq1" ...
+##  $ A22.max   : num  0 0 38.5 0 0 38.5 17.5 0 0 0 ...
+##  $ A22.min   : num  23 26 0 26 38.5 0.5 38.5 26 38.5 25 ...
+##  $ A22.opt   : num  5.096 0.953 1.093 0.947 3.192 ...
+##  $ A22.type  : chr  "Bimodal" "Low" "High" "Low" ...
+##  $ Ar.max    : num  18 NA 0 NA 38.5 0 38.5 NA 18 21 ...
+##  $ Ar.min    : num  38.5 NA 38.5 NA 0 38.5 12.5 NA 38.5 0 ...
+##  $ Ar.opt    : num  1.01 1 4.56 1 1.04 ...
+##  $ Ar.type   : chr  "Intermediate" "NotResp" "Low" "NotResp" ...
+##  - attr(*, ".internal.selfref")=<externalptr> 
+##  - attr(*, "sorted")= chr "Transcript"
+```
+
+```r
+# calculate response types for transcripts without interactions
+temperature.response.type <- ldply(temperature.lms, .progress = "none", .inform = TRUE, RxNtype)
+
+# save results to file
+write.table(file = paste(resultsdir, "Ap_responsive_transcripts_", Sys.Date(), ".txt", sep = ""), sig.response.type, row.names = FALSE, col.names = TRUE, quote = FALSE, sep = "\t")
+```
+
+Next, I compared the number of thermally-responsive in each response category between the two colonies. 
 
 
 ```r
-A22.type.table <- table(Ap.response.type[ , 'A22.type'])
-Ar.type.table <- table(Ap.response.type[ , 'Ar.type'])
+A22.type.table <- table(sig.response.type$A22.type)
+Ar.type.table <- table(sig.response.type$Ar.type)
 
 # table
 (Ap.type.table <- rbind(A22.type.table, Ar.type.table))
 ```
 
 ```
-##                A22.type
-## A22.type.table        1
-## Ar.type.table         1
+##                Bimodal High Intermediate  Low NotResp
+## A22.type.table     278  248          249 1193     110
+## Ar.type.table      117  232          680  920     129
 ```
 
 ```r
+# proportion
+Ap.type.table.prop <- round(Ap.type.table / (sum(Ap.type.table)/2) * 100)
+
 # test if the number of transcripts in each category differs from null expectations using Pearson Chi-square test
 (chi1 <- chisq.test(Ap.type.table))
 ```
 
 ```
-## Warning: Chi-squared approximation may be incorrect
-```
-
-```
 ## 
-## 	Chi-squared test for given probabilities
+## 	Pearson's Chi-squared test
 ## 
 ## data:  Ap.type.table
-## X-squared = 0, df = 1, p-value = 1
+## X-squared = 300, df = 4, p-value <2e-16
 ```
 
 ```r
@@ -533,8 +557,8 @@ resp.table
 
 ```
 ##       Ap    Ac
-## R      1     1
-## NR 99860 99860
+## R   1968  1949
+## NR 97893 97912
 ```
 
 ```r
@@ -542,45 +566,27 @@ resp.table
 ```
 
 ```
-## Warning: Chi-squared approximation may be incorrect
-```
-
-```
 ## 
-## 	Pearson's Chi-squared test
+## 	Pearson's Chi-squared test with Yates' continuity correction
 ## 
 ## data:  resp.table
-## X-squared = 0, df = 1, p-value = 1
+## X-squared = 0.08, df = 1, p-value = 0.8
 ```
 
 ```r
 # test if the number of Low responsive transcripts differs between species 
 low.table <- matrix(nrow=2, ncol=2, dimnames = list(c("Low", "NotLow"), c("Ap", "Ac")))
 low.table[1,1] <- A22.type.table[which(names(A22.type.table) == "Low")]
-```
-
-```
-## Error: replacement has length zero
-```
-
-```r
 low.table[2,1] <- sum(A22.type.table[which(names(A22.type.table) != "Low")])
 low.table[1,2] <- Ar.type.table[which(names(Ar.type.table) == "Low")]
-```
-
-```
-## Error: replacement has length zero
-```
-
-```r
 low.table[2,2] <- sum(Ar.type.table[which(names(Ar.type.table) != "Low")])
 low.table
 ```
 
 ```
-##        Ap Ac
-## Low    NA NA
-## NotLow  1  1
+##          Ap   Ac
+## Low    1193  920
+## NotLow  885 1158
 ```
 
 ```r
@@ -588,37 +594,27 @@ low.table
 ```
 
 ```
-## Error: all entries of 'x' must be nonnegative and finite
+## 
+## 	Pearson's Chi-squared test with Yates' continuity correction
+## 
+## data:  low.table
+## X-squared = 70, df = 1, p-value <2e-16
 ```
 
 ```r
 # test if the number of Intermediate responsive transcripts differs between species 
 intermediate.table <- matrix(nrow=2, ncol=2, dimnames = list(c("Intermediate", "Others"), c("Ap", "Ac")))
 intermediate.table[1,1] <- A22.type.table[which(names(A22.type.table) == "Intermediate")]
-```
-
-```
-## Error: replacement has length zero
-```
-
-```r
 intermediate.table[2,1] <- sum(A22.type.table[which(names(A22.type.table) != "Intermediate")])
 intermediate.table[1,2] <- Ar.type.table[which(names(Ar.type.table) == "Intermediate")]
-```
-
-```
-## Error: replacement has length zero
-```
-
-```r
 intermediate.table[2,2] <- sum(Ar.type.table[which(names(Ar.type.table) != "Intermediate")])
 intermediate.table
 ```
 
 ```
-##              Ap Ac
-## Intermediate NA NA
-## Others        1  1
+##                Ap   Ac
+## Intermediate  249  680
+## Others       1829 1398
 ```
 
 ```r
@@ -626,37 +622,27 @@ intermediate.table
 ```
 
 ```
-## Error: all entries of 'x' must be nonnegative and finite
+## 
+## 	Pearson's Chi-squared test with Yates' continuity correction
+## 
+## data:  intermediate.table
+## X-squared = 300, df = 1, p-value <2e-16
 ```
 
 ```r
 # test if the number of High responsive transcripts differs between species 
 high.table <- matrix(nrow=2, ncol=2, dimnames = list(c("High", "Others"), c("Ap", "Ac")))
 high.table[1,1] <- A22.type.table[which(names(A22.type.table) == "High")]
-```
-
-```
-## Error: replacement has length zero
-```
-
-```r
 high.table[2,1] <- sum(A22.type.table[which(names(A22.type.table) != "High")])
 high.table[1,2] <- Ar.type.table[which(names(Ar.type.table) == "High")]
-```
-
-```
-## Error: replacement has length zero
-```
-
-```r
 high.table[2,2] <- sum(Ar.type.table[which(names(Ar.type.table) != "High")])
 high.table
 ```
 
 ```
-##        Ap Ac
-## High   NA NA
-## Others  1  1
+##          Ap   Ac
+## High    248  232
+## Others 1830 1846
 ```
 
 ```r
@@ -664,37 +650,27 @@ high.table
 ```
 
 ```
-## Error: all entries of 'x' must be nonnegative and finite
+## 
+## 	Pearson's Chi-squared test with Yates' continuity correction
+## 
+## data:  high.table
+## X-squared = 0.5, df = 1, p-value = 0.5
 ```
 
 ```r
 # test if the number of Bimodal responsive transcripts differs between species 
 bimodal.table <- matrix(nrow=2, ncol=2, dimnames = list(c("Bimodal", "Others"), c("Ap", "Ac")))
 bimodal.table[1,1] <- A22.type.table[which(names(A22.type.table) == "Bimodal")]
-```
-
-```
-## Error: replacement has length zero
-```
-
-```r
 bimodal.table[2,1] <- sum(A22.type.table[which(names(A22.type.table) != "Bimodal")])
 bimodal.table[1,2] <- Ar.type.table[which(names(Ar.type.table) == "Bimodal")]
-```
-
-```
-## Error: replacement has length zero
-```
-
-```r
 bimodal.table[2,2] <- sum(Ar.type.table[which(names(Ar.type.table) != "Bimodal")])
 bimodal.table
 ```
 
 ```
-##         Ap Ac
-## Bimodal NA NA
-## Others   1  1
+##           Ap   Ac
+## Bimodal  278  117
+## Others  1800 1961
 ```
 
 ```r
@@ -702,75 +678,26 @@ bimodal.table
 ```
 
 ```
-## Error: all entries of 'x' must be nonnegative and finite
+## 
+## 	Pearson's Chi-squared test with Yates' continuity correction
+## 
+## data:  bimodal.table
+## X-squared = 70, df = 1, p-value <2e-16
 ```
 
 The total number of responsive transcripts does not differ between species, though their groupings into expression categories does differ. 
 
-
-
-
-```r
-# Reorganize for plotting to show overlap among categories between colonies
-type.table <- table(Acar = Ap.response.type[ , 'Ar.type'], Apic = Ap.response.type[ , 'A22.type'])
-# reorder
-tt2 <- type.table[c("Low", "Intermediate", "High", "Bimodal", "NotResp"), c("Low", "Intermediate", "High", "Bimodal", "NotResp")]
-```
-
-```
-## Error: subscript out of bounds
-```
-
-```r
-# plot
-png("mosaic_plot.png")
-mosaic.colors <- brewer.pal(5, "Blues")
-par(mar = c(5.1, 3.1, 2.1, 7.5))
-mosaicplot(tt2, ylab = expression(italic("A. picea")), xlab = "", main = "", color = mosaic.colors, cex.axis = 0.01)
-```
-
-```
-## Error: object 'tt2' not found
-```
-
-```r
-labels <- c("Low", "Intermediate", "High", "Bimodal", "NotResp")
-text(c(.1,.5,.75,.85,.99), par("usr")[3] - 0.05, srt = 45, adj = 1, labels = labels, xpd = TRUE, font = 1)
-```
-
-```
-## Error: plot.new has not been called yet
-```
-
-```r
-text(.5, par("usr")[4], "A. carolinensis", xpd = TRUE, font = 3)
-```
-
-```
-## Error: plot.new has not been called yet
-```
-
-```r
-legend(1.05, .75, fill = mosaic.colors, c("Low", "Intermediate", "High", "Bimodal", "NotResp"), xpd=TRUE)
-```
-
-```
-## Error: plot.new has not been called yet
-```
-
-```r
-dev.off()
-```
-
-```
-## pdf 
-##   2
-```
+## Test of marginal frequencies between transcripts in each expression category between species
 
 The question of biological interest is whether the marginal frequencies differ between the two species. Statistically, this can be addressed using the generalized [McNemar's test](http://en.wikipedia.org/wiki/McNemar's_test) of marginal homogeneity. 
 
 
 ```r
+type.table <- table(Acar = sig.response.type$Ar.type, Apic = sig.response.type$A22.type)
+# reorder
+tt2 <- type.table[c("Low", "Intermediate", "High", "Bimodal", "NotResp"), c("Low", "Intermediate", "High", "Bimodal", "NotResp")]
+
+# McNemar's test
 mh.test <- mh_test(as.table(tt2))
 
 # calculate contribution of each off-diagonal to Z~0~
@@ -786,7 +713,7 @@ abs(d1)/dsum
 ```
 
 ```
-## [1] 0.298
+## [1] 0.303
 ```
 
 ```r
@@ -794,7 +721,7 @@ abs(d2)/dsum
 ```
 
 ```
-## [1] 0.441
+## [1] 0.479
 ```
 
 ```r
@@ -802,7 +729,7 @@ abs(d3)/dsum
 ```
 
 ```
-## [1] 0.0387
+## [1] 0.0178
 ```
 
 ```r
@@ -810,7 +737,7 @@ abs(d4)/dsum
 ```
 
 ```
-## [1] 0.164
+## [1] 0.179
 ```
 
 ```r
@@ -818,286 +745,259 @@ abs(d5)/dsum
 ```
 
 ```
-## [1] 0.0594
+## [1] 0.0211
 ```
 
 ```r
-# e2 (Acar Intermediate) contributes ~44% to Z~0~
+# e2 (Acar Intermediate) contributes ~48% to Z~0~
 ```
 
-To identify specific cells that deviate from null expectation, calculate expected observations assuming that marginal frequencies equal the overall frequency for each expression category, then determine which cells have deviations between observed and expected that are greater than the overall X^2^ statistic.
+To identify specific cells that deviate from null expectation, I calculated the expected observations assuming that marginal frequencies equal the overall frequency for each expression category, then determined which cells have deviations between observed and expected that are greater than the overall X^2^ statistic.
 
 
 ```r
 # overall mean for each class
 rs <- rowSums(tt2)
-```
-
-```
-## Error: object 'tt2' not found
-```
-
-```r
 cs <- colSums(tt2)
-```
-
-```
-## Error: object 'tt2' not found
-```
-
-```r
 (gm <- (rs + cs) / sum(tt2 * 2))
 ```
 
 ```
-## Error: object 'rs' not found
+##          Low Intermediate         High      Bimodal      NotResp 
+##       0.5084       0.2235       0.1155       0.0950       0.0575
 ```
 
 ```r
 # calculate observed values for each cell using overall mean for each expression type
 Ec <- outer(gm, gm, "*") * sum(tt2)
-```
 
-```
-## Error: object 'gm' not found
-```
-
-```r
 # get deviations of observed from expected
 Ec.dev <- tt2 - Ec
-```
 
-```
-## Error: object 'tt2' not found
-```
-
-```r
 # calculate chi-squared deviation 
 Ec.cells <- sign(tt2 - Ec) * (tt2 - Ec)^2 / Ec
-```
 
-```
-## Error: object 'tt2' not found
-```
-
-```r
 # which of these are significantly great than expected chi-squared?
 ```
 
-To visualize this, make a heatmap that shows deviation from expected count.
+To visualize this, I made a heatmap that showed the deviation of the actual number of transcripts in each cell from the expected count.
 
 
 ```r
-md <- melt(Ec.cells)
-```
-
-```
-## Error: object 'Ec.cells' not found
-```
-
-```r
-mh_plot <- qplot(x=Apic, y=Acar, data=md, fill=value, geom="tile", ylim = rev(levels(md$Acar))) + 
-  scale_fill_gradient2(limits=c(-600, 600)) +
+md <- reshape2::melt(Ec.dev)
+  
+mh_plot <- qplot(x=Apic, y=Acar, data=md, fill=value, geom="tile", ylim = rev(levels(md$Acar))) +
+  scale_fill_gradient2(limits=c(-200, 200), low="#f1a340", high="#998ec3") +
   theme(axis.title = element_text(face="italic")) +
   labs(x = "A. picea", y = "A. carolinensis")
+
+mh_plot
 ```
 
-```
-## Error: object 'md' not found
-```
+![](ApTranscriptome_TR_files/figure-html/mh_plot-1.png) 
 
 ```r
 # make subplot of rows that match hypotheses
 
 # A. carolinensis **Low** and **Bimodal**
 md_sub1 <- subset(md, Acar %in% c("Bimodal", "Low"), )
-```
-
-```
-## Error: error in evaluating the argument 'x' in selecting a method for function 'subset': Error: object 'md' not found
-```
-
-```r
 md_sub1 <- droplevels(md_sub1)
-```
 
-```
-## Error: object 'md_sub1' not found
-```
-
-```r
-mh_plot_sub1 <- qplot(x=Apic, y=Acar, data=md_sub1, fill=value, geom="tile", ylim = rev(levels(md_sub1$Acar))) + 
-  scale_fill_gradient2(limits=c(-600, 600)) +
+mh_plot_sub1 <- qplot(y=Apic, x=Acar, data=md_sub1, fill=value, geom="tile", xlim = rev(levels(md_sub1$Acar))) + 
+  scale_fill_gradient2(limits=c(-205, 205), low="#f1a340", high="#998ec3") +
   theme(axis.title = element_text(face="italic")) +
-  labs(x = "A. picea", y = "A. carolinensis") +
-  theme(legend.position = "none") + 
-  geom_rect(xmin = 0.5, xmax = 1.5, ymin = 1.5, ymax = 2.5, fill = "transparent", linetype=2, colour="black") +
-  geom_rect(xmin = 3.5, xmax = 4.5, ymin = 0.5, ymax = 1.5, fill = "transparent", linetype=2, colour="black")
-```
+  labs(y = "A. picea", x = "A. carolinensis") +
+  theme(legend.position = "right") + 
+  geom_rect(xmin = 0.5, xmax = 1.5, ymin = 3.5, ymax = 4.5, fill = "transparent", linetype=2, colour="black") +
+  geom_rect(xmin = 1.5, xmax = 2.5, ymin = 0.5, ymax = 1.5, fill = "transparent", linetype=2, colour="black")
 
-```
-## Error: object 'md_sub1' not found
-```
-
-```r
 mh_plot_sub1
 ```
 
-```
-## Error: object 'mh_plot_sub1' not found
-```
+![](ApTranscriptome_TR_files/figure-html/mh_plot-2.png) 
 
 ```r
 # A. picea **High** and **Bimodal**
 md_sub2 <- subset(md, Apic %in% c("High", "Bimodal"), )
-```
-
-```
-## Error: error in evaluating the argument 'x' in selecting a method for function 'subset': Error: object 'md' not found
-```
-
-```r
 md_sub2 <- droplevels(md_sub2)
-```
 
-```
-## Error: object 'md_sub2' not found
-```
-
-```r
-mh_plot_sub2 <- qplot(x=Acar, y=Apic, data=md_sub2, fill=value, geom="tile", ylim = rev(levels(md_sub2$Apic))) + 
-  scale_fill_gradient2(limits=c(-600, 600)) +
+mh_plot_sub2 <- qplot(y=Acar, x=Apic, data=md_sub2, fill=value, geom="tile", xlim = rev(levels(md_sub2$Apic))) + 
+  scale_fill_gradient2(limits=c(-205, 205), low="#f1a340", high="#998ec3") +
   theme(axis.title = element_text(face="italic")) +
-  labs(x = "A. carolinensis", y = "A. picea") + 
-  theme(legend.position = "bottom") + 
-  geom_rect(xmin = 2.5, xmax = 3.5, ymin = 1.5, ymax = 2.5, fill = "transparent", linetype=2, colour="black") +
-  geom_rect(xmin = 3.5, xmax = 4.5, ymin = 0.5, ymax = 1.5, fill = "transparent", linetype=2, colour="black")
-```
+  labs(y = "A. carolinensis", x = "A. picea") + 
+  theme(legend.position = "none") + 
+  geom_rect(xmin = 0.5, xmax = 1.5, ymin = 3.5, ymax = 4.5, fill = "transparent", linetype=2, colour="black") +
+  geom_rect(xmin = 1.5, xmax = 2.5, ymin = 2.5, ymax = 3.5, fill = "transparent", linetype=2, colour="black")
 
-```
-## Error: object 'md_sub2' not found
-```
-
-```r
 mh_plot_sub2
 ```
 
-```
-## Error: object 'mh_plot_sub2' not found
-```
+![](ApTranscriptome_TR_files/figure-html/mh_plot-3.png) 
 
 ```r
 # arrange plots to make figure for manuscript
 mh_plot_sub1 <- mh_plot_sub1 + ggtitle('A') + theme(plot.title = element_text(hjust=0))
-```
-
-```
-## Error: object 'mh_plot_sub1' not found
-```
-
-```r
 mh_plot_sub2 <- mh_plot_sub2 + ggtitle('B') + theme(plot.title = element_text(hjust=0))
-```
 
-```
-## Error: object 'mh_plot_sub2' not found
-```
-
-```r
-png("results/matched_observations_Fig1.png")
-grid.arrange(mh_plot_sub1, mh_plot_sub2, ncol=1, heights = c(0.45, 0.6))
-```
-
-```
-## Error: object 'mh_plot_sub1' not found
-```
-
-```r
+png("results/matched_observations_Fig2.png")
+grid.arrange(mh_plot_sub1, mh_plot_sub2, ncol=2, widths = c(3.75, 3))
 dev.off()
 ```
 
 ```
-## pdf 
-##   2
+## quartz_off_screen 
+##                 2
 ```
 
 ```r
 # full figure for supplemental
 png("results/matched_observations_FigS1.png")
 mh_plot
-```
-
-```
-## Error: object 'mh_plot' not found
-```
-
-```r
 dev.off()
 ```
 
 ```
-## pdf 
-##   2
+## quartz_off_screen 
+##                 2
 ```
 
-The number of thermally-responsive in each response category differs between the colonies, with the msot transcripts expressed at *Low* temperatures in both colonies. For *ApVT*, an equal number of transcripts are expressed at *High* and *Bimodal*, followed by *Intermediate* transcripts. For *AcNC*, transcripts expressed at *Intermediate* temperatures are next most common, followed by *High* and *Bimodal*. 
 
-Interestingly, nearly half of the *High* genes in *AcNC* are *Low* in *ApVT*, and vice versa. In contrast, most of the *Low* genes in one species are also *Low* in the other species.
+The *enhanced response hypothesis* posits that temperature adaptation uses existing response mechanisms, which should result in significant overlap in response. This pattern would be apparent as an excess of transcripts with the same response pattern between species (e.g. more shared "Low" transcripts) and a deficit of transcripts that shift to other response patterns or become not responsive. 
+
+
+```r
+enhanced_response_dat <- md_sub1
+enhanced_response_dat$value <- 0
+# set non-shared response to random negative value 
+enhanced_response_dat[which(enhanced_response_dat$Acar == "Low"), "value"] <- runif(5, min=-20, max=-10)
+enhanced_response_dat[which(enhanced_response_dat$Acar == "Bimodal"), "value"] <- runif(5, min=-20, max=-10)
+# change shared response to positive
+enhanced_response_dat[which(enhanced_response_dat$Acar == "Low" & enhanced_response_dat$Apic == "Low"), "value"] <- 30
+enhanced_response_dat[which(enhanced_response_dat$Acar == "Bimodal" & enhanced_response_dat$Apic == "Bimodal"), "value"] <- 30
+
+enhanced_response_dat
+```
+
+```
+##       Acar         Apic value
+## 1      Low          Low  30.0
+## 4  Bimodal          Low -14.3
+## 6      Low Intermediate -16.0
+## 9  Bimodal Intermediate -17.0
+## 11     Low         High -11.4
+## 14 Bimodal         High -19.1
+## 16     Low      Bimodal -16.9
+## 19 Bimodal      Bimodal  30.0
+## 21     Low      NotResp -19.0
+## 24 Bimodal      NotResp -17.9
+```
+
+```r
+# plot
+enhanced_response_plot <- ggplot(enhanced_response_dat, aes(y = Apic, x = Acar, fill=value)) + 
+  geom_tile(colour = "#ffffff", size =1) +
+  xlim(rev(levels(enhanced_response_dat$Acar))) + 
+  scale_fill_gradient2(limits=c(-100, 100), low="#f1a340", high="#998ec3") +
+  theme(axis.title = element_text(face="italic")) +
+  labs(y = "A. picea", x = "A. carolinensis") +
+  theme(legend.position = "right") + 
+  geom_rect(xmin = 0.5, xmax = 1.5, ymin = 3.5, ymax = 4.5, fill = "transparent", linetype=2, colour="black") +
+  geom_rect(xmin = 1.5, xmax = 2.5, ymin = 0.5, ymax = 1.5, fill = "transparent", linetype=2, colour="black")
+
+# title
+enhanced_response_plot <- enhanced_response_plot + ggtitle('Enhanced Response hypothesis') + theme(plot.title = element_text(hjust=0, size = 10))
+enhanced_response_plot
+```
+
+![](ApTranscriptome_TR_files/figure-html/er_cartoon-1.png) 
+
+In contrast, the *tolerance hypothesis* predicts that genes involved in active response will become non-responsive or shift to other response categories in the better-adapted species. 
+
+
+```r
+tolerance_dat <- md_sub1
+tolerance_dat$value <- 0
+# set non-shared response to random positive value 
+tolerance_dat[which(tolerance_dat$Acar == "Low"), "value"] <- runif(5, min=40, max=60)
+tolerance_dat[which(tolerance_dat$Acar == "Bimodal"), "value"] <- runif(5, min=40, max=60)
+# change shared response to near zero
+tolerance_dat[which(tolerance_dat$Acar == "Low" & tolerance_dat$Apic == "Low"), "value"] <- -20
+tolerance_dat[which(tolerance_dat$Acar == "Bimodal" & tolerance_dat$Apic == "Bimodal"), "value"] <- -20
+
+tolerance_dat
+```
+
+```
+##       Acar         Apic value
+## 1      Low          Low -20.0
+## 4  Bimodal          Low  47.0
+## 6      Low Intermediate  48.3
+## 9  Bimodal Intermediate  48.5
+## 11     Low         High  55.7
+## 14 Bimodal         High  54.7
+## 16     Low      Bimodal  46.8
+## 19 Bimodal      Bimodal -20.0
+## 21     Low      NotResp  56.3
+## 24 Bimodal      NotResp  59.4
+```
+
+```r
+# plot
+tolerance_plot <- ggplot(tolerance_dat, aes(y=Apic, x=Acar, fill=value)) + 
+  geom_tile(colour = "#ffffff", size =1) +
+  xlim(rev(levels(enhanced_response_dat$Acar))) + 
+  scale_fill_gradient2(limits=c(-100, 100), low="#f1a340", high="#998ec3") +
+  theme(axis.title = element_text(face="italic")) +
+  labs(y = "A. picea", x = "A. carolinensis") +
+  theme(legend.position = "none") + 
+  geom_rect(xmin = 0.5, xmax = 1.5, ymin = 3.5, ymax = 4.5, fill = "transparent", linetype=2, colour="black") +
+  geom_rect(xmin = 1.5, xmax = 2.5, ymin = 0.5, ymax = 1.5, fill = "transparent", linetype=2, colour="black")
+
+# title
+tolerance_plot <- tolerance_plot + ggtitle('Tolerance hypothesis') + theme(plot.title = element_text(hjust=0, size = 10))
+tolerance_plot
+```
+
+![](ApTranscriptome_TR_files/figure-html/tol_cartoon-1.png) 
+
+```r
+# plot together
+png("results/predictions_Fig1.png")
+grid.arrange(enhanced_response_plot, tolerance_plot, ncol=2, widths = c(3.7, 3))
+dev.off()
+```
+
+```
+## quartz_off_screen 
+##                 2
+```
+
+
+The number of thermally-responsive in each response category differed between the colonies. For *A. picea*, the majority of the responsive transcripts were in the *Low* category, followed by *Bimodal*, *High*, *Intermediate* and *Not Responsive*. For *A. carolinensis*, the majority of responsive transcripts were in the *Bimodal* and *High* categories, followed by *Intermediate*, *Low* and *Not Responsive*.  
+
+Interestingly, over half of the *High* genes in *AcNC* are *Low* in *ApVT*, and vice versa. In contrast, most of the *Low* genes in one species are also *Low* in the other species.
 
 
 
 |   &nbsp;   |   **ApVT**   |  &nbsp;  |    &nbsp;    |  &nbsp;  |  &nbsp;  |  &nbsp;  |  &nbsp;  |
 |:----------:|:------------:|:--------:|:------------:|:--------:|:--------:|:--------:|:--------:|
 |  **AcNC**  |              |   Low    | Intermediate |   High   | Bimodal  | NotResp  |  Total   |
-|            |     Low      |   2654   |     160      |   405    |   299    |   240    |   3758   |
-|            | Intermediate |   1314   |     542      |   147    |   536    |    67    |   2606   |
-|            |     High     |   466    |      69      |   312    |   153    |    89    |   1089   |
-|            |   Bimodal    |   185    |     120      |   160    |   297    |   106    |   868    |
-|            |   NotResp    |   285    |      18      |   214    |   214    |    0     |   731    |
-|            |    Total     |   4904   |     909      |   1238   |   1499   |   502    |   9052   |
+|            |     Low      |   659    |      36      |   120    |    39    |    66    |   920    |
+|            | Intermediate |   290    |     163      |    48    |   156    |    23    |   680    |
+|            |     High     |   122    |      17      |    57    |    24    |    12    |   232    |
+|            |   Bimodal    |    34    |      28      |    10    |    36    |    9     |   117    |
+|            |   NotResp    |    88    |      5       |    13    |    23    |    0     |   129    |
+|            |    Total     |   1193   |     249      |   248    |   278    |   110    |   2078   |
 
 Table: Number of transcripts with maximum expression at high, low, intermediate, both high and low (bimodal) temperatures or are not thermally-responsivefor each species and their overlap.
 
-Table 4 shows the number of transcripts that fall into each expression type for each each species. The totals for each species include the 2260 transcripts that have consistent temperature responses between the two colonies. 
+Table 4 shows the number of transcripts that fall into each expression type for each each species. The totals for each species *do not* include the 525 transcripts that have consistent temperature responses between the two colonies. 
 
-An interesting observation from the matched observations plot (Fig. 1) is that for **NotResp** genes in *A. carolinensis* the **High** and **Bimodal** categories in *A. picea* are over-represented. Finding that the mean expression level of these genes in *A. carolinensis* is greater than the expression level at the optimum temperature (19.5°C) in *A. picea* would be consistent with genetic assimilation.
-
-
-```r
-Ap.high.Ac.nr <- Ap.response.type[which(Ap.response.type$A22.type == "High" & Ap.response.type$Ar.type == "NotResp"), ]
-
-# get mean expression level for Ar transcripts
-Ap.high.Ac.nr.TPM <- TPM.dt.sub[Ap.high.Ac.nr$Transcript]
-Ap.high.Ac.nr.mean.exp.NR <- ddply(Ap.high.Ac.nr.TPM, .(Transcript), summarize, meanTPM = mean(TPM))
-
-# get expression at optimum for A22 transcripts
-
-Ap.high.Ac.nr.opt.exp <- Ap.high.Ac.nr$A22.opt
-
-t.test(Ap.high.Ac.nr.mean.exp.NR$meanTPM, Ap.high.Ac.nr.opt.exp)
-```
-
-```
-## 
-## 	Welch Two Sample t-test
-## 
-## data:  Ap.high.Ac.nr.mean.exp.NR$meanTPM and Ap.high.Ac.nr.opt.exp
-## t = -55, df = 340, p-value < 2.2e-16
-## alternative hypothesis: true difference in means is not equal to 0
-## 95 percent confidence interval:
-##  -0.975 -0.907
-## sample estimates:
-## mean of x mean of y 
-##    0.0824    1.0234
-```
-
-Contrary to expectations, mean expression of the non-responsive *A. carolinensis* genes is less than expression of the **High** genes in *A. picea*.
-
-Next, I check the same for the **Bimodal** genes in *A. picea*.
+An interesting observation from the matched observations plot (Fig. 1) is that for **NotResp** genes in *A. carolinensis* the **Bimodal** category in *A. picea* is over-represented. Finding that the mean expression level of these genes in *A. carolinensis* is greater than the expression level at the rearing temperature (25°C) in *A. picea* would be consistent with genetic assimilation. That is, they have evolved to be constitutively activated in *A. carolinensis* and thus are no longer thermally-responsive as they are in *A. picea*.
 
 
 ```r
-Ap.bim.Ac.nr <- Ap.response.type[which(Ap.response.type$A22.type == "Bimodal" & Ap.response.type$Ar.type == "NotResp"), ]
+Ap.bim.Ac.nr <- sig.response.type[which(sig.response.type$A22.type == "Bimodal" & sig.response.type$Ar.type == "NotResp"), ]
 
 # get mean expression level for Ar transcripts
 Ap.bim.Ac.nr.TPM <- TPM.dt.sub[Ap.bim.Ac.nr$Transcript]
@@ -1114,36 +1014,69 @@ t.test(Ap.bim.Ac.nr.mean.exp.NR$meanTPM, Ap.bim.Ac.nr.opt.exp)
 ## 	Welch Two Sample t-test
 ## 
 ## data:  Ap.bim.Ac.nr.mean.exp.NR$meanTPM and Ap.bim.Ac.nr.opt.exp
-## t = -55.2, df = 375, p-value < 2.2e-16
+## t = -10, df = 30, p-value = 2e-12
 ## alternative hypothesis: true difference in means is not equal to 0
 ## 95 percent confidence interval:
-##  -0.966 -0.900
+##  -1.222 -0.836
 ## sample estimates:
 ## mean of x mean of y 
-##     0.105     1.038
+##     0.199     1.228
 ```
 
-As with the **High** transcripts, expression much higher for the responsive *A. picea* transcripts than for the non-responsive *A. carolinensis* transcripts.
+This hypothesis was not supported as expression was higher for the **Bimodal** transcripts in *A. picea* than the non-responsive *A. carolinensis* transcripts.
 
 ## Species comparisons
 
-In this section, I perform a number of comparisons of the thermal reactionomes between the *Ar* and *A22* species. Specifically, I:
+In this section, I performed a number of comparisons of the thermal reactionomes between the *Ar* and *A22* species. Specifically, I:
 
-- compare profiles of the temperature of maximum expression for thermally-responsive transcripts
-- compare basal expression at optimal temperature for thermally-responsive genes
-- compare degree of uregulation to constitutive expression
-- compare the critical temperature of transcript upregulation, T~on~, between species for transcripts induced in response to high or low temperatures 
-- compare the critical temperature of transcript downregulation, T~off~, between species for transcripts induced in response to high or low temperatures 
+- compared profiles of the temperature of maximum expression for thermally-responsive transcripts
+- compared basal expression at optimal temperature for thermally-responsive genes
+- compared degree of upregulation to constitutive expression
+- compared the critical temperature of transcript upregulation, T~on~, between species for transcripts induced in response to high or low temperatures 
+- compared the critical temperature of transcript downregulation, T~off~, between species for transcripts induced in response to high or low temperatures 
+
+For these tests, I predicted expression for responsive transcripts.
+
+
+```r
+# subset to transcripts with significant temperature x species interaction
+resp.TPM.dt.sub <- TPM.dt.sub[names(interaction.lms)]
+
+# apply predFunc to all responsive transcripts
+resp.TPM.dt.sub.pred <- ddply(resp.TPM.dt.sub, .(Transcript), .inform="TRUE", predFunc)
+
+# setkey to Transcript and colony 
+resp.TPM.dt.sub.pred <- data.table(resp.TPM.dt.sub.pred)
+setkey(resp.TPM.dt.sub.pred, Transcript, colony)
+```
+
+I checked the proportion of responsive transcripts against those that have a BLAST hit.
+
+
+```r
+annotation.table.responsive <- annotation.table[which(annotation.table$best.hit.to.nr != "-"), ]
+
+responsive_transcripts_w_BLAST <- length(which(unique(resp.TPM.dt.sub$Transcript) %in% annotation.table.responsive$Sequence.Name))
+
+responsive_transcripts_w_BLAST / round(nrow(annotation.table.responsive))
+```
+
+```
+## [1] 0.0141
+```
 
 
 ### Compare temperature of maximum expression between species
 
-Probability density function of peak expression for transcripts that differ in expression between *A22* and *Ar*
+Probability density function of peak expression for transcripts that differ in expression between *A22* and *Ar*. For this analysis, I used only the transcripts with a significant temperature by species interaction.
 
 
 ```r
 # reshape data
-Ap.df <- data.frame(Transcript = rep(Ap.response.type$Transcript, times = 2), colony = rep(c("ApVT", "AcNC"), each = length(Ap.response.type$Transcript)), max.val = c(Ap.response.type$A22.max, Ap.response.type$Ar.max))
+Ap.df <- data.frame(Transcript = rep(interaction.response.type$Transcript, times = 2), 
+                    colony = rep(c("ApVT", "AcNC"), 
+                                 each = length(interaction.response.type$Transcript)), 
+                    max.val = c(interaction.response.type$A22.max, interaction.response.type$Ar.max))
 
 maxexplot <- ggplot(Ap.df, aes(x=max.val, fill=colony)) + 
   geom_density(alpha=0.2, position="identity") + 
@@ -1153,36 +1086,29 @@ maxexplot <- ggplot(Ap.df, aes(x=max.val, fill=colony)) +
 print(maxexplot)
 ```
 
-![plot of chunk max_exp_PDF](figure/max_exp_PDF.png) 
+![](ApTranscriptome_TR_files/figure-html/max_exp_PDF-1.png) 
 
 ```r
 # Figure for presentation
 png("results/temp_max_expression.png")
 maxexplot + theme(legend.position = "none")
-```
-
-```
-## Error: could not open file 'results/temp_max_expression.png'
-```
-
-```r
 dev.off()
 ```
 
 ```
-## pdf 
-##   2
+## quartz_off_screen 
+##                 2
 ```
 
 
 ### Compare basal expression at optimal temperature for thermally-responsive genes
 
-Genes upregulated in response to thermal stress in one species may have greater basal levels of expression in the other species that experiences those stressful conditions more often. To test this hypothesis, we compared expression levels near the optimal temperature (19.5C) between the two species for genes in that are either in the 'High' or 'Low' expression group in the other species. Specifically, do genes upregulated at high temperatures in *A22* have greater basal expression at optimal temperatures in *Ar*?
+Genes upregulated in response to thermal stress in one species may have greater basal levels of expression in the other species that experiences those stressful conditions more often. To test this hypothesis, we compared expression levels at the rearing temperature (25C) between the two species for genes in that are either in the 'High' or 'Low' expression group in the other species. Specifically, do genes upregulated at high temperatures in *A22* have greater basal expression at optimal temperatures in *Ar*? 
 
 
 ```r
 # list of transcripts that are 'high' expressed in A22
-A22.high.transcripts.df <- Ap.response.type[which(Ap.response.type$A22.type == "High"), ]
+A22.high.transcripts.df <- interaction.response.type[which(interaction.response.type$A22.type == "High"), ]
 
 # Compare expression at optimum temp (A22.opt) between colonies using t-test
 t.test(A22.high.transcripts.df$A22.opt, A22.high.transcripts.df$Ar.opt)
@@ -1193,20 +1119,20 @@ t.test(A22.high.transcripts.df$A22.opt, A22.high.transcripts.df$Ar.opt)
 ## 	Welch Two Sample t-test
 ## 
 ## data:  A22.high.transcripts.df$A22.opt and A22.high.transcripts.df$Ar.opt
-## t = -0.153, df = 2337, p-value = 0.878
+## t = -0.1, df = 400, p-value = 0.9
 ## alternative hypothesis: true difference in means is not equal to 0
 ## 95 percent confidence interval:
-##  -1159   991
+##  -6794  5844
 ## sample estimates:
 ## mean of x mean of y 
-##       385       469
+##      2147      2622
 ```
 
 ```r
 boxplot(A22.high.transcripts.df$A22.opt, A22.high.transcripts.df$Ar.opt)
 ```
 
-![plot of chunk optimum_expression_comparison](figure/optimum_expression_comparison1.png) 
+![](ApTranscriptome_TR_files/figure-html/optimum_expression_comparison-1.png) 
 
 ```r
 # T test on log-transformed values to control for outliers
@@ -1218,22 +1144,22 @@ t.test(log(A22.high.transcripts.df$A22.opt+1), log(A22.high.transcripts.df$Ar.op
 ## 	Welch Two Sample t-test
 ## 
 ## data:  log(A22.high.transcripts.df$A22.opt + 1) and log(A22.high.transcripts.df$Ar.opt + 1)
-## t = -3.66, df = 2459, p-value = 0.0002603
+## t = -3, df = 400, p-value = 0.002
 ## alternative hypothesis: true difference in means is not equal to 0
 ## 95 percent confidence interval:
-##  -0.2697 -0.0814
+##  -0.856 -0.189
 ## sample estimates:
 ## mean of x mean of y 
-##      1.11      1.28
+##      1.47      1.99
 ```
 
 ```r
 boxplot(log(A22.high.transcripts.df$A22.opt+1), log(A22.high.transcripts.df$Ar.opt+1))
 ```
 
-![plot of chunk optimum_expression_comparison](figure/optimum_expression_comparison2.png) 
+![](ApTranscriptome_TR_files/figure-html/optimum_expression_comparison-2.png) 
 
-The `t.test` fails to account for the many orders of magnitude difference in expression among transcripts, e.g. non-equal variances. This problem is the key issue in the analysis of differential expression (Bullard, Purdom, Hansen, and Dudoit, 2010; Anders, McCarthy, Chen, Okoniewski, Smyth, Huber, and Robinson, 2013). As my goal is simply to determine if expression is typically greater at optimal temperatures (19.5 C) in *Ar* than *A22* for genes that are up-regulated at high temperatures in *A22*, I use a non-parametric Wilcoxon signed rank-test
+The `t.test` fails to account for the many orders of magnitude difference in expression among transcripts, e.g. non-equal variances. This problem is the key issue in the analysis of differential expression (Bullard, Purdom, Hansen, and Dudoit, 2010; Anders, McCarthy, Chen, Okoniewski, Smyth, Huber, and Robinson, 2013). As my goal is simply to determine if expression is typically greater at optimal temperatures (19.5 C) in *Ar* than *A22* for genes that are up-regulated at high temperatures in *A22*, I use a non-parametric Wilcoxon signed rank-test.
 
 
 ```r
@@ -1246,23 +1172,23 @@ w1
 ## 	Wilcoxon signed rank test with continuity correction
 ## 
 ## data:  A22.high.transcripts.df$A22.opt and A22.high.transcripts.df$Ar.opt
-## V = 198641, p-value < 2.2e-16
+## V = 5000, p-value = 2e-12
 ## alternative hypothesis: true location shift is not equal to 0
 ## 95 percent confidence interval:
-##  -0.296 -0.171
+##  -3.31 -1.27
 ## sample estimates:
 ## (pseudo)median 
-##         -0.231
+##          -1.97
 ```
 
-Consistent with expectation, there is greater expression at 19.5C for *Ar* than *A22* transcripts for the set of transcripts that are transcripts that are up-regulated at high temperatures in *A22*. Note that A22 had the larger library size so if this was due to TPM not correctly accounting for differences in reads between samples, we would expect to see a positive instead of negative value here.
+Consistent with expectations, there is greater expression at 25C for *Ar* than *A22* transcripts for the set of transcripts that are transcripts that are up-regulated at high temperatures in *A22*. Note that *A22* had the larger library size so if this was due to TPM not correctly accounting for differences in reads between samples, we would expect to see a positive instead of negative value here.
 
 Next I test the converse: do genes up-regulated at low temperatures in *Ar* have greater basal expression near optimal temperatures in *A22*?
 
 
 ```r
 # list of transcripts that are 'high' expressed in Ar
-Ar.low.transcripts.df <- Ap.response.type[which(Ap.response.type$Ar.type == "Low"), ]
+Ar.low.transcripts.df <- interaction.response.type[which(interaction.response.type$Ar.type == "Low"), ]
 
 # t-test with log values
 t.test(log(Ar.low.transcripts.df$A22.opt+1), log(Ar.low.transcripts.df$Ar.opt+1))
@@ -1273,20 +1199,20 @@ t.test(log(Ar.low.transcripts.df$A22.opt+1), log(Ar.low.transcripts.df$Ar.opt+1)
 ## 	Welch Two Sample t-test
 ## 
 ## data:  log(Ar.low.transcripts.df$A22.opt + 1) and log(Ar.low.transcripts.df$Ar.opt + 1)
-## t = -6.57, df = 7504, p-value = 5.21e-11
+## t = -5, df = 1000, p-value = 1e-06
 ## alternative hypothesis: true difference in means is not equal to 0
 ## 95 percent confidence interval:
-##  -0.1727 -0.0934
+##  -0.371 -0.157
 ## sample estimates:
 ## mean of x mean of y 
-##      1.26      1.39
+##      1.18      1.45
 ```
 
 ```r
 boxplot(log(Ar.low.transcripts.df$A22.opt+1), log(Ar.low.transcripts.df$Ar.opt+1))
 ```
 
-![plot of chunk Ar_low_wilcoxon](figure/Ar_low_wilcoxon.png) 
+![](ApTranscriptome_TR_files/figure-html/Ar_low_wilcoxon-1.png) 
 
 ```r
 # Wilcoxon signed rank-test
@@ -1299,13 +1225,13 @@ w2
 ## 	Wilcoxon signed rank test with continuity correction
 ## 
 ## data:  Ar.low.transcripts.df$A22.opt and Ar.low.transcripts.df$Ar.opt
-## V = 2198150, p-value < 2.2e-16
+## V = 40000, p-value <2e-16
 ## alternative hypothesis: true location shift is not equal to 0
 ## 95 percent confidence interval:
-##  -0.455 -0.362
+##  -1.221 -0.729
 ## sample estimates:
 ## (pseudo)median 
-##         -0.406
+##         -0.956
 ```
 
 Counter to expectations, expression at optimal temperatures is also greater in *Ar* than *A22* for transcripts upregulated at low temperatures in *Ar*. 
@@ -1315,7 +1241,7 @@ To confirm that there are not sample-level issues, I performed the same comparis
 
 ```r
 # list of transcripts that are 'Intermediate' expressed in either colony
-Ap.int.transcripts <- Ap.response.type[which(Ap.response.type$Ar.type == "Intermediate" | Ap.response.type$A22.type == "Intermediate"), ]
+Ap.int.transcripts <- interaction.response.type[which(interaction.response.type$Ar.type == "Intermediate" | interaction.response.type$A22.type == "Intermediate"), ]
 # T test
 t.test(log(Ap.int.transcripts$A22.opt+1), log(Ap.int.transcripts$Ar.opt+1))
 ```
@@ -1325,13 +1251,13 @@ t.test(log(Ap.int.transcripts$A22.opt+1), log(Ap.int.transcripts$Ar.opt+1))
 ## 	Welch Two Sample t-test
 ## 
 ## data:  log(Ap.int.transcripts$A22.opt + 1) and log(Ap.int.transcripts$Ar.opt + 1)
-## t = -6.23, df = 5939, p-value = 4.935e-10
+## t = -5, df = 1000, p-value = 8e-08
 ## alternative hypothesis: true difference in means is not equal to 0
 ## 95 percent confidence interval:
-##  -0.237 -0.123
+##  -0.512 -0.239
 ## sample estimates:
 ## mean of x mean of y 
-##      1.33      1.51
+##      1.43      1.80
 ```
 
 ```r
@@ -1345,13 +1271,13 @@ w3
 ## 	Wilcoxon signed rank test with continuity correction
 ## 
 ## data:  Ap.int.transcripts$A22.opt and Ap.int.transcripts$Ar.opt
-## V = 1433484, p-value < 2.2e-16
+## V = 70000, p-value <2e-16
 ## alternative hypothesis: true location shift is not equal to 0
 ## 95 percent confidence interval:
-##  -0.485 -0.365
+##  -1.69 -1.02
 ## sample estimates:
 ## (pseudo)median 
-##         -0.423
+##          -1.31
 ```
 
 The non-parametric test for both comparisions also finds greater expression in *Ar* than *A22* at the optimal temperature.
@@ -1365,229 +1291,165 @@ First, I calculate the degree of expression induction as the proportion differen
 # calculate degree of induction
 Ap.induction <- ddply(resp.TPM.dt.sub.pred, .(colony, Transcript), summarise, 
                       upreg = (max(pTPM) - min(pTPM))/min(pTPM) * 100 )
-```
-
-```
-## Error: object 'resp.TPM.dt.sub.pred' not found
-```
-
-```r
 # cast to wide
 Ap.induction.wide <- dcast(Ap.induction, Transcript ~ colony, value.var = "upreg")
-```
-
-```
-## Error: object 'Ap.induction' not found
-```
-
-```r
 names(Ap.induction.wide)[names(Ap.induction.wide)=="A22"] <- "A22.upreg"
-```
-
-```
-## Error: object 'Ap.induction.wide' not found
-```
-
-```r
 names(Ap.induction.wide)[names(Ap.induction.wide)=="Ar"] <- "Ar.upreg"
-```
 
-```
-## Error: object 'Ap.induction.wide' not found
-```
-
-```r
-# merge optimum expression, in Ap.response.type data.frame, with predicted TPM data
+# merge optimum expression, in interaction.response.type data.frame, with predicted TPM data
 Ap.induction.wide <- data.table(Ap.induction.wide)
-```
-
-```
-## Error: object 'Ap.induction.wide' not found
-```
-
-```r
 setkey(Ap.induction.wide, Transcript)
+interaction.response.type2 <- Ap.induction.wide[interaction.response.type]
 ```
 
-```
-## Error: object 'Ap.induction.wide' not found
-```
-
-```r
-Ap.response.type2 <- Ap.induction.wide[Ap.response.type]
-```
-
-```
-## Error: object 'Ap.induction.wide' not found
-```
-
-I extract the **High** transcripts for *A. picea* and plot the log ratio of inducibility in *A. picea* over inducibility in *A. carolinensis*, against the log ratio of constitutive expression in *A. carolinensis* against expression in *A. picea*. According to the *genetic assimilation hypothesis* there should be a positive relationship between these ratios. That is, greater constitutive expression in *A. carolinensis* should have greater inducibility towards **High** temperatures in *A. picea*.
-
+I extracted the **High** transcripts for *A. picea* and examined the log ratio of inducibility against the log ratio of constitutive expression in *A. picea* over *A. carolinensis**. According to the *genetic assimilation hypothesis* there should be a negative relationship between these ratios. That is, transcripts with greater constitutive expression in *A. carolinensis* should have greater inducibility in response to **High** temperatures in *A. picea*.
 
 
 ```r
-Ap.response.type2.A22.high <- Ap.response.type2[Ap.response.type2$Transcript %in% A22.high.transcripts.df$Transcript, ]
+interaction.response.type2.A22.high <- interaction.response.type2[interaction.response.type2$Transcript %in% A22.high.transcripts.df$Transcript, ]
+str(interaction.response.type2.A22.high)
 ```
 
 ```
-## Error: object 'Ap.response.type2' not found
-```
-
-```r
-str(Ap.response.type2.A22.high)
-```
-
-```
-## Error: object 'Ap.response.type2.A22.high' not found
+## Classes 'data.table' and 'data.frame':	215 obs. of  11 variables:
+##  $ Transcript: chr  "100709|*|comp147744_c0_seq5" "100996|*|comp149394_c1_seq2" "102136|*|comp139488_c2_seq1" "103138|*|comp2868255_c0_seq1" ...
+##  $ A22.upreg : num  9.08 29.27 13.62 4.77 39.78 ...
+##  $ Ar.upreg  : num  157.2 156.5 125.4 73.1 20.3 ...
+##  $ A22.max   : num  38.5 38.5 38.5 38.5 34.5 38.5 38.5 38.5 38.5 38.5 ...
+##  $ A22.min   : num  0 0.5 0 14.2 0 ...
+##  $ A22.opt   : num  1.09 1.53 1.66 1 139.49 ...
+##  $ A22.type  : chr  "High" "High" "High" "High" ...
+##  $ Ar.max    : num  0 0 19 0 18.5 NA 0 0 0 0 ...
+##  $ Ar.min    : num  38.5 38.5 38.5 26.5 38.5 NA 38.5 38.5 38.5 38.5 ...
+##  $ Ar.opt    : num  4.56 19.85 6.32 0.95 1.82 ...
+##  $ Ar.type   : chr  "Low" "Low" "Intermediate" "Low" ...
+##  - attr(*, "sorted")= chr "Transcript"
+##  - attr(*, ".internal.selfref")=<externalptr>
 ```
 
 ```r
 # filter out NotResp transcripts in Ar
-Ap.response.type2.A22.high <- Ap.response.type2.A22.high[which(Ap.response.type2.A22.high$Ar.type != "NotResp"), ]
-```
+interaction.response.type2.A22.high <- interaction.response.type2.A22.high[which(interaction.response.type2.A22.high$Ar.type != "NotResp"), ]
 
-```
-## Error: object 'Ap.response.type2.A22.high' not found
-```
+# ratio of upregulation in A22 vs Ar
+interaction.response.type2.A22.high$A22.Ar.upreg <- interaction.response.type2.A22.high$A22.upreg / interaction.response.type2.A22.high$Ar.upreg
 
-```r
-# ratio of upregulation
-Ap.response.type2.A22.high$A22.Ar.upreg <- Ap.response.type2.A22.high$A22.upreg / Ap.response.type2.A22.high$Ar.upreg
-```
+# ratio of constitutive expression in Ar vs A22
+interaction.response.type2.A22.high$A22.Ar.constitutive <- interaction.response.type2.A22.high$A22.opt / interaction.response.type2.A22.high$Ar.opt
 
-```
-## Error: object 'Ap.response.type2.A22.high' not found
-```
-
-```r
-# ratio of constitutive expression
-Ap.response.type2.A22.high$A22.Ar.constitutive <- Ap.response.type2.A22.high$A22.opt / Ap.response.type2.A22.high$Ar.opt
-```
-
-```
-## Error: object 'Ap.response.type2.A22.high' not found
-```
-
-```r
 # plot!
-gg11 <- ggplot(Ap.response.type2.A22.high, aes(x = log(A22.Ar.upreg), y = log(A22.Ar.constitutive))) + 
+gg11 <- ggplot(interaction.response.type2.A22.high, aes(x = log(A22.Ar.upreg), y = log(A22.Ar.constitutive))) + 
   geom_point() + 
   geom_smooth(method = "lm") +
   labs(x = expression(paste("log(inducibility ", italic("A. picea / A. carolinensis"), ")")),
        y = expression(paste("log(constitutive expression ", italic("A. picea / A. carolinensis"), ")")))    
-```
 
-```
-## Error: object 'Ap.response.type2.A22.high' not found
-```
-
-```r
 gg11
 ```
 
-```
-## Error: object 'gg11' not found
-```
+![](ApTranscriptome_TR_files/figure-html/log_inducibility-1.png) 
 
 ```r
-A22.high.lm <- lm(log(Ar.A22.constitutive) ~ log(A22.Ar.upreg), data = Ap.response.type2.A22.high)
-```
+A22.high.lm <- lm(log(A22.Ar.constitutive) ~ log(A22.Ar.upreg), data = interaction.response.type2.A22.high)
 
-```
-## Error: object 'Ap.response.type2.A22.high' not found
-```
-
-```r
 summary(A22.high.lm)
 ```
 
 ```
-## Error: error in evaluating the argument 'object' in selecting a method for function 'summary': Error: object 'A22.high.lm' not found
+## 
+## Call:
+## lm(formula = log(A22.Ar.constitutive) ~ log(A22.Ar.upreg), data = interaction.response.type2.A22.high)
+## 
+## Residuals:
+##    Min     1Q Median     3Q    Max 
+## -5.054 -0.699  0.095  0.621  5.807 
+## 
+## Coefficients:
+##                   Estimate Std. Error t value Pr(>|t|)    
+## (Intercept)        -0.5025     0.1059   -4.75  3.9e-06 ***
+## log(A22.Ar.upreg)   0.2078     0.0495    4.20  4.0e-05 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 1.27 on 200 degrees of freedom
+## Multiple R-squared:  0.0811,	Adjusted R-squared:  0.0765 
+## F-statistic: 17.6 on 1 and 200 DF,  p-value: 0.0000401
 ```
 
-In contrast to the prediction there is a negative relationship between these ratios. That is, genes with greater upregulation of expression also have greater constitutive expression. This is also consistent with the results simply comparing constitutive expression between species for the *A. picea* **High** transcripts. 
+In contrast to the prediction there is a positive relationship between these ratios. That is, genes with greater upregulation of expression also have greater constitutive expression. 
 
 I repeated the above but for **Low** transcripts in *A. carolinensis*. 
 
 
 ```r
-### Repeat for A. carolinensis *Low* transcripts
-Ap.response.type2.Ar.low <- Ap.response.type2[Ap.response.type2$Transcript %in% Ar.low.transcripts.df$Transcript, ]
+### filter for A. carolinensis *Low* transcripts
+interaction.response.type2.Ar.low <- interaction.response.type2[interaction.response.type2$Transcript %in% Ar.low.transcripts.df$Transcript, ]
+str(interaction.response.type2.Ar.low)
 ```
 
 ```
-## Error: object 'Ap.response.type2' not found
-```
-
-```r
-str(Ap.response.type2.Ar.low)
-```
-
-```
-## Error: object 'Ap.response.type2.Ar.low' not found
+## Classes 'data.table' and 'data.frame':	538 obs. of  11 variables:
+##  $ Transcript: chr  "100709|*|comp147744_c0_seq5" "100996|*|comp149394_c1_seq2" "102562|*|comp125805_c1_seq1" "10256|*|comp150503_c0_seq2" ...
+##  $ A22.upreg : num  9.08 29.27 0 29.51 0 ...
+##  $ Ar.upreg  : num  157.2 156.5 77.6 61.1 278.5 ...
+##  $ A22.max   : num  38.5 38.5 NA 0 NA NA 38.5 0 0 NA ...
+##  $ A22.min   : num  0 0.5 NA 38.5 NA ...
+##  $ A22.opt   : num  1.09 1.53 1 1.17 1 ...
+##  $ A22.type  : chr  "High" "High" "NotResp" "Low" ...
+##  $ Ar.max    : num  0 0 0 0 0 0 0 0 0 0 ...
+##  $ Ar.min    : num  38.5 38.5 26.5 38.5 38.5 38.5 26.5 38.5 38.5 38.5 ...
+##  $ Ar.opt    : num  4.562 19.849 0.946 2.053 4.909 ...
+##  $ Ar.type   : chr  "Low" "Low" "Low" "Low" ...
+##  - attr(*, "sorted")= chr "Transcript"
+##  - attr(*, ".internal.selfref")=<externalptr>
 ```
 
 ```r
 # filter out NotResp transcripts in A22
-Ap.response.type2.Ar.low <- Ap.response.type2.Ar.low[which(Ap.response.type2.Ar.low$A22.type != "NotResp"), ]
-```
+interaction.response.type2.Ar.low <- interaction.response.type2.Ar.low[which(interaction.response.type2.Ar.low$A22.type != "NotResp"), ]
 
-```
-## Error: object 'Ap.response.type2.Ar.low' not found
-```
-
-```r
 # ratio of upregulation
-Ap.response.type2.Ar.low$Ar.A22.upreg <- Ap.response.type2.Ar.low$Ar.upreg / Ap.response.type2.Ar.low$A22.upreg
-```
+interaction.response.type2.Ar.low$Ar.A22.upreg <- interaction.response.type2.Ar.low$Ar.upreg / interaction.response.type2.Ar.low$A22.upreg
 
-```
-## Error: object 'Ap.response.type2.Ar.low' not found
-```
-
-```r
 # ratio of constitutive expression
-Ap.response.type2.Ar.low$Ar.A22.constitutive <- Ap.response.type2.Ar.low$Ar.opt / Ap.response.type2.Ar.low$A22.opt
-```
+interaction.response.type2.Ar.low$Ar.A22.constitutive <- interaction.response.type2.Ar.low$Ar.opt / interaction.response.type2.Ar.low$A22.opt
 
-```
-## Error: object 'Ap.response.type2.Ar.low' not found
-```
-
-```r
-gg12 <- ggplot(Ap.response.type2.Ar.low, aes(x = log(Ar.A22.upreg), y = log(Ar.A22.constitutive))) + 
+gg12 <- ggplot(interaction.response.type2.Ar.low, aes(x = log(Ar.A22.upreg), y = log(Ar.A22.constitutive))) + 
   geom_point() + 
   geom_smooth(method = "lm") +
   labs(x = expression(paste("log(inducibility ", italic("A. carolinensis / A. picea"), ")")),
        y = expression(paste("log(constitutive expression ", italic("A. carolinensis / A. picea"), ")")))                   
-```
 
-```
-## Error: object 'Ap.response.type2.Ar.low' not found
-```
-
-```r
 gg12
 ```
 
-```
-## Error: object 'gg12' not found
-```
+![](ApTranscriptome_TR_files/figure-html/assimilation_Ar_low-1.png) 
 
 ```r
-Ar.low.lm <- lm(log(Ar.A22.constitutive) ~ log(Ar.A22.upreg), data = Ap.response.type2.Ar.low)
-```
+Ar.low.lm <- lm(log(Ar.A22.constitutive) ~ log(Ar.A22.upreg), data = interaction.response.type2.Ar.low)
 
-```
-## Error: object 'Ap.response.type2.Ar.low' not found
-```
-
-```r
 summary(Ar.low.lm)
 ```
 
 ```
-## Error: error in evaluating the argument 'object' in selecting a method for function 'summary': Error: object 'Ar.low.lm' not found
+## 
+## Call:
+## lm(formula = log(Ar.A22.constitutive) ~ log(Ar.A22.upreg), data = interaction.response.type2.Ar.low)
+## 
+## Residuals:
+##    Min     1Q Median     3Q    Max 
+## -5.641 -0.507  0.008  0.558  6.257 
+## 
+## Coefficients:
+##                   Estimate Std. Error t value Pr(>|t|)    
+## (Intercept)         0.2459     0.0484    5.08  5.4e-07 ***
+## log(Ar.A22.upreg)   0.3021     0.0229   13.19  < 2e-16 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 1.04 on 470 degrees of freedom
+## Multiple R-squared:  0.27,	Adjusted R-squared:  0.269 
+## F-statistic:  174 on 1 and 470 DF,  p-value: <2e-16
 ```
 
 I combine the two above figures into a single figure.
@@ -1596,45 +1458,23 @@ I combine the two above figures into a single figure.
 ```r
 # add labels
 gg11 <- gg11 + ggtitle('A') + theme(plot.title = element_text(hjust=0))
-```
-
-```
-## Error: object 'gg11' not found
-```
-
-```r
 gg12 <- gg12 + ggtitle('B') + theme(plot.title = element_text(hjust=0))
-```
-
-```
-## Error: object 'gg12' not found
-```
-
-```r
 # grid.arrange
-png(file = "results/genetic_assimilation_Fig3.png")
+png(file = "results/genetic_assimilation_Fig4.png")
 grid.arrange(gg11, gg12, nrow = 1)
-```
-
-```
-## Error: object 'gg11' not found
-```
-
-```r
 dev.off()
 ```
 
 ```
-## pdf 
-##   2
+## quartz_off_screen 
+##                 2
 ```
 
-As with the previous comparison, I also find no evidence for the genetic assimilation hypothesis. 
-
+As with the previous comparison, I also found no evidence for the genetic assimilation hypothesis. 
 
 ### Compare the critical temperature of transcript upregulation, T~on~, between species for transcripts induced in response to high or low temperatures
 
-Thermally-responsive genes could also differ in the critical temperature of gene induction. To examine this, I determine the temperature at which each responsive gene has the greatest increase or decrease in expression.
+Thermally-responsive genes could also differ in the critical temperature of gene induction. To examine this, I determined the temperature at which each responsive gene had the greatest increase or decrease in expression.
 
 
 ```r
@@ -1645,14 +1485,14 @@ str(resp.TPM.dt.sub)
 ```
 
 ```
-## Classes 'data.table' and 'data.frame':	199144 obs. of  10 variables:
-##  $ Transcript       : chr  "100008|*|comp137625_c0_seq2" "100008|*|comp137625_c0_seq2" "100008|*|comp137625_c0_seq2" "100008|*|comp137625_c0_seq2" ...
-##  $ Length           : int  208 208 208 208 208 208 208 208 208 208 ...
-##  $ TPM              : num  0 0.3566 0 0.7387 0.0741 ...
-##  $ RPKM             : num  0 0.598 0 1.1258 0.0926 ...
-##  $ KPKM             : num  0 0.598 0 1.1258 0.0926 ...
-##  $ EstimatedNumKmers: num  0 157.7 0 366.2 60.9 ...
-##  $ EstimatedNumReads: num  0 1.953 0 4.537 0.759 ...
+## Classes 'data.table' and 'data.frame':	45716 obs. of  10 variables:
+##  $ Transcript       : chr  "100148|*|comp125464_c0_seq1" "100148|*|comp125464_c0_seq1" "100148|*|comp125464_c0_seq1" "100148|*|comp125464_c0_seq1" ...
+##  $ Length           : int  207 207 207 207 207 207 207 207 207 207 ...
+##  $ TPM              : num  17.69 0 6.04 0 20.24 ...
+##  $ RPKM             : num  20.72 0 9.01 0 25.3 ...
+##  $ KPKM             : num  20.72 0 9.01 0 25.3 ...
+##  $ EstimatedNumKmers: num  12552 0 4384 0 16552 ...
+##  $ EstimatedNumReads: num  156.7 0 54.6 0 206.4 ...
 ##  $ sample           : chr  "A22-0" "Ar-0" "A22-3" "Ar-3" ...
 ##  $ val              : num  0 0 3.5 3.5 10.5 10.5 14 14 17.5 17.5 ...
 ##  $ colony           : Factor w/ 2 levels "A22","Ar": 1 2 1 2 1 2 1 2 1 2 ...
@@ -1665,7 +1505,7 @@ length(unique(resp.TPM.dt.sub$Transcript))
 ```
 
 ```
-## [1] 9052
+## [1] 2078
 ```
 
 ```r
@@ -1674,30 +1514,30 @@ resp.TPM.dt.sub[,TPM.scaled:=scale(TPM), by = Transcript]
 ```
 
 ```
-##                          Transcript Length    TPM   RPKM   KPKM
-##      1: 100008|*|comp137625_c0_seq2    208 0.0000 0.0000 0.0000
-##      2: 100008|*|comp137625_c0_seq2    208 0.3566 0.5980 0.5980
-##      3: 100008|*|comp137625_c0_seq2    208 0.0000 0.0000 0.0000
-##      4: 100008|*|comp137625_c0_seq2    208 0.7387 1.1258 1.1258
-##      5: 100008|*|comp137625_c0_seq2    208 0.0741 0.0926 0.0926
-##     ---                                                        
-## 199140:      9|*|comp147140_c0_seq1   9030 0.7302 1.2322 1.2322
-## 199141:      9|*|comp147140_c0_seq1   9030 0.7258 1.0074 1.0074
-## 199142:      9|*|comp147140_c0_seq1   9030 0.4534 0.8078 0.8078
-## 199143:      9|*|comp147140_c0_seq1   9030 0.5649 0.7758 0.7758
-## 199144:      9|*|comp147140_c0_seq1   9030 0.4528 0.8333 0.8333
-##         EstimatedNumKmers EstimatedNumReads sample  val colony TPM.scaled
-##      1:               0.0             0.000  A22-0  0.0    A22     -0.566
-##      2:             157.7             1.953   Ar-0  0.0     Ar      1.131
-##      3:               0.0             0.000  A22-3  3.5    A22     -0.566
-##      4:             366.2             4.537   Ar-3  3.5     Ar      2.950
-##      5:              60.9             0.759 A22-10 10.5    A22     -0.214
-##     ---                                                                  
-## 199140:           18024.7           222.869  Ar-31 31.5     Ar     -0.243
-## 199141:           23968.5           299.433 A22-35 35.0    A22     -0.258
-## 199142:            9055.4           112.144  Ar-35 35.0     Ar     -1.130
-## 199143:           23690.1           295.836 A22-38 38.5    A22     -0.773
-## 199144:           12462.4           153.987  Ar-38 38.5     Ar     -1.132
+##                         Transcript Length    TPM  RPKM  KPKM EstimatedNumKmers
+##     1: 100148|*|comp125464_c0_seq1    207 17.692 20.72 20.72             12552
+##     2: 100148|*|comp125464_c0_seq1    207  0.000  0.00  0.00                 0
+##     3: 100148|*|comp125464_c0_seq1    207  6.042  9.01  9.01              4384
+##     4: 100148|*|comp125464_c0_seq1    207  0.000  0.00  0.00                 0
+##     5: 100148|*|comp125464_c0_seq1    207 20.244 25.30 25.30             16552
+##    ---                                                                        
+## 45712:   9970|*|comp148838_c0_seq3   1326  3.849  6.50  6.50             13781
+## 45713:   9970|*|comp148838_c0_seq3   1326  0.834  1.16  1.16              3993
+## 45714:   9970|*|comp148838_c0_seq3   1326  5.851 10.42 10.42             16950
+## 45715:   9970|*|comp148838_c0_seq3   1326  1.117  1.53  1.53              6793
+## 45716:   9970|*|comp148838_c0_seq3   1326  9.353 17.21 17.21             37338
+##        EstimatedNumReads sample  val colony TPM.scaled
+##     1:             156.7  A22-0  0.0    A22      2.338
+##     2:               0.0   Ar-0  0.0     Ar     -0.687
+##     3:              54.6  A22-3  3.5    A22      0.346
+##     4:               0.0   Ar-3  3.5     Ar     -0.687
+##     5:             206.4 A22-10 10.5    A22      2.775
+##    ---                                                
+## 45712:             170.4  Ar-31 31.5     Ar      0.182
+## 45713:              49.9 A22-35 35.0    A22     -0.701
+## 45714:             209.9  Ar-35 35.0     Ar      0.769
+## 45715:              84.8 A22-38 38.5    A22     -0.618
+## 45716:             461.3  Ar-38 38.5     Ar      1.795
 ```
 
 ```r
@@ -1705,55 +1545,41 @@ resp.TPM.dt.sub[,TPM.scaled:=scale(TPM), by = Transcript]
 resp.TPM.dt.sub$colony2 <- ifelse(resp.TPM.dt.sub$colony == "A22", "ApVT", "AcNC")
 ```
 
-Predict expression for responsive transcripts.
+For next analyses, I extracted the list of gene names by response type.
 
 
 ```r
-# apply predFunc to all responsive transcripts
-resp.TPM.dt.sub.pred <- ddply(resp.TPM.dt.sub, .(Transcript), .inform="TRUE", predFunc)
+interaction.response.type <- as.data.frame(interaction.response.type)
+A22.high.transcripts <-  interaction.response.type[which(interaction.response.type$A22.type == "High"), "Transcript"]
+Ar.high.transcripts <- interaction.response.type[which(interaction.response.type$Ar.type == "High"), "Transcript"]
 
-# setkey to Transcript and colony 
-resp.TPM.dt.sub.pred <- data.table(resp.TPM.dt.sub.pred)
-setkey(resp.TPM.dt.sub.pred, Transcript, colony)
+A22.low.transcripts <- interaction.response.type[which(interaction.response.type$A22.type == "Low"), "Transcript"]
+Ar.low.transcripts <- interaction.response.type[which(interaction.response.type$Ar.type == "Low"), "Transcript"]
+
+A22.bim.transcripts <- interaction.response.type[which(interaction.response.type$A22.type == "Bimodal"), "Transcript"]
+Ar.bim.transcripts <- interaction.response.type[which(interaction.response.type$Ar.type == "Bimodal"), "Transcript"]
+
+A22.int.transcripts <- interaction.response.type[which(interaction.response.type$A22.type == "Intermediate"), "Transcript"]
+Ar.int.transcripts <- interaction.response.type[which(interaction.response.type$Ar.type == "Intermediate"), "Transcript"]
 ```
 
-
-For next analyses, extract list of gene names by response type.
-
-
-```r
-A22.high.transcripts <- Ap.response.type[which(Ap.response.type$A22.type == "High"), "Transcript"]
-Ar.high.transcripts <- Ap.response.type[which(Ap.response.type$Ar.type == "High"), "Transcript"]
-
-A22.low.transcripts <- Ap.response.type[which(Ap.response.type$A22.type == "Low"), "Transcript"]
-Ar.low.transcripts <- Ap.response.type[which(Ap.response.type$Ar.type == "Low"), "Transcript"]
-
-A22.bim.transcripts <- Ap.response.type[which(Ap.response.type$A22.type == "Bimodal"), "Transcript"]
-Ar.bim.transcripts <- Ap.response.type[which(Ap.response.type$Ar.type == "Bimodal"), "Transcript"]
-
-A22.int.transcripts <- Ap.response.type[which(Ap.response.type$A22.type == "Intermediate"), "Transcript"]
-Ar.int.transcripts <- Ap.response.type[which(Ap.response.type$Ar.type == "Intermediate"), "Transcript"]
-```
-
-
-Calculate T~on~ for *High* genes in each species. I use the observed (rather than predicted) values for each species as by nature of fitting a quadratic function, the maximum change tends to be at the extremes (38.5 or 0) for the predicted values.
-
+I calculated T~on~ for *High* genes in each species using the observed (rather than predicted) values for each species as by nature of fitting a quadratic function, the maximum change tends to be at the extremes (38.5 or 0) for the predicted values.
 
 
 ```r
 # transcripts expressed at *High* and *Bimodal* temperatures in A22
-A22.high.TPM.dt.sub <- resp.TPM.dt.sub.pred[J(union(A22.high.transcripts, A22.bim.transcripts), "A22")]
+A22.high.TPM.dt.sub <- resp.TPM.dt.sub.pred[J(union(A22.high.transcripts.df$Transcript, A22.bim.transcripts), "A22")]
 setkey(A22.high.TPM.dt.sub, Transcript)
 str(A22.high.TPM.dt.sub)
 ```
 
 ```
-## Classes 'data.table' and 'data.frame':	30107 obs. of  5 variables:
-##  $ Transcript: chr  "100008|*|comp137625_c0_seq2" "100008|*|comp137625_c0_seq2" "100008|*|comp137625_c0_seq2" "100008|*|comp137625_c0_seq2" ...
-##  $ colony    : Factor w/ 2 levels "A22","Ar": 1 1 1 1 1 1 1 1 1 1 ...
-##  $ TPM       : num  0 0 0.0741 0 0 ...
+## Classes 'data.table' and 'data.frame':	5137 obs. of  5 variables:
+##  $ Transcript: chr  "100148|*|comp125464_c0_seq1" "100148|*|comp125464_c0_seq1" "100148|*|comp125464_c0_seq1" "100148|*|comp125464_c0_seq1" ...
+##  $ TPM       : num  17.69 6.04 20.24 7.18 4.73 ...
 ##  $ val       : num  0 3.5 10.5 14 17.5 21 24.5 28 31.5 35 ...
-##  $ pTPM      : num  1.01 1.01 1.01 1.01 1.01 ...
+##  $ colony    : Factor w/ 2 levels "A22","Ar": 1 1 1 1 1 1 1 1 1 1 ...
+##  $ pTPM      : num  18.01 12.55 7.29 6.09 5.39 ...
 ##  - attr(*, ".internal.selfref")=<externalptr> 
 ##  - attr(*, "sorted")= chr "Transcript"
 ```
@@ -1779,12 +1605,12 @@ str(Ar.high.TPM.dt.sub)
 ```
 
 ```
-## Classes 'data.table' and 'data.frame':	21527 obs. of  5 variables:
-##  $ Transcript: chr  "100015|*|comp3543055_c0_seq1" "100015|*|comp3543055_c0_seq1" "100015|*|comp3543055_c0_seq1" "100015|*|comp3543055_c0_seq1" ...
-##  $ colony    : Factor w/ 2 levels "A22","Ar": 2 2 2 2 2 2 2 2 2 2 ...
-##  $ TPM       : num  0 0 0 0 0 ...
+## Classes 'data.table' and 'data.frame':	3190 obs. of  5 variables:
+##  $ Transcript: chr  "100882|*|comp94953_c0_seq1" "100882|*|comp94953_c0_seq1" "100882|*|comp94953_c0_seq1" "100882|*|comp94953_c0_seq1" ...
+##  $ TPM       : num  0 0 0 0.0814 0 ...
 ##  $ val       : num  0 3.5 10.5 14 17.5 21 24.5 28 31.5 35 ...
-##  $ pTPM      : num  0.997 0.999 1.001 1.002 1.004 ...
+##  $ colony    : Factor w/ 2 levels "A22","Ar": 2 2 2 2 2 2 2 2 2 2 ...
+##  $ pTPM      : num  0.986 1.002 1.027 1.036 1.043 ...
 ##  - attr(*, ".internal.selfref")=<externalptr> 
 ##  - attr(*, "sorted")= chr "Transcript"
 ```
@@ -1810,18 +1636,18 @@ for(i in unique(Ar.high.TPM.dt.sub$Transcript)) {
 ## 	Welch Two Sample t-test
 ## 
 ## data:  Ar.high.T_on$T_on and A22.high.T_on$T_on
-## t = 5.82, df = 4128, p-value = 6.166e-09
+## t = 0.8, df = 600, p-value = 0.4
 ## alternative hypothesis: true difference in means is not equal to 0
 ## 95 percent confidence interval:
-##  0.578 1.164
+##  -0.455  1.129
 ## sample estimates:
 ## mean of x mean of y 
-##      33.8      32.9
+##      31.7      31.4
 ```
 
-Genes with increased expression at *High* temperatures are on average turned on 1°C higher in *AcNC* than *ApVT*.
+This test revealed no differences among species in T~on~ for *High* genes.
 
-Repeat analysis for *Low* genes.
+I performed the same test comparing T~on~ for *Low* genes.
 
 
 ```r
@@ -1832,12 +1658,12 @@ str(A22.low.TPM.dt.sub)
 ```
 
 ```
-## Classes 'data.table' and 'data.frame':	70433 obs. of  5 variables:
-##  $ Transcript: chr  "100015|*|comp3543055_c0_seq1" "100015|*|comp3543055_c0_seq1" "100015|*|comp3543055_c0_seq1" "100015|*|comp3543055_c0_seq1" ...
-##  $ colony    : Factor w/ 2 levels "A22","Ar": 1 1 1 1 1 1 1 1 1 1 ...
-##  $ TPM       : num  0.751 0 0 0 0 ...
+## Classes 'data.table' and 'data.frame':	11693 obs. of  5 variables:
+##  $ Transcript: chr  "100148|*|comp125464_c0_seq1" "100148|*|comp125464_c0_seq1" "100148|*|comp125464_c0_seq1" "100148|*|comp125464_c0_seq1" ...
+##  $ TPM       : num  17.69 6.04 20.24 7.18 4.73 ...
 ##  $ val       : num  0 3.5 10.5 14 17.5 21 24.5 28 31.5 35 ...
-##  $ pTPM      : num  1.451 1.27 1.048 0.988 0.954 ...
+##  $ colony    : Factor w/ 2 levels "A22","Ar": 1 1 1 1 1 1 1 1 1 1 ...
+##  $ pTPM      : num  18.01 12.55 7.29 6.09 5.39 ...
 ##  - attr(*, ".internal.selfref")=<externalptr> 
 ##  - attr(*, "sorted")= chr "Transcript"
 ```
@@ -1862,12 +1688,12 @@ str(Ar.low.TPM.dt.sub)
 ```
 
 ```
-## Classes 'data.table' and 'data.frame':	50886 obs. of  5 variables:
-##  $ Transcript: chr  "100008|*|comp137625_c0_seq2" "100008|*|comp137625_c0_seq2" "100008|*|comp137625_c0_seq2" "100008|*|comp137625_c0_seq2" ...
-##  $ colony    : Factor w/ 2 levels "A22","Ar": 1 1 1 1 1 1 1 1 1 1 ...
-##  $ TPM       : num  0 0 0.0741 0 0 ...
+## Classes 'data.table' and 'data.frame':	6919 obs. of  5 variables:
+##  $ Transcript: chr  "100709|*|comp147744_c0_seq5" "100709|*|comp147744_c0_seq5" "100709|*|comp147744_c0_seq5" "100709|*|comp147744_c0_seq5" ...
+##  $ TPM       : num  0 0.064 0.159 0.138 0.18 ...
 ##  $ val       : num  0 3.5 10.5 14 17.5 21 24.5 28 31.5 35 ...
-##  $ pTPM      : num  1.01 1.01 1.01 1.01 1.01 ...
+##  $ colony    : Factor w/ 2 levels "A22","Ar": 1 1 1 1 1 1 1 1 1 1 ...
+##  $ pTPM      : num  1.03 1.06 1.11 1.12 1.13 ...
 ##  - attr(*, ".internal.selfref")=<externalptr> 
 ##  - attr(*, "sorted")= chr "Transcript"
 ```
@@ -1891,26 +1717,25 @@ for(i in unique(Ar.low.TPM.dt.sub$Transcript)) {
 ## 	Welch Two Sample t-test
 ## 
 ## data:  Ar.low.T_on$T_on and A22.low.T_on$T_on
-## t = -1.9, df = 10077, p-value = 0.05718
+## t = -3, df = 1000, p-value = 0.002
 ## alternative hypothesis: true difference in means is not equal to 0
 ## 95 percent confidence interval:
-##  -0.30369  0.00456
+##  -1.080 -0.245
 ## sample estimates:
 ## mean of x mean of y 
-##      12.8      12.9
+##      12.4      13.1
 ```
 
 Genes with increased expression at *Low* temperatures are on average turned on 0.2°C higher in *ApVT* than *AcNC*.
 
 Visualize T~on~ for both *Low* and *High* genes on the same plot.
 
-![plot of chunk plot_T_on](figure/plot_T_on.png) 
+![](ApTranscriptome_TR_files/figure-html/plot_T_on-1.png) 
 
 
 ### Compare the critical temperature of transcript downregulation, T~off~, between species for transcripts induced in response to high or low temperatures 
 
 This analysis is comparable to the one above, but for the *Intermediate* genes that are downregulated, split into the low and high temperature extremes.
-
 
 
 ```r
@@ -1921,14 +1746,14 @@ str(A22.int.TPM.dt.sub)
 ```
 
 ```
-## Classes 'data.table' and 'data.frame':	9999 obs. of  5 variables:
-##  $ Transcript: chr  "100089|*|comp11313_c1_seq1" "100089|*|comp11313_c1_seq1" "100089|*|comp11313_c1_seq1" "100089|*|comp11313_c1_seq1" ...
-##  $ colony    : Factor w/ 2 levels "A22","Ar": 1 1 1 1 1 1 1 1 1 1 ...
-##  $ TPM       : num  0 0 0 0 0.264 ...
+## Classes 'data.table' and 'data.frame':	1815 obs. of  5 variables:
+##  $ Transcript: chr  "1010|*|comp147989_c0_seq1" "1010|*|comp147989_c0_seq1" "1010|*|comp147989_c0_seq1" "1010|*|comp147989_c0_seq1" ...
+##  $ TPM       : num  0.544 1.142 0.754 0.831 0.958 ...
 ##  $ val       : num  0 3.5 10.5 14 17.5 21 24.5 28 31.5 35 ...
-##  $ pTPM      : num  0.987 1.011 1.044 1.053 1.057 ...
-##  - attr(*, ".internal.selfref")=<externalptr> 
+##  $ colony    : Factor w/ 2 levels "A22","Ar": 1 1 1 1 1 1 1 1 1 1 ...
+##  $ pTPM      : num  1.72 1.78 1.87 1.89 1.9 ...
 ##  - attr(*, "sorted")= chr "Transcript"
+##  - attr(*, ".internal.selfref")=<externalptr>
 ```
 
 ```r
@@ -1956,14 +1781,14 @@ str(Ar.int.TPM.dt.sub)
 ```
 
 ```
-## Classes 'data.table' and 'data.frame':	28666 obs. of  5 variables:
+## Classes 'data.table' and 'data.frame':	6556 obs. of  5 variables:
 ##  $ Transcript: chr  "100148|*|comp125464_c0_seq1" "100148|*|comp125464_c0_seq1" "100148|*|comp125464_c0_seq1" "100148|*|comp125464_c0_seq1" ...
-##  $ colony    : Factor w/ 2 levels "A22","Ar": 2 2 2 2 2 2 2 2 2 2 ...
 ##  $ TPM       : num  0 0 0 0 0.0644 ...
 ##  $ val       : num  0 3.5 10.5 14 17.5 21 24.5 28 31.5 35 ...
+##  $ colony    : Factor w/ 2 levels "A22","Ar": 2 2 2 2 2 2 2 2 2 2 ...
 ##  $ pTPM      : num  0.998 1.003 1.01 1.012 1.012 ...
-##  - attr(*, ".internal.selfref")=<externalptr> 
 ##  - attr(*, "sorted")= chr "Transcript"
+##  - attr(*, ".internal.selfref")=<externalptr>
 ```
 
 ```r
@@ -1993,13 +1818,13 @@ for(i in unique(Ar.int.TPM.dt.sub$Transcript)) {
 ## 	Welch Two Sample t-test
 ## 
 ## data:  Ar.int.T_off$High and A22.int.T_off$High
-## t = 7.02, df = 1655, p-value = 3.325e-12
+## t = 4, df = 300, p-value = 0.0002
 ## alternative hypothesis: true difference in means is not equal to 0
 ## 95 percent confidence interval:
-##  0.871 1.547
+##  0.66 2.11
 ## sample estimates:
 ## mean of x mean of y 
-##      28.3      27.1
+##      28.6      27.2
 ```
 
 ```r
@@ -2011,22 +1836,22 @@ for(i in unique(Ar.int.TPM.dt.sub$Transcript)) {
 ## 	Welch Two Sample t-test
 ## 
 ## data:  Ar.int.T_off$Low and A22.int.T_off$Low
-## t = 2.17, df = 1574, p-value = 0.02979
+## t = 0.5, df = 300, p-value = 0.6
 ## alternative hypothesis: true difference in means is not equal to 0
 ## 95 percent confidence interval:
-##  0.0501 0.9722
+##  -0.781  1.385
 ## sample estimates:
 ## mean of x mean of y 
-##      11.1      10.6
+##      11.2      10.9
 ```
 
-As with genes turned on at high temperatures, *A. carolinensis* **Intermediate** genes are down-regulated on at higher temperatures than *A. picea* **Intermediate** genes. In contrast, towards low temperatures, the temperature of mean temperature of downregulation was higher for *A. picea* than *A. carolinensis*.
+As with genes turned on at high temperatures, *A. carolinensis* **Intermediate** genes are down-regulated on at higher temperatures than *A. picea* **Intermediate** genes. Towards low temperatures, the mean temperature of downregulation was not different between species.
 
 Visualize T~off~ for both *Low* and *High* genes on the same plot.
 
-![plot of chunk activation_plot](figure/activation_plot.png) 
+![](ApTranscriptome_TR_files/figure-html/activation_plot-1.png) 
 
-Make a plot with all 4 gene activation comparisons.
+I combined these gene activation comparisons into a single plot.
 
 
 ```r
@@ -2048,43 +1873,43 @@ gg3 <- ggplot(Ap.T_off, aes(x = T_off, y = ..density.., colour = Species, group 
 gg2 <- gg2 + ggtitle('A') + theme(plot.title = element_text(hjust=0))
 gg3 <- gg3 + ggtitle('B') + theme(plot.title = element_text(hjust=0))
 
-png("results/crit_temp_regulation_Fig2.png")
+png("results/crit_temp_regulation_Fig3.png")
 grid.arrange(gg2, gg3, nrow = 2, heights = c(.5,.6))
 dev.off()
 ```
 
 ```
-## pdf 
-##   2
+## quartz_off_screen 
+##                 2
 ```
 
-Does the mean expression level for all responsive genes differ among colonies?
+Next, I tested if the mean expression level for all responsive genes differed among colonies.
 
 
 ```r
-t.test(log(Ap.response.type$A22.opt), log(Ap.response.type$Ar.opt))
+t.test(log(interaction.response.type$A22.opt), log(interaction.response.type$Ar.opt))
 ```
 
 ```
 ## 
 ## 	Welch Two Sample t-test
 ## 
-## data:  log(Ap.response.type$A22.opt) and log(Ap.response.type$Ar.opt)
-## t = -9.09, df = 18041, p-value < 2.2e-16
+## data:  log(interaction.response.type$A22.opt) and log(interaction.response.type$Ar.opt)
+## t = -7, df = 3000, p-value = 1e-12
 ## alternative hypothesis: true difference in means is not equal to 0
 ## 95 percent confidence interval:
-##  -0.185 -0.120
+##  -0.422 -0.240
 ## sample estimates:
 ## mean of x mean of y 
-##     0.708     0.861
+##     0.795     1.125
 ```
 
 ```r
 # expression level at optimum temp greater in Ar than A22
 
 # non-parametric test
-w4 = wilcox.test(Ap.response.type$A22.opt, 
-                 Ap.response.type$Ar.opt,
+w4 = wilcox.test(interaction.response.type$A22.opt, 
+                 interaction.response.type$Ar.opt,
                  alternative = "two.sided", paired = TRUE, conf.int = TRUE)
 
 
@@ -2100,13 +1925,13 @@ t.test(log(mean.exp[which(mean.exp$colony == "A22"), "mean.TPM"]),
 ## 	Welch Two Sample t-test
 ## 
 ## data:  log(mean.exp[which(mean.exp$colony == "A22"), "mean.TPM"]) and log(mean.exp[which(mean.exp$colony == "Ar"), "mean.TPM"])
-## t = -6.53, df = 18077, p-value = 6.938e-11
+## t = -6, df = 3000, p-value = 1e-09
 ## alternative hypothesis: true difference in means is not equal to 0
 ## 95 percent confidence interval:
-##  -0.1399 -0.0753
+##  -0.372 -0.191
 ## sample estimates:
 ## mean of x mean of y 
-##     0.747     0.855
+##     0.842     1.123
 ```
 
 ```r
@@ -2117,13 +1942,15 @@ w5 = wilcox.test(mean.exp[which(mean.exp$colony == "A22"), "mean.TPM"],
 
 
 plot(log(mean.exp[which(mean.exp$colony == "A22"), "mean.TPM"]), 
-     log(mean.exp[which(mean.exp$colony == "Ar"), "mean.TPM"]))
+     log(mean.exp[which(mean.exp$colony == "Ar"), "mean.TPM"]),
+     xlab = "log(expression) A. picea",
+     ylab = "log(expression) A. carolinensis")
+abline(a=0, b=1)
 ```
 
-![plot of chunk mean_exp](figure/mean_exp.png) 
+![](ApTranscriptome_TR_files/figure-html/mean_exp-1.png) 
 
-
-
+On average, *A. carolinensis* has higher expression than *A. picea*.
 
 ## Gene set enrichment analysis for thermal-responsive genes
 
@@ -2144,29 +1971,32 @@ setnames(signif.transcripts, "Sequence.Name", "Transcript")
 ```r
 responsive.lms.ann.type <- signif.transcripts[names(responsive.lms)]
 # combine responsive.lms.ann with "type" information
-responsive.lms.ann.type <- merge(responsive.lms.ann.type, Ap.response.type[,c("Transcript", "A22.type", "Ar.type")], by = "Transcript", all = TRUE)
+cols <- c("Transcript", "A22.type", "Ar.type")
+subtab <- sig.response.type[, cols, with = FALSE]
+setkey(subtab, "Transcript")
+responsive.lms.ann.type <- base::merge(responsive.lms.ann.type, subtab, by = "Transcript", all = TRUE)
 str(responsive.lms.ann.type)
 ```
 
 ```
-## Classes 'data.table' and 'data.frame':	9052 obs. of  17 variables:
-##  $ Transcript           : chr  "100008|*|comp137625_c0_seq2" "100015|*|comp3543055_c0_seq1" "100067|*|comp3557646_c0_seq1" "100089|*|comp11313_c1_seq1" ...
-##  $ sequence.length      : int  208 208 208 208 1321 208 207 1320 1320 207 ...
-##  $ best.hit.to.nr       : chr  "-" "gi|121608385|ref|YP_996192.1| transposase, IS4 family protein " "gi|493136460|ref|WP_006154899.1| tyrosyl-tRNA synthetase " "gi|497544620|ref|WP_009858818.1| lipid-A-disaccharide synthase " ...
-##  $ hit.length           : chr  "-" "25" "68" "67" ...
-##  $ E.value              : chr  "-" "7.22e-06" "1.5e-39" "3.37e-23" ...
-##  $ Bit.score            : chr  "-" "57.514374" "159.812994" "111.355753" ...
-##  $ GO.Biological.Process: chr  "-" "-" "-" "GO:0009245 lipid A biosynthetic process" ...
-##  $ GO.Cellular.Component: chr  "-" "-" "-" "GO:0009276 Gram-negative-bacterium-type cell wall" ...
-##  $ GO.Molecular.Function: chr  "-" "-" "-" "GO:0008915 lipid-A-disaccharide synthase activity" ...
+## Classes 'data.table' and 'data.frame':	2078 obs. of  17 variables:
+##  $ Transcript           : chr  "100148|*|comp125464_c0_seq1" "100636|*|comp3558092_c0_seq1" "100709|*|comp147744_c0_seq5" "100744|*|comp3708443_c0_seq1" ...
+##  $ sequence.length      : int  207 207 207 207 207 206 1312 206 4232 206 ...
+##  $ best.hit.to.nr       : chr  "gi|322798083|gb|EFZ19922.1| hypothetical protein SINV_07083 " "-" "-" "-" ...
+##  $ hit.length           : chr  "69" "-" "-" "-" ...
+##  $ E.value              : chr  "8.02e-20" "-" "-" "-" ...
+##  $ Bit.score            : chr  "101.036156" "-" "-" "-" ...
+##  $ GO.Biological.Process: chr  "GO:0006508 proteolysis" "-" "-" "-" ...
+##  $ GO.Cellular.Component: chr  "-" "-" "-" "-" ...
+##  $ GO.Molecular.Function: chr  "GO:0004252 serine-type endopeptidase activity" "-" "-" "-" ...
 ##  $ Enzyme               : chr  "-" "-" "-" "-" ...
-##  $ Domain               : chr  "-" "-" "-" "-" ...
-##  $ annotation.type      : chr  "" "" "" "GO only" ...
-##  $ pval                 : num  0.003598 0.000917 0.0021 0.001571 0.001918 ...
-##  $ adj.r.squared        : num  0.523 0.604 0.557 0.574 0.562 ...
-##  $ padj                 : num  0.0374 0.0135 0.0252 0.0203 0.0236 ...
-##  $ A22.type             : chr  "High" "Bimodal" "NotResp" "Intermediate" ...
-##  $ Ar.type              : chr  "Low" "High" "Bimodal" "High" ...
+##  $ Domain               : chr  "-" "-" "pfam13894 zf-C2H2_4" "-" ...
+##  $ annotation.type      : chr  "GO only" "" "Domain only" "" ...
+##  $ pval                 : num  2.13e-06 1.54e-07 2.20e-06 1.94e-07 1.15e-18 ...
+##  $ adj.r.squared        : num  0.82 0.872 0.82 0.868 0.995 ...
+##  $ padj                 : num  1.16e-04 1.46e-05 1.20e-04 1.76e-05 9.38e-15 ...
+##  $ A22.type             : chr  "Bimodal" "Low" "High" "Low" ...
+##  $ Ar.type              : chr  "Intermediate" "NotResp" "Low" "NotResp" ...
 ##  - attr(*, "sorted")= chr "Transcript"
 ##  - attr(*, ".internal.selfref")=<externalptr>
 ```
@@ -2178,12 +2008,7 @@ write.csv(responsive.lms.ann.type, file = paste(resultsdir, "Ap_responsive_genes
 
 ### Proportion of responsive transcripts annotated
 
-Of the responsive transcripts, 51% are annotated, while 51% of all transcripts are annotated.
-
-
-length(which(responsive.lms.ann.type$Transcript %in% annotation.table[which(annotation.table$best.hit.to.nr != "-"), "Sequence.Name"]))
-
-best.hit.to.nr != "-")
+Of the responsive transcripts, 49% are annotated, while 51% of all transcripts are annotated.
 
 ### Candidate gene enrichment
 
@@ -2199,51 +2024,12 @@ GO0006950.responsive[union(with(GO0006950.responsive, grep("High", Ar.type)), wi
 ```
 
 ```
-##                      Transcript
-##  1:           1504|*|Contig2729
-##  2:  15115|*|comp132715_c0_seq1
-##  3:  20095|*|comp137823_c1_seq1
-##  4:   2087|*|comp150483_c5_seq1
-##  5:   3269|*|comp141800_c0_seq1
-##  6: 75624|*|comp2836178_c0_seq1
-##  7:   7632|*|comp148048_c0_seq1
-##  8:   8886|*|comp150172_c1_seq4
-##  9:  21598|*|comp142101_c0_seq1
-## 10:  23441|*|comp114823_c1_seq1
-## 11:  32312|*|comp933733_c0_seq1
-## 12: 37154|*|comp1975086_c0_seq1
-## 13: 47691|*|comp1460938_c0_seq1
-## 14: 51985|*|comp1012776_c0_seq1
-##                                                               best.hit.to.nr
-##  1:               gi|332023134|gb|EGI63390.1| Sugar transporter ERD6-like 6 
-##  2:                       gi|194716766|gb|ACF93232.1| heat shock protein 90 
-##  3:                          gi|337757286|emb|CBZ98843.1| 60 kDa chaperonin 
-##  4:         gi|332022897|gb|EGI63169.1| Protein lethal(2)essential for life 
-##  5:         gi|332021988|gb|EGI62314.1| Heat shock 70 kDa protein cognate 4 
-##  6:                               gi|50418863|ref|XP_457952.1| DEHA2C06072p 
-##  7:             gi|322789999|gb|EFZ15075.1| hypothetical protein SINV_03446 
-##  8:             gi|332029691|gb|EGI69570.1| G-protein coupled receptor Mth2 
-##  9:         gi|332018201|gb|EGI58806.1| Protein lethal(2)essential for life 
-## 10:      gi|443696809|gb|ELT97425.1| hypothetical protein CAPTEDRAFT_194915 
-## 11:     gi|367054010|ref|XP_003657383.1| hypothetical protein THITE_2156506 
-## 12:             gi|46115086|ref|XP_383561.1| hypothetical protein FG03385.1 
-## 13: gi|302922354|ref|XP_003053448.1| hypothetical protein NECHADRAFT_102357 
-## 14:                       gi|227018528|gb|ACP18866.1| heat shock protein 30 
-##     A22.type Ar.type
-##  1:     High    High
-##  2:  Bimodal    High
-##  3:  NotResp    High
-##  4:      Low    High
-##  5:     High    High
-##  6:  NotResp    High
-##  7:      Low    High
-##  8:      Low    High
-##  9:     High Bimodal
-## 10:     High     Low
-## 11:     High Bimodal
-## 12:     High NotResp
-## 13:     High NotResp
-## 14:     High NotResp
+##                    Transcript
+## 1: 23441|*|comp114823_c1_seq1
+##                                                         best.hit.to.nr A22.type
+## 1: gi|443696809|gb|ELT97425.1| hypothetical protein CAPTEDRAFT_194915      High
+##    Ar.type
+## 1:     Low
 ```
 
 ```r
@@ -2252,81 +2038,18 @@ GO0006950.responsive[union(with(GO0006950.responsive, grep("Low", Ar.type)), wit
 ```
 
 ```
-##                      Transcript
-##  1:   1038|*|comp150483_c5_seq3
-##  2:  11281|*|comp146961_c0_seq1
-##  3:     14|*|comp150262_c0_seq1
-##  4:          19475|*|Contig1438
-##  5:  20215|*|comp145360_c0_seq1
-##  6:  23441|*|comp114823_c1_seq1
-##  7:   2604|*|comp148324_c0_seq4
-##  8:   4273|*|comp150636_c5_seq1
-##  9: 50934|*|comp3428507_c0_seq1
-## 10:    6075|*|comp92770_c0_seq1
-## 11:   6438|*|comp150878_c2_seq2
-## 12:   6689|*|comp141130_c0_seq2
-## 13:  80544|*|comp132706_c0_seq1
-## 14:           9372|*|Contig4757
-## 15:  12704|*|comp144775_c1_seq1
-## 16:   1656|*|comp147700_c0_seq1
-## 17:  17710|*|comp150271_c3_seq3
-## 18:   2087|*|comp150483_c5_seq1
-## 19:   3995|*|comp145243_c0_seq1
-## 20:    552|*|comp147487_c0_seq1
-## 21:   7632|*|comp148048_c0_seq1
-## 22:   8886|*|comp150172_c1_seq4
-## 23:   9316|*|comp147545_c4_seq2
-##                      Transcript
-##                                                                                    best.hit.to.nr
-##  1:                              gi|332022897|gb|EGI63169.1| Protein lethal(2)essential for life 
-##  2:                                  gi|332029692|gb|EGI69571.1| G-protein coupled receptor Mth2 
-##  3: gi|332019420|gb|EGI59904.1| Putative fat-like cadherin-related tumor suppressor-like protein 
-##  4:                                  gi|322799248|gb|EFZ20646.1| hypothetical protein SINV_03807 
-##  5:                                  gi|332020393|gb|EGI60813.1| G-protein coupled receptor Mth2 
-##  6:                           gi|443696809|gb|ELT97425.1| hypothetical protein CAPTEDRAFT_194915 
-##  7:                                   gi|307176228|gb|EFN65864.1| hypothetical protein EAG_10145 
-##  8:                    gi|332026123|gb|EGI66271.1| Multiple inositol polyphosphate phosphatase 1 
-##  9:                                                          gi|15010456|gb|AAK77276.1| GH05807p 
-## 10:             gi|332030037|gb|EGI69862.1| Serine/threonine-protein kinase PINK1, mitochondrial 
-## 11:                            gi|307188496|gb|EFN73233.1| Muscarinic acetylcholine receptor DM1 
-## 12:                      gi|332016397|gb|EGI57310.1| Mitochondrial import receptor subunit TOM70 
-## 13:                                            gi|121605727|ref|YP_983056.1| OsmC family protein 
-## 14:                                  gi|332029691|gb|EGI69570.1| G-protein coupled receptor Mth2 
-## 15:         gi|380028536|ref|XP_003697954.1| PREDICTED: protein lethal(2)essential for life-like 
-## 16:                              gi|332030522|gb|EGI70210.1| Heat shock 70 kDa protein cognate 3 
-## 17:                                  gi|322799248|gb|EFZ20646.1| hypothetical protein SINV_03807 
-## 18:                              gi|332022897|gb|EGI63169.1| Protein lethal(2)essential for life 
-## 19:                              gi|307211659|gb|EFN87680.1| Heat shock 70 kDa protein cognate 5 
-## 20:                             gi|332026309|gb|EGI66443.1| RhoA activator C11orf59-like protein 
-## 21:                                  gi|322789999|gb|EFZ15075.1| hypothetical protein SINV_03446 
-## 22:                                  gi|332029691|gb|EGI69570.1| G-protein coupled receptor Mth2 
-## 23:                              gi|332020093|gb|EGI60539.1| Heat shock factor-binding protein 1 
-##                                                                                    best.hit.to.nr
-##         A22.type      Ar.type
-##  1:          Low          Low
-##  2:          Low          Low
-##  3:          Low          Low
-##  4:          Low          Low
-##  5:          Low          Low
-##  6:         High          Low
-##  7:          Low          Low
-##  8:          Low          Low
-##  9:          Low          Low
-## 10:          Low          Low
-## 11:          Low          Low
-## 12:          Low          Low
-## 13: Intermediate          Low
-## 14:          Low          Low
-## 15:          Low Intermediate
-## 16:          Low Intermediate
-## 17:          Low Intermediate
-## 18:          Low         High
-## 19:          Low Intermediate
-## 20:          Low Intermediate
-## 21:          Low         High
-## 22:          Low         High
-## 23:          Low Intermediate
-##         A22.type      Ar.type
+##                     Transcript
+## 1:  23441|*|comp114823_c1_seq1
+## 2: 50934|*|comp3428507_c0_seq1
+## 3:  17710|*|comp150271_c3_seq3
+##                                                         best.hit.to.nr A22.type
+## 1: gi|443696809|gb|ELT97425.1| hypothetical protein CAPTEDRAFT_194915      High
+## 2:                                gi|15010456|gb|AAK77276.1| GH05807p       Low
+## 3:        gi|322799248|gb|EFZ20646.1| hypothetical protein SINV_03807       Low
+##         Ar.type
+## 1:          Low
+## 2:          Low
+## 3: Intermediate
 ```
 
 ```r
@@ -2335,27 +2058,7 @@ GO0006950.responsive[union(with(GO0006950.responsive, grep("Bimodal", Ar.type)),
 ```
 
 ```
-##                    Transcript
-## 1:  19778|*|comp97601_c0_seq1
-## 2: 21598|*|comp142101_c0_seq1
-## 3: 32312|*|comp933733_c0_seq1
-## 4: 58246|*|comp109744_c0_seq1
-## 5: 15115|*|comp132715_c0_seq1
-## 6: 21384|*|comp149042_c0_seq3
-##                                                           best.hit.to.nr
-## 1:          gi|322796169|gb|EFZ18745.1| hypothetical protein SINV_07491 
-## 2:      gi|332018201|gb|EGI58806.1| Protein lethal(2)essential for life 
-## 3:  gi|367054010|ref|XP_003657383.1| hypothetical protein THITE_2156506 
-## 4:            gi|493322437|ref|WP_006279741.1| molecular chaperone DnaK 
-## 5:                    gi|194716766|gb|ACF93232.1| heat shock protein 90 
-## 6: gi|396467618|ref|XP_003837992.1| hypothetical protein LEMA_P120390.1 
-##    A22.type Ar.type
-## 1:  Bimodal Bimodal
-## 2:     High Bimodal
-## 3:     High Bimodal
-## 4:  NotResp Bimodal
-## 5:  Bimodal    High
-## 6:  Bimodal NotResp
+## Empty data.table (0 rows) of 4 cols: Transcript,best.hit.to.nr,A22.type,Ar.type
 ```
 
 ```r
@@ -2365,35 +2068,11 @@ GO0006950.responsive[union(with(GO0006950.responsive, grep("Intermediate", Ar.ty
 
 ```
 ##                    Transcript
-## 1: 11087|*|comp141315_c0_seq1
-## 2: 12704|*|comp144775_c1_seq1
-## 3:  1656|*|comp147700_c0_seq1
-## 4: 17710|*|comp150271_c3_seq3
-## 5:  3995|*|comp145243_c0_seq1
-## 6:   552|*|comp147487_c0_seq1
-## 7:  9316|*|comp147545_c4_seq2
-## 8:    97|*|comp150840_c0_seq3
-## 9: 80544|*|comp132706_c0_seq1
-##                                                                                      best.hit.to.nr
-## 1:                                     gi|322792301|gb|EFZ16285.1| hypothetical protein SINV_03698 
-## 2:            gi|380028536|ref|XP_003697954.1| PREDICTED: protein lethal(2)essential for life-like 
-## 3:                                 gi|332030522|gb|EGI70210.1| Heat shock 70 kDa protein cognate 3 
-## 4:                                     gi|322799248|gb|EFZ20646.1| hypothetical protein SINV_03807 
-## 5:                                 gi|307211659|gb|EFN87680.1| Heat shock 70 kDa protein cognate 5 
-## 6:                                gi|332026309|gb|EGI66443.1| RhoA activator C11orf59-like protein 
-## 7:                                 gi|332020093|gb|EGI60539.1| Heat shock factor-binding protein 1 
-## 8: gi|350402309|ref|XP_003486440.1| PREDICTED: probable G-protein coupled receptor Mth-like 1-like 
-## 9:                                               gi|121605727|ref|YP_983056.1| OsmC family protein 
-##        A22.type      Ar.type
-## 1: Intermediate Intermediate
-## 2:          Low Intermediate
-## 3:          Low Intermediate
-## 4:          Low Intermediate
-## 5:          Low Intermediate
-## 6:          Low Intermediate
-## 7:          Low Intermediate
-## 8: Intermediate Intermediate
-## 9: Intermediate          Low
+## 1: 17710|*|comp150271_c3_seq3
+##                                                  best.hit.to.nr A22.type
+## 1: gi|322799248|gb|EFZ20646.1| hypothetical protein SINV_03807       Low
+##         Ar.type
+## 1: Intermediate
 ```
 
 ```r
@@ -2413,10 +2092,10 @@ GO.stress.Xsq
 ## 	Pearson's Chi-squared test with Yates' continuity correction
 ## 
 ## data:  GO.stress.table
-## X-squared = 2.97, df = 1, p-value = 0.08469
+## X-squared = 1, df = 1, p-value = 0.3
 ```
 
-While 38 "response to stress" genes are in the responsive set, this is not enriched compared to the whole transcriptome. 
+While 3 "response to stress" genes are in the responsive set, this is not enriched compared to the whole transcriptome. 
 
 
 ```r
@@ -2425,30 +2104,7 @@ hsp_responsive
 ```
 
 ```
-##                     Transcript
-## 1:  15115|*|comp132715_c0_seq1
-## 2:   1656|*|comp147700_c0_seq1
-## 3:  20675|*|comp147923_c0_seq1
-## 4:   3269|*|comp141800_c0_seq1
-## 5:   3995|*|comp145243_c0_seq1
-## 6: 51985|*|comp1012776_c0_seq1
-## 7:   9316|*|comp147545_c4_seq2
-##                                                                           best.hit.to.nr
-## 1:                                    gi|194716766|gb|ACF93232.1| heat shock protein 90 
-## 2:                      gi|332030522|gb|EGI70210.1| Heat shock 70 kDa protein cognate 3 
-## 3: gi|340729370|ref|XP_003402977.1| PREDICTED: heat shock protein beta-1-like isoform 2 
-## 4:                      gi|332021988|gb|EGI62314.1| Heat shock 70 kDa protein cognate 4 
-## 5:                      gi|307211659|gb|EFN87680.1| Heat shock 70 kDa protein cognate 5 
-## 6:                                    gi|227018528|gb|ACP18866.1| heat shock protein 30 
-## 7:                      gi|332020093|gb|EGI60539.1| Heat shock factor-binding protein 1 
-##    A22.type      Ar.type
-## 1:  Bimodal         High
-## 2:      Low Intermediate
-## 3:  Bimodal      Bimodal
-## 4:     High         High
-## 5:      Low Intermediate
-## 6:     High      NotResp
-## 7:      Low Intermediate
+## Empty data.table (0 rows) of 4 cols: Transcript,best.hit.to.nr,A22.type,Ar.type
 ```
 
 ```r
@@ -2460,14 +2116,13 @@ nrow(hsp_all)
 ## [1] 122
 ```
 
-There are also 7 heat shock related genes in the responsive transcripts, out of 122 total heat shock related genes in the transcriptome annotation.
-
+There are no heat shock protein-related genes in the responsive transcripts.
 
 ### Gene set enrichment analysis
 
-I use [topGO](http://www.bioconductor.org/packages/2.12/bioc/html/topGO.html) to perform gene set enrichment analysis (GSEA) seperately for each expression type (bimodal, intermediate, high, low).
+I used [topGO](http://www.bioconductor.org/packages/2.12/bioc/html/topGO.html) to perform gene set enrichment analysis (GSEA) seperately for each expression type (bimodal, intermediate, high, low). With the GSEA results, I applied the `selectFDR` function to select transcripts with adjusted P < 0.05. For many of the responsive categories, it appeared that there is considerable redundancy in the enriched GO terms. I used the [GOSemSim](http://www.bioconductor.org/packages/release/bioc/html/GOSemSim.html) package to determine semantic similarity of enriched GO terms (Yu, Li, Qin, Bo, Wu, and Wang, 2010) and then performed hierarhichal clustering based on this information distance.
 
-First need to create gene ID to GO term map file
+For the GSEA, I first created a gene ID to GO term map file.
 
 
 ```r
@@ -2482,7 +2137,7 @@ if(file.exists(mapname)) print("Gene ID to GO term file exists") else{
 ## [1] "Gene ID to GO term file exists"
 ```
 
-then read map file.
+Then I read the map file into memory.
 
 
 ```r
@@ -2497,21 +2152,15 @@ str(head(geneID2GO))
 ##  $ 100000|*|comp2663136_c0_seq1: chr ""
 ##  $ 100001|*|comp3439067_c0_seq1: chr ""
 ##  $ 100002|*|comp2050457_c0_seq1: chr [1:6] "GO:0006508" "GO:0006412" "GO:0042254" "GO:0005840" ...
+##  $ 100003|*|comp2029723_c0_seq1: chr [1:3] "GO:0015074" "GO:0006310" "GO:0003677"
 ##  $ 100004|*|comp131141_c1_seq1 : chr ""
-##  $ 100005|*|comp3923213_c0_seq1: chr ""
 ```
 
 ### GSEA for thermally-responsive transcripts
 
-Using this gene2GO map file, perform GSEA for:
+Using this gene2GO map file, I performed GSEA for:
 
 **1) all responsive transcripts**
-
-Use `selectFDR` function to select transcripts with adjusted P < 0.05.
-
-Perform GSEA for all thermally-responsive transcripts.
-
-For many of the responsive categories, it appears that there is considerable redundancy in the enriched GO terms. I use the [GOSemSim](http://www.bioconductor.org/packages/release/bioc/html/GOSemSim.html) package to determine semantic similarity of enriched GO terms (Yu, Li, Qin, Bo, Wu, and Wang, 2010) and then perform hierarhichal clustering based on this information distance.
 
 
 ```r
@@ -2547,12 +2196,13 @@ Ap.BP.ResTable <- GenTable(Ap.BP.GOdata, parentchild = Ap.BP.resultParentChild, 
 Ap.BP.ResTable
 ```
 
-As the molecular processes involved in cold and hot temperature tolerance are different, I perform GSEA separately for each response type and compile results in a single table.
+As the molecular processes involved in cold and hot temperature tolerance are different, I performed GSEA separately for each response type and compiled results in a single table.
 
 
 ```r
+sig.response.type <- as.data.frame(sig.response.type)
 ## Genes with *High* expression in both colonies
-Ap.high <- Ap.response.type[which(Ap.response.type$Ar.type == "High" & Ap.response.type$A22.type == "High"), "Transcript"]
+Ap.high <- sig.response.type[which(sig.response.type$Ar.type == "High" & sig.response.type$A22.type == "High"), "Transcript"]
 Ap.geneList.high <- rep(0, length = length(Ap.geneList))
 names(Ap.geneList.high) <- names(Ap.geneList)
 Ap.geneList.high[(which(names(Ap.geneList.high) %in% Ap.high))] <- 1
@@ -2562,37 +2212,12 @@ table(Ap.geneList.high)
 Ap.high.gsea <- gsea(genelist = Ap.geneList.high, geneID2GO = geneID2GO, plotpath = NA)
 ```
 
-
-```r
-# similarity among enriched GO terms
-Ap.high.GO.term.sim <- termSim(Ap.high.gsea$GO.ID, Ap.high.gsea$GO.ID, ont = "BP", organism = 'fly')
-# replace GO IDs with terms
-rownames(Ap.high.GO.term.sim) <- Ap.high.gsea$Term
-colnames(Ap.high.GO.term.sim) <- Ap.high.gsea$Term
-
-# distance matrix
-Ap.high.hclust <- hclust(dist(Ap.high.GO.term.sim))
-plot(Ap.high.hclust)
-```
-
-![plot of chunk gsea_Ap_high_cluster](figure/gsea_Ap_high_cluster.png) 
-
-```r
-# report items in each cluster
-Ap.high.hclust.report <- GSEAReportClusters(Ap.high.hclust, h = 1)
-
-# add cluster information
-Ap.high.gsea$Cluster <- NA
-
-for(i in 1:length(Ap.high.hclust.report)) {
-    Ap.high.gsea[Ap.high.hclust.report[[i]], "Cluster"] <- i
-}
-```
+A single GO term, *c("GO:0044767", "GO:0044700", "GO:0044707") c("single-organism developmental process", "single organism signaling", "single-multicellular organism process")*, is enriched for **High** genes in both species. 
 
 
 ```r
 ## Genes with *Low* expression in both colonies
-Ap.low <- Ap.response.type[which(Ap.response.type$Ar.type == "Low" & Ap.response.type$A22.type == "Low"), "Transcript"]
+Ap.low <- sig.response.type[which(sig.response.type$Ar.type == "Low" & sig.response.type$A22.type == "Low"), "Transcript"]
 Ap.geneList.low <- rep(0, length = length(Ap.geneList))
 names(Ap.geneList.low) <- names(Ap.geneList)
 Ap.geneList.low[(which(names(Ap.geneList.low) %in% Ap.low))] <- 1
@@ -2602,38 +2227,12 @@ table(Ap.geneList.low)
 Ap.low.gsea <- gsea(genelist = Ap.geneList.low, geneID2GO = geneID2GO)
 ```
 
-
-```r
-# similarity among enriched GO terms
-Ap.low.GO.term.sim <- termSim(Ap.low.gsea$GO.ID, Ap.low.gsea$GO.ID, ont = "BP", organism = 'fly')
-# replace GO IDs with terms
-rownames(Ap.low.GO.term.sim) <- Ap.low.gsea$Term
-colnames(Ap.low.GO.term.sim) <- Ap.low.gsea$Term
-
-# distance matrix
-Ap.low.hclust <- hclust(dist(Ap.low.GO.term.sim))
-plot(Ap.low.hclust)
-```
-
-![plot of chunk gsea_Ap_low_cluster](figure/gsea_Ap_low_cluster.png) 
-
-```r
-# report items in each cluster
-Ap.low.gsea.cluster <- Ap.low.hclust.report <- GSEAReportClusters(Ap.low.hclust, h = 1.5)
-
-# add cluster information
-Ap.low.gsea$Cluster <- NA
-
-for(i in 1:length(Ap.low.hclust.report)) {
-    Ap.low.gsea[Ap.low.hclust.report[[i]], "Cluster"] <- i
-}
-```
-
+The GO terms, *macromolecule metabolic process, protein metabolic process, intracellular transport, establishment of localization in cell, endosome organization, cellular localization, DNA replication, synthesis of RNA primer, macromolecule modification, detection of external stimulus, dephosphorylation, photomorphogenesis, detection of abiotic stimulus, single-organism organelle organization, macromolecule localization, inositol lipid-mediated signaling, protein localization to peroxisome, glycoprotein biosynthetic process, establishment of protein localization to..., intracellular protein transmembrane impo..., glycosylation*, are enriched for **Low** genes in both species. 
 
 
 ```r
 # Genes with *Bimodal* expression in both colonies
-Ap.bim <- Ap.response.type[which(Ap.response.type$A22.type == "Bimodal" & Ap.response.type$Ar.type == "Bimodal"), "Transcript"]
+Ap.bim <- sig.response.type[which(sig.response.type$A22.type == "Bimodal" & sig.response.type$Ar.type == "Bimodal"), "Transcript"]
 # create gene list, setting value to 1 for "bim" transcripts
 Ap.geneList.bim <- rep(0, length = length(Ap.geneList))
 names(Ap.geneList.bim) <- names(Ap.geneList)
@@ -2645,7 +2244,7 @@ table(Ap.geneList.bim)
 ```
 ## Ap.geneList.bim
 ##     0     1 
-## 97889   297
+## 98150    36
 ```
 
 ```r
@@ -2655,80 +2254,49 @@ Ap.bim.gsea <- gsea(genelist = Ap.geneList.bim, geneID2GO = geneID2GO)
 
 ```
 ## 
-## Building most specific GOs .....	( 5452 GO terms found. )
+## Building most specific GOs .....	( 5429 GO terms found. )
 ## 
-## Build GO DAG topology ..........	( 8935 GO terms and 19895 relations. )
+## Build GO DAG topology ..........	( 9145 GO terms and 21227 relations. )
 ## 
-## Annotating nodes ...............	( 30467 genes annotated to the GO terms. )
+## Annotating nodes ...............	( 30235 genes annotated to the GO terms. )
 ## 
 ## 			 -- Parent-Child Algorithm -- 
 ## 
-## 		 the algorithm is scoring 645 nontrivial nodes
+## 		 the algorithm is scoring 323 nontrivial nodes
 ## 		 parameters: 
 ## 			 test statistic:  fisher : joinFun = union 
 ## 
-## 	 Level 16:	1 nodes to be scored.
-## 
-## 	 Level 15:	2 nodes to be scored.
-## 
-## 	 Level 14:	2 nodes to be scored.
-## 
-## 	 Level 13:	4 nodes to be scored.
+## 	 Level 13:	3 nodes to be scored.
 ## 
 ## 	 Level 12:	8 nodes to be scored.
 ## 
-## 	 Level 11:	19 nodes to be scored.
+## 	 Level 11:	8 nodes to be scored.
 ## 
-## 	 Level 10:	49 nodes to be scored.
+## 	 Level 10:	11 nodes to be scored.
 ## 
-## 	 Level 9:	71 nodes to be scored.
+## 	 Level 9:	22 nodes to be scored.
 ## 
-## 	 Level 8:	79 nodes to be scored.
+## 	 Level 8:	36 nodes to be scored.
 ## 
-## 	 Level 7:	84 nodes to be scored.
+## 	 Level 7:	47 nodes to be scored.
 ## 
-## 	 Level 6:	96 nodes to be scored.
+## 	 Level 6:	55 nodes to be scored.
 ## 
-## 	 Level 5:	108 nodes to be scored.
+## 	 Level 5:	57 nodes to be scored.
 ## 
-## 	 Level 4:	76 nodes to be scored.
+## 	 Level 4:	39 nodes to be scored.
 ## 
-## 	 Level 3:	30 nodes to be scored.
+## 	 Level 3:	24 nodes to be scored.
 ## 
-## 	 Level 2:	15 nodes to be scored.
+## 	 Level 2:	12 nodes to be scored.
 ```
 
-
-```r
-# similarity among enriched GO terms
-Ap.bim.GO.term.sim <- termSim(Ap.bim.gsea$GO.ID, Ap.bim.gsea$GO.ID, ont = "BP", organism = 'fly')
-# replace GO IDs with terms
-rownames(Ap.bim.GO.term.sim) <- Ap.bim.gsea$Term
-colnames(Ap.bim.GO.term.sim) <- Ap.bim.gsea$Term
-
-# distance matrix
-Ap.bim.hclust <- hclust(dist(Ap.bim.GO.term.sim))
-plot(Ap.bim.hclust)
-```
-
-![plot of chunk gsea_Ap_bim_cluster](figure/gsea_Ap_bim_cluster.png) 
-
-```r
-# report items in each cluster
-Ap.bim.hclust.report <- GSEAReportClusters(Ap.bim.hclust, h = 1.5)
-
-# add cluster information
-Ap.bim.gsea$Cluster <- NA
-
-for(i in 1:length(Ap.bim.hclust.report)) {
-    Ap.bim.gsea[Ap.bim.hclust.report[[i]], "Cluster"] <- i
-}
-```
+The GO terms, *signal transduction by phosphorylation, response to stimulus, regulation of biosynthetic process, negative regulation of cellular protein ..., cell cycle, biological phase, protein complex localization*, are enriched for **Bimodal** genes in both species. 
 
 
 ```r
 # genes with *Intermediate* expression in both colonies
-Ap.int <- Ap.response.type[which(Ap.response.type$A22.type == "Intermediate" & Ap.response.type$Ar.type == "Intermediate"), "Transcript"]
+Ap.int <- sig.response.type[which(sig.response.type$A22.type == "Intermediate" & sig.response.type$Ar.type == "Intermediate"), "Transcript"]
 # create gene list, setting value to 1 for "int" transcripts
 Ap.geneList.int <- rep(0, length = length(Ap.geneList))
 names(Ap.geneList.int) <- names(Ap.geneList)
@@ -2739,419 +2307,30 @@ table(Ap.geneList.int)
 Ap.int.gsea <- gsea(genelist = Ap.geneList.int, geneID2GO = geneID2GO)
 ```
 
-
-```r
-# similarity among enriched GO terms
-Ap.int.GO.term.sim <- termSim(Ap.int.gsea$GO.ID, Ap.int.gsea$GO.ID, ont = "BP", organism = 'fly')
-# replace GO IDs with terms
-rownames(Ap.int.GO.term.sim) <- Ap.int.gsea$Term
-colnames(Ap.int.GO.term.sim) <- Ap.int.gsea$Term
-
-# distance matrix
-Ap.int.hclust <- hclust(dist(Ap.int.GO.term.sim))
-plot(Ap.int.hclust)
-```
-
-![plot of chunk gsea_Ap_int_cluster](figure/gsea_Ap_int_cluster.png) 
-
-```r
-# report items in each cluster
-(Ap.int.hclust.report <- GSEAReportClusters(Ap.int.hclust, h = 1.5))
-```
-
-```
-## $`Cluster 1`
-##                glycolipid metabolic process 
-##                                           1 
-##         membrane lipid biosynthetic process 
-##                                           2 
-##            membrane lipid metabolic process 
-##                                           6 
-##             glycolipid biosynthetic process 
-##                                           7 
-##                 macromolecule glycosylation 
-##                                          11 
-##              sphingolipid metabolic process 
-##                                          12 
-##              carbohydrate metabolic process 
-##                                          14 
-## single-organism carbohydrate metabolic p... 
-##                                          15 
-##                               glycosylation 
-##                                          18 
-## 
-## $`Cluster 2`
-##     glycoprotein metabolic process  glycoprotein biosynthetic process 
-##                                  3                                  4 
-##              protein glycosylation            DNA conformation change 
-##                                  5                                  8 
-##                      DNA packaging cellular protein metabolic process 
-##                                  9                                 16 
-##   lipoprotein biosynthetic process 
-##                                 17 
-## 
-## $`Cluster 3`
-##                  nucleosome organization 
-##                                       10 
-## protein-DNA complex subunit organization 
-##                                       13
-```
-
-```r
-# add cluster information
-Ap.int.gsea$Cluster <- NA
-
-for(i in 1:length(Ap.int.hclust.report)) {
-    Ap.int.gsea[Ap.int.hclust.report[[i]], "Cluster"] <- i
-}
-```
+The GO terms, *ketone biosynthetic process, electron transport chain, quinone metabolic process, cellular ketone metabolic process, DNA packaging, nucleoside metabolic process, oxidative phosphorylation, cofactor biosynthetic process, hydrogen transport, nucleoside triphosphate metabolic proces..., purine-containing compound metabolic pro..., purine nucleotide metabolic process, sodium ion transport, quinone biosynthetic process, respiratory electron transport chain, nitric oxide biosynthetic process, ubiquinone metabolic process, nucleoside monophosphate metabolic proce..., mitotic chromosome condensation*, are enriched for **Intermediate** genes in both species. 
 
 
 
-GSEA for genes that are *Intermediate* in A. carolinensis and *Bimodal* in A. picea
+GSEA for genes that are **Bimodal** in *A. picea* and downregulated (**Intermediate**) in *A. carolinensis*.
 
 
 ```r
-# genes with *Intermediate* expression in Ar and *Bimodal* in A22
-Ar.int.A22.bim <- Ap.response.type[which(Ap.response.type$Ar.type == "Intermediate" & Ap.response.type$A22.type == "Bimodal"), "Transcript"]
-Ar.int.A22.bim.geneList <- rep(0, length = length(Ap.geneList))
-names(Ar.int.A22.bim.geneList) <- names(Ap.geneList)
-Ar.int.A22.bim.geneList[(which(names(Ar.int.A22.bim.geneList) %in% Ar.int.A22.bim))] <- 1
+A22.bim.Ar.int <- sig.response.type[which(sig.response.type$Ar.type == "Intermediate" & sig.response.type$A22.type == "Bimodal"), "Transcript"]
+A22.bim.Ar.int.geneList <- rep(0, length = length(Ap.geneList))
+names(A22.bim.Ar.int.geneList) <- names(Ap.geneList)
+A22.bim.Ar.int.geneList[(which(names(A22.bim.Ar.int.geneList) %in% A22.bim.Ar.int))] <- 1
 # check correct number of values set to 1
-table(Ar.int.A22.bim.geneList)
+table(A22.bim.Ar.int.geneList)
 # run GSEA
-Ar.int.A22.bim.gsea <- gsea(genelist = Ar.int.A22.bim.geneList, geneID2GO = geneID2GO, plotpath = NA)
+A22.bim.Ar.int.gsea <- gsea(genelist = A22.bim.Ar.int.geneList, geneID2GO = geneID2GO, plotpath = NA)
 ```
 
-Cluster by semantic similarity
-
-
-```r
-# similarity among enriched GO terms
-Ar.int.A22.bim.gsea.term.sim <- termSim(Ar.int.A22.bim.gsea$GO.ID, Ar.int.A22.bim.gsea$GO.ID, ont = "BP", organism = 'fly')
-# replace GO IDs with terms
-rownames(Ar.int.A22.bim.gsea.term.sim) <- Ar.int.A22.bim.gsea$Term
-colnames(Ar.int.A22.bim.gsea.term.sim) <- Ar.int.A22.bim.gsea$Term
-# distance matrix
-Ar.int.A22.bim.gsea.term.sim.hclust <- hclust(dist(Ar.int.A22.bim.gsea.term.sim))
-plot(Ar.int.A22.bim.gsea.term.sim.hclust)
-```
-
-![plot of chunk gsea_Ar_int_A22_bim_cluster](figure/gsea_Ar_int_A22_bim_cluster.png) 
-
-```r
-# report items in each cluster at height 1.5
-(Ar.int.A22.bim.hclust.report <- GSEAReportClusters(Ar.int.A22.bim.gsea.term.sim.hclust, h = 1))
-```
-
-```
-## $`Cluster 1`
-## phospholipid catabolic process           histone modification 
-##                              1                              7 
-## 
-## $`Cluster 2`
-## L-amino acid transport 
-##                      2 
-## 
-## $`Cluster 3`
-## macromolecule metabolic process 
-##                               3 
-## 
-## $`Cluster 4`
-## response to organic substance 
-##                             4 
-## 
-## $`Cluster 5`
-## glutamate receptor signaling pathway 
-##                                    5 
-## 
-## $`Cluster 6`
-## regulation of nitrogen compound metaboli... 
-##                                           6
-```
-
-GSEA for genes that are *Intermediate* in A. carolinensis and *Low* in A. picea
-
-
-```r
-# genes with *Intermediate* expression in Ar and *Low* in A22
-Ar.int.A22.low <- Ap.response.type[which(Ap.response.type$Ar.type == "Intermediate" & Ap.response.type$A22.type == "Low"), "Transcript"]
-Ar.int.A22.low.geneList <- rep(0, length = length(Ap.geneList))
-names(Ar.int.A22.low.geneList) <- names(Ap.geneList)
-Ar.int.A22.low.geneList[(which(names(Ar.int.A22.low.geneList) %in% Ar.int.A22.low))] <- 1
-# check correct number of values set to 1
-table(Ar.int.A22.low.geneList)
-# run GSEA
-Ar.int.A22.low.gsea <- gsea(genelist = Ar.int.A22.low.geneList, geneID2GO = geneID2GO, plotpath = NA)
-```
-
-
-```r
-# similarity among enriched GO terms
-Ar.int.A22.low.gsea.term.sim <- termSim(Ar.int.A22.low.gsea$GO.ID, Ar.int.A22.low.gsea$GO.ID, ont = "BP", organism = 'fly')
-# replace GO IDs with terms
-rownames(Ar.int.A22.low.gsea.term.sim) <- Ar.int.A22.low.gsea$Term
-colnames(Ar.int.A22.low.gsea.term.sim) <- Ar.int.A22.low.gsea$Term
-# distance matrix
-Ar.int.A22.low.gsea.term.sim.hclust <- hclust(dist(Ar.int.A22.low.gsea.term.sim))
-plot(Ar.int.A22.low.gsea.term.sim.hclust)
-```
-
-![plot of chunk gsea_Ar_int_A22_low_cluster](figure/gsea_Ar_int_A22_low_cluster.png) 
-
-```r
-# report items in each cluster at height 1
-(Ar.int.A22.low.hclust.report <- GSEAReportClusters(Ar.int.A22.low.gsea.term.sim.hclust, h = 1.2))
-```
-
-```
-## $`Cluster 1`
-## cellular protein metabolic process          protein metabolic process 
-##                                  1                                  2 
-## 
-## $`Cluster 2`
-## single-organism organelle organization 
-##                                      3 
-##                 organelle organization 
-##                                      5 
-## 
-## $`Cluster 3`
-## membrane docking  vesicle docking 
-##                4               14 
-## 
-## $`Cluster 4`
-## respiratory electron transport chain               recombinational repair 
-##                                    6                                   11 
-##                        glycosylation 
-##                                   13 
-## 
-## $`Cluster 5`
-## small GTPase mediated signal transductio... 
-##                                           7 
-## regulation of actin filament-based proce... 
-##                                          23 
-## positive regulation of biological proces... 
-##                                          34 
-## 
-## $`Cluster 6`
-##            vesicle-mediated transport 
-##                                     8 
-##                 cellular localization 
-##                                     9 
-## establishment of localization in cell 
-##                                    12 
-##               intracellular transport 
-##                                    29 
-## 
-## $`Cluster 7`
-## cellular component organization or bioge... 
-##                                          10 
-##                             membrane fusion 
-##                                          19 
-##             single-organism membrane fusion 
-##                                          26 
-## 
-## $`Cluster 8`
-## ethanolamine-containing compound metabol... 
-##                                          15 
-##              phospholipid metabolic process 
-##                                          16 
-##           phospholipid biosynthetic process 
-##                                          21 
-##    phosphatidylcholine biosynthetic process 
-##                                          25 
-## 
-## $`Cluster 9`
-##                       GTP catabolic process 
-##                                          17 
-##                       GTP metabolic process 
-##                                          20 
-## guanosine-containing compound catabolic ... 
-##                                          22 
-## guanosine-containing compound metabolic ... 
-##                                          31 
-## 
-## $`Cluster 10`
-##                  macromolecule modification 
-##                                          18 
-## posttranscriptional regulation of gene e... 
-##                                          24 
-##             macromolecule metabolic process 
-##                                          27 
-## 
-## $`Cluster 11`
-## endoderm development 
-##                   28 
-## 
-## $`Cluster 12`
-##             protein glycosylation                       translation 
-##                                30                                33 
-## glycoprotein biosynthetic process 
-##                                35 
-## 
-## $`Cluster 13`
-##      sphingolipid catabolic process sulfur amino acid catabolic process 
-##                                  32                                  36
-```
-
-
-
-GSEA for genes that are *Intermediate* in A. carolinensis and *Low* or *Bimodal* in A. picea
-
-
-```r
-# genes with *Intermediate* expression in Ar and *Low* in A22
-Ar.int.A22.lowbim <- c(Ar.int.A22.low, Ar.int.A22.bim)
-Ar.int.A22.lowbim.geneList <- rep(0, length = length(Ap.geneList))
-names(Ar.int.A22.lowbim.geneList) <- names(Ap.geneList)
-Ar.int.A22.lowbim.geneList[(which(names(Ar.int.A22.lowbim.geneList) %in% Ar.int.A22.lowbim))] <- 1
-# check correct number of values set to 1
-table(Ar.int.A22.lowbim.geneList)
-# run GSEA
-Ar.int.A22.lowbim.gsea <- gsea(genelist = Ar.int.A22.lowbim.geneList, geneID2GO = geneID2GO, plotpath = NA)
-```
-
-
-```r
-# similarity among enriched GO terms
-Ar.int.A22.lowbim.gsea.term.sim <- termSim(Ar.int.A22.lowbim.gsea$GO.ID, Ar.int.A22.lowbim.gsea$GO.ID, ont = "BP", organism = 'fly')
-# replace GO IDs with terms
-rownames(Ar.int.A22.lowbim.gsea.term.sim) <- Ar.int.A22.lowbim.gsea$Term
-colnames(Ar.int.A22.lowbim.gsea.term.sim) <- Ar.int.A22.lowbim.gsea$Term
-# distance matrix
-Ar.int.A22.lowbim.gsea.term.sim.hclust <- hclust(dist(Ar.int.A22.lowbim.gsea.term.sim))
-plot(Ar.int.A22.lowbim.gsea.term.sim.hclust)
-```
-
-![plot of chunk gsea_Ar_int_A22_lowbim_cluster](figure/gsea_Ar_int_A22_lowbim_cluster.png) 
-
-```r
-# report items in each cluster at height 1
-(Ar.int.A22.lowbim.hclust.report <- GSEAReportClusters(Ar.int.A22.lowbim.gsea.term.sim.hclust, h = 1.2))
-```
-
-```
-## $`Cluster 1`
-##       cellular protein metabolic process 
-##                                        1 
-##                protein metabolic process 
-##                                        2 
-##          macromolecule metabolic process 
-##                                        9 
-##               macromolecule modification 
-##                                       16 
-## cellular macromolecule metabolic process 
-##                                       38 
-## 
-## $`Cluster 2`
-##            vesicle-mediated transport 
-##                                     3 
-## establishment of localization in cell 
-##                                    18 
-##                 cellular localization 
-##                                    21 
-##               intracellular transport 
-##                                    25 
-## 
-## $`Cluster 3`
-## small GTPase mediated signal transductio... 
-##                                           4 
-## regulation of actin filament-based proce... 
-##                                          27 
-## regulation of actin cytoskeleton organiz... 
-##                                          42 
-## 
-## $`Cluster 4`
-## single-organism organelle organization 
-##                                      5 
-##                 organelle organization 
-##                                      7 
-##                   vacuole organization 
-##                                     44 
-## 
-## $`Cluster 5`
-##              phospholipid metabolic process 
-##                                           6 
-## ethanolamine-containing compound metabol... 
-##                                          30 
-##    phosphatidylcholine biosynthetic process 
-##                                          37 
-##           phospholipid biosynthetic process 
-##                                          41 
-## 
-## $`Cluster 6`
-##                        glycosylation respiratory electron transport chain 
-##                                    8                                   12 
-##               recombinational repair                 histone modification 
-##                                   32                                   39 
-## 
-## $`Cluster 7`
-##                       GTP catabolic process 
-##                                          10 
-## guanosine-containing compound catabolic ... 
-##                                          14 
-##                       GTP metabolic process 
-##                                          17 
-## guanosine-containing compound metabolic ... 
-##                                          22 
-## 
-## $`Cluster 8`
-## cellular component organization or bioge... 
-##                                          11 
-##                             membrane fusion 
-##                                          15 
-##             single-organism membrane fusion 
-##                                          19 
-## 
-## $`Cluster 9`
-## membrane docking  vesicle docking 
-##               13               35 
-## 
-## $`Cluster 10`
-## response to organic substance 
-##                            20 
-## 
-## $`Cluster 11`
-## regulation of purine nucleotide metaboli... 
-##                                          23 
-## regulation of purine nucleotide cataboli... 
-##                                          26 
-## regulation of nucleotide catabolic proce... 
-##                                          36 
-## regulation of nucleoside metabolic proce... 
-##                                          43 
-## 
-## $`Cluster 12`
-##             protein glycosylation glycoprotein biosynthetic process 
-##                                24                                28 
-## 
-## $`Cluster 13`
-## L-amino acid transport 
-##                     29 
-## 
-## $`Cluster 14`
-##               regulation of mRNA processing 
-##                                          31 
-## tRNA splicing, via endonucleolytic cleav... 
-##                                          34 
-## 
-## $`Cluster 15`
-## positive regulation of hydrolase activit... 
-##                                          33 
-## 
-## $`Cluster 16`
-## regulation of protein polymerization 
-##                                   40 
-## 
-## $`Cluster 17`
-## regulation of cellular catabolic process 
-##                                       45
-```
+The GO terms, *autophagy, carbohydrate phosphorylation*, are enriched for genes that are **Bimodal** in *A. picea* and downregulated (**Intermediate**) in *A. carolinensis*.
 
 
 ### GSEA for each functional type in each species
 
-GO enrichment for *A. picea* **High** genes.
+*A. picea*
 
 
 ```r
@@ -3160,398 +2339,19 @@ A22.geneList.high <- rep(0, length = length(Ap.geneList))
 names(A22.geneList.high) <- names(Ap.geneList)
 A22.geneList.high[(which(names(A22.geneList.high) %in% A22.high.transcripts))] <- 1
 A22.high.gsea <- gsea(genelist = A22.geneList.high, geneID2GO = geneID2GO)
-```
-Clustering of enriched GO terms for *A. picea* **High** genes.
 
-
-```r
-# similarity among enriched GO terms
-A22.high.gsea.term.sim <- termSim(A22.high.gsea$GO.ID, A22.high.gsea$GO.ID, ont = "BP", organism = 'fly')
-# replace GO IDs with terms
-rownames(A22.high.gsea.term.sim) <- A22.high.gsea$Term
-colnames(A22.high.gsea.term.sim) <- A22.high.gsea$Term
-# distance matrix
-A22.high.gsea.term.sim.hclust <- hclust(dist((A22.high.gsea.term.sim)))
-plot((A22.high.gsea.term.sim.hclust))
-```
-
-![plot of chunk gsea_A22_high_cluster](figure/gsea_A22_high_cluster.png) 
-
-```r
-# report items in each cluster at height 1.8
-GSEAReportClusters(A22.high.gsea.term.sim.hclust, h = 1.2)
-```
-
-```
-## $`Cluster 1`
-##                                 translation 
-##                                           1 
-##                             DNA integration 
-##                                           3 
-## cellular macromolecule biosynthetic proc... 
-##                                           8 
-##                glutamyl-tRNA aminoacylation 
-##                                           9 
-## 
-## $`Cluster 2`
-## erythrose 4-phosphate/phosphoenolpyruvat... 
-##                                           2 
-##           L-phenylalanine catabolic process 
-##                                           4 
-## 
-## $`Cluster 3`
-##    macromolecule metabolic process macromolecule biosynthetic process 
-##                                  5                                  7 
-##                    gene expression 
-##                                 14 
-## 
-## $`Cluster 4`
-##              regulation of transport trivalent inorganic cation transport 
-##                                    6                                   10 
-## 
-## $`Cluster 5`
-## sporulation resulting in formation of a ... 
-##                                          11 
-##           negative regulation of cell death 
-##                                          12 
-##                  osteoblast differentiation 
-##                                          16 
-## 
-## $`Cluster 6`
-## cellular component biogenesis 
-##                            13 
-## 
-## $`Cluster 7`
-## cAMP biosynthetic process 
-##                        15
-```
-
-GO enrichment for *A. picea* **Low** genes.
-
-
-```r
 # A22 'Low' genes
 A22.geneList.low <- rep(0, length = length(Ap.geneList))
 names(A22.geneList.low) <- names(Ap.geneList)
 A22.geneList.low[(which(names(A22.geneList.low) %in% A22.low.transcripts))] <- 1
 A22.low.gsea <- gsea(genelist = A22.geneList.low, geneID2GO = geneID2GO)
-```
 
-Clustering of enriched GO terms for *A. picea* **Low** genes.
-
-
-```r
-# similarity among enriched GO terms
-A22.low.gsea.term.sim <- termSim(A22.low.gsea$GO.ID, A22.low.gsea$GO.ID, ont = "BP", organism = 'fly')
-# replace GO IDs with terms
-rownames(A22.low.gsea.term.sim) <- A22.low.gsea$Term
-colnames(A22.low.gsea.term.sim) <- A22.low.gsea$Term
-# distance matrix
-A22.low.gsea.term.sim.hclust <- hclust(dist((A22.low.gsea.term.sim)))
-plot((A22.low.gsea.term.sim.hclust))
-```
-
-![plot of chunk gsea_A22_low_cluster](figure/gsea_A22_low_cluster.png) 
-
-```r
-# report items in each cluster at height 1.8
-GSEAReportClusters(A22.low.gsea.term.sim.hclust, h = 2)
-```
-
-```
-## $`Cluster 1`
-##                protein metabolic process 
-##                                        1 
-##       cellular protein metabolic process 
-##                                        2 
-##                            glycosylation 
-##                                        3 
-##               macromolecule modification 
-##                                        6 
-##          macromolecule metabolic process 
-##                                        7 
-## cellular macromolecule metabolic process 
-##                                       12 
-##        glycoprotein biosynthetic process 
-##                                       13 
-##                    protein glycosylation 
-##                                       14 
-##                 translational initiation 
-##                                       15 
-##             protein modification process 
-##                                       16 
-##           glycoprotein metabolic process 
-##                                       26 
-##                     histone modification 
-##                                       36 
-##    cellular protein modification process 
-##                                       69 
-##              macromolecule glycosylation 
-##                                       79 
-##                      histone acetylation 
-##                                       82 
-##                  ether metabolic process 
-##                                       90 
-##                        protein acylation 
-##                                       91 
-## 
-## $`Cluster 2`
-## small GTPase mediated signal transductio... 
-##                                           4 
-##           regulation of signal transduction 
-##                                          41 
-##              regulation of cellular process 
-##                                          52 
-##                       biological regulation 
-##                                          61 
-##            regulation of biological process 
-##                                          63 
-##          regulation of response to stimulus 
-##                                          66 
-## regulation of Rab protein signal transdu... 
-##                                          68 
-##             Rab protein signal transduction 
-##                                          75 
-## regulation of intracellular signal trans... 
-##                                          93 
-##                     regulation of signaling 
-##                                          94 
-##            regulation of cell communication 
-##                                          97 
-## 
-## $`Cluster 3`
-## single-organism organelle organization 
-##                                      5 
-##                 organelle organization 
-##                                      8 
-##                       membrane docking 
-##                                     10 
-##                        vesicle docking 
-##                                     39 
-## vesicle docking involved in exocytosis 
-##                                     59 
-## 
-## $`Cluster 4`
-## nucleoside triphosphate metabolic proces... 
-##                                           9 
-##      nucleoside phosphate catabolic process 
-##                                          17 
-##            ribonucleotide metabolic process 
-##                                          22 
-##                nucleotide catabolic process 
-##                                          24 
-##                       GTP metabolic process 
-##                                          25 
-## regulation of purine nucleotide metaboli... 
-##                                          27 
-##                       GTP catabolic process 
-##                                          28 
-## regulation of nucleotide metabolic proce... 
-##                                          31 
-## regulation of nucleoside metabolic proce... 
-##                                          32 
-## guanosine-containing compound catabolic ... 
-##                                          33 
-## guanosine-containing compound metabolic ... 
-##                                          34 
-## regulation of nucleotide catabolic proce... 
-##                                          37 
-## regulation of purine nucleotide cataboli... 
-##                                          40 
-## positive regulation of Rab GTPase activi... 
-##                                          46 
-##           regulation of Ras GTPase activity 
-##                                          53 
-## purine-containing compound catabolic pro... 
-##                                          73 
-##         purine nucleotide metabolic process 
-##                                          81 
-##                nucleoside catabolic process 
-##                                          85 
-## 
-## $`Cluster 5`
-##               intracellular transport 
-##                                    11 
-##                 cellular localization 
-##                                    19 
-##            vesicle-mediated transport 
-##                                    20 
-## establishment of localization in cell 
-##                                    23 
-##            macromolecule localization 
-##                                    45 
-## establishment of protein localization 
-##                                    57 
-##                    chloride transport 
-##                                    78 
-##         regulation of anion transport 
-##                                    86 
-##                     protein transport 
-##                                    87 
-## 
-## $`Cluster 6`
-##                glycolipid metabolic process 
-##                                          18 
-##            membrane lipid metabolic process 
-##                                          21 
-## serine family amino acid metabolic proce... 
-##                                          30 
-##              sphingolipid metabolic process 
-##                                          44 
-##                      recombinational repair 
-##                                          47 
-## flavin-containing compound metabolic pro... 
-##                                          50 
-##                riboflavin metabolic process 
-##                                          51 
-##                  cell cycle DNA replication 
-##                                          62 
-##     hexachlorocyclohexane metabolic process 
-##                                          64 
-##                   styrene metabolic process 
-##                                          65 
-##           phospholipid biosynthetic process 
-##                                          80 
-##              phospholipid metabolic process 
-##                                          84 
-##              sphingolipid catabolic process 
-##                                          96 
-##                       amino acid activation 
-##                                          98 
-## 
-## $`Cluster 7`
-## regulation of phosphate metabolic proces... 
-##                                          29 
-##      regulation of translational initiation 
-##                                          35 
-## posttranscriptional regulation of gene e... 
-##                                          38 
-##             regulation of catabolic process 
-##                                          42 
-##    regulation of cellular catabolic process 
-##                                          48 
-## regulation of phosphorus metabolic proce... 
-##                                          49 
-##                   regulation of translation 
-##                                          77 
-## regulation of cellular protein metabolic... 
-##                                          92 
-## 
-## $`Cluster 8`
-##                  protein complex biogenesis 
-##                                          43 
-## positive regulation of protein polymeriz... 
-##                                          67 
-##        regulation of protein polymerization 
-##                                          71 
-##                    protein complex assembly 
-##                                          72 
-##             macromolecular complex assembly 
-##                                          83 
-## 
-## $`Cluster 9`
-##                     muscle cell development 
-##                                          54 
-##                regulation of blood pressure 
-##                                          55 
-##                   hair cell differentiation 
-##                                          56 
-##                           megagametogenesis 
-##                                          58 
-##                      embryo sac development 
-##                                          60 
-##         embryo sac egg cell differentiation 
-##                                          70 
-##    regulation of unidimensional cell growth 
-##                                          74 
-##              detection of external stimulus 
-##                                          76 
-## imaginal disc-derived wing hair organiza... 
-##                                          99 
-## 
-## $`Cluster 10`
-## chondroitin sulfate proteoglycan biosynt... 
-##                                          88 
-##    chondroitin sulfate biosynthetic process 
-##                                          89 
-##             folic acid biosynthetic process 
-##                                          95
-```
-
-GO enrichment for *A. picea* **Bimodal** genes.
-
-
-```r
 # A22 'Bim' genes
 A22.geneList.bim <- rep(0, length = length(Ap.geneList))
 names(A22.geneList.bim) <- names(Ap.geneList)
 A22.geneList.bim[(which(names(A22.geneList.bim) %in% A22.bim.transcripts))] <- 1
 A22.bim.gsea <- gsea(genelist = A22.geneList.bim, geneID2GO = geneID2GO)
-```
 
-Clustering of enriched GO terms for *A. picea* **Bimodal** genes.
-
-
-```r
-# similarity among enriched GO terms
-A22.bim.gsea.term.sim <- termSim(A22.bim.gsea$GO.ID, A22.bim.gsea$GO.ID, ont = "BP", organism = 'fly')
-# replace GO IDs with terms
-rownames(A22.bim.gsea.term.sim) <- A22.bim.gsea$Term
-colnames(A22.bim.gsea.term.sim) <- A22.bim.gsea$Term
-# distance matrix
-A22.bim.gsea.term.sim.hclust <- hclust(dist((A22.bim.gsea.term.sim)))
-plot((A22.bim.gsea.term.sim.hclust))
-```
-
-![plot of chunk gsea_A22_bim_cluster](figure/gsea_A22_bim_cluster.png) 
-
-```r
-# report items in each cluster at height 1.8
-GSEAReportClusters(A22.bim.gsea.term.sim.hclust, h = 1)
-```
-
-```
-## $`Cluster 1`
-##                   glycine catabolic process 
-##                                           1 
-## serine family amino acid catabolic proce... 
-##                                          12 
-## 
-## $`Cluster 2`
-## protein modification process   macromolecule modification 
-##                            2                            4 
-## 
-## $`Cluster 3`
-##               protein phosphorylation 
-##                                     3 
-## cellular protein modification process 
-##                                     5 
-##                  histone modification 
-##                                    13 
-## 
-## $`Cluster 4`
-## regulation of intracellular signal trans... 
-##                                           6 
-## protein kinase C-activating G-protein co... 
-##                                           7 
-##         I-kappaB kinase/NF-kappaB signaling 
-##                                           9 
-##        glutamate receptor signaling pathway 
-##                                          10 
-## 
-## $`Cluster 5`
-## porphyrin-containing compound biosynthet... 
-##                                           8 
-## 
-## $`Cluster 6`
-## phospholipid catabolic process 
-##                             11
-```
-
-GO enrichment for *A. picea* **Intermediate** genes.
-
-
-```r
 # A22 'Int' genes
 A22.geneList.int <- rep(0, length = length(Ap.geneList))
 names(A22.geneList.int) <- names(Ap.geneList)
@@ -3559,54 +2359,7 @@ A22.geneList.int[(which(names(A22.geneList.int) %in% A22.int.transcripts))] <- 1
 A22.int.gsea <- gsea(genelist = A22.geneList.int, geneID2GO = geneID2GO)
 ```
 
-Clustering of enriched GO terms for *A. picea* **Intermediate** genes.
-
-
-```r
-# similarity among enriched GO terms
-A22.int.gsea.term.sim <- termSim(A22.int.gsea$GO.ID, A22.int.gsea$GO.ID, ont = "BP", organism = 'fly')
-# replace GO IDs with terms
-rownames(A22.int.gsea.term.sim) <- A22.int.gsea$Term
-colnames(A22.int.gsea.term.sim) <- A22.int.gsea$Term
-# distance matrix
-A22.int.gsea.term.sim.hclust <- hclust(dist((A22.int.gsea.term.sim)))
-plot((A22.int.gsea.term.sim.hclust))
-```
-
-![plot of chunk gsea_A22_int_cluster](figure/gsea_A22_int_cluster.png) 
-
-```r
-# report items in each cluster at height 1.8
-GSEAReportClusters(A22.int.gsea.term.sim.hclust, h = 1.3)
-```
-
-```
-## $`Cluster 1`
-##        glycolipid metabolic process membrane lipid biosynthetic process 
-##                                   1                                   2 
-##    membrane lipid metabolic process     glycolipid biosynthetic process 
-##                                   3                                   4 
-##      sphingolipid metabolic process 
-##                                   8 
-## 
-## $`Cluster 2`
-##    glycoprotein metabolic process             protein glycosylation 
-##                                 5                                 6 
-##       macromolecule glycosylation glycoprotein biosynthetic process 
-##                                 7                                 9 
-##                     DNA packaging 
-##                                13 
-## 
-## $`Cluster 3`
-##    nitric oxide metabolic process nitric oxide biosynthetic process 
-##                                10                                11 
-## 
-## $`Cluster 4`
-## nucleosome organization 
-##                      12
-```
-
-GO enrichment for *A. carolinensis* **High** genes.
+*A. carolinensis*
 
 
 ```r
@@ -3615,312 +2368,19 @@ Ar.geneList.high <- rep(0, length = length(Ap.geneList))
 names(Ar.geneList.high) <- names(Ap.geneList)
 Ar.geneList.high[(which(names(Ar.geneList.high) %in% Ar.high.transcripts))] <- 1
 Ar.high.gsea <- gsea(genelist = Ar.geneList.high, geneID2GO = geneID2GO)
-```
 
-Clustering of enriched GO terms for *A. carolinensis* **High** genes.
-
-
-```r
-# similarity among enriched GO terms
-Ar.high.gsea.term.sim <- termSim(Ar.high.gsea$GO.ID, Ar.high.gsea$GO.ID, ont = "BP", organism = 'fly')
-# replace GO IDs with terms
-rownames(Ar.high.gsea.term.sim) <- Ar.high.gsea$Term
-colnames(Ar.high.gsea.term.sim) <- Ar.high.gsea$Term
-# distance matrix
-Ar.high.gsea.term.sim.hclust <- hclust(dist((Ar.high.gsea.term.sim)))
-plot((Ar.high.gsea.term.sim.hclust))
-```
-
-![plot of chunk gsea_Ar_high_cluster](figure/gsea_Ar_high_cluster.png) 
-
-```r
-# report items in each cluster
-GSEAReportClusters(Ar.high.gsea.term.sim.hclust, h = 1.2)
-```
-
-```
-## $`Cluster 1`
-##              ossification mammary gland development 
-##                         1                         6 
-##      pancreas development         tissue remodeling 
-##                         7                         8 
-## 
-## $`Cluster 2`
-## microtubule anchoring 
-##                     2 
-## 
-## $`Cluster 3`
-## macromolecular complex assembly 
-##                               3 
-## 
-## $`Cluster 4`
-## regulation of blood pressure            hormone transport 
-##                            4                           11 
-## 
-## $`Cluster 5`
-## negative regulation of transmembrane rec... 
-##                                           5 
-##        cellular response to biotic stimulus 
-##                                          12 
-## 
-## $`Cluster 6`
-##          osteoblast differentiation developmental programmed cell death 
-##                                   9                                  10
-```
-GO enrichment for *A. carolinensis* **Low** genes.
-
-
-```r
 # Ar 'Low' genes
 Ar.geneList.low <- rep(0, length = length(Ap.geneList))
 names(Ar.geneList.low) <- names(Ap.geneList)
 Ar.geneList.low[(which(names(Ar.geneList.low) %in% Ar.low.transcripts))] <- 1
 Ar.low.gsea <- gsea(genelist = Ar.geneList.low, geneID2GO = geneID2GO)
-```
 
-Clustering of enriched GO terms for *A. carolinensis* **Low** genes.
-
-
-```r
-# similarity among enriched GO terms
-Ar.low.gsea.term.sim <- termSim(Ar.low.gsea$GO.ID, Ar.low.gsea$GO.ID, ont = "BP", organism = 'fly')
-# replace GO IDs with terms
-rownames(Ar.low.gsea.term.sim) <- Ar.low.gsea$Term
-colnames(Ar.low.gsea.term.sim) <- Ar.low.gsea$Term
-# distance matrix
-Ar.low.gsea.term.sim.hclust <- hclust(dist((Ar.low.gsea.term.sim)))
-plot((Ar.low.gsea.term.sim.hclust))
-```
-
-![plot of chunk gsea_Ar_low_cluster](figure/gsea_Ar_low_cluster.png) 
-
-```r
-# report items in each cluster at height 1.8
-GSEAReportClusters(Ar.low.gsea.term.sim.hclust, h = 2)
-```
-
-```
-## $`Cluster 1`
-##                protein metabolic process 
-##                                        1 
-##                 translational initiation 
-##                                        7 
-##               macromolecule modification 
-##                                       13 
-##       cellular protein metabolic process 
-##                                       14 
-##                        protein acylation 
-##                                       18 
-##                    protein glycosylation 
-##                                       19 
-##          macromolecule metabolic process 
-##                                       33 
-##        glycoprotein biosynthetic process 
-##                                       39 
-##           glycoprotein metabolic process 
-##                                       43 
-##             protein modification process 
-##                                       59 
-## cellular macromolecule metabolic process 
-##                                       65 
-## 
-## $`Cluster 2`
-##                               glycosylation 
-##                                           2 
-##                   styrene metabolic process 
-##                                          10 
-##           organophosphate catabolic process 
-##                                          23 
-##            membrane lipid metabolic process 
-##                                          25 
-##         glycosyl compound catabolic process 
-##                                          29 
-##                         histone acetylation 
-##                                          31 
-##             folic acid biosynthetic process 
-##                                          44 
-## chondroitin sulfate proteoglycan biosynt... 
-##                                          61 
-##    chondroitin sulfate biosynthetic process 
-##                                          62 
-##    DNA replication, synthesis of RNA primer 
-##                                          63 
-## folic acid-containing compound metabolic... 
-##                                          64 
-##                    malate metabolic process 
-##                                          67 
-## 
-## $`Cluster 3`
-## nucleoside triphosphate metabolic proces... 
-##                                           3 
-##      nucleoside phosphate catabolic process 
-##                                           4 
-##            ribonucleotide metabolic process 
-##                                           5 
-##                nucleotide catabolic process 
-##                                          11 
-## regulation of nucleotide metabolic proce... 
-##                                          22 
-##                nucleoside catabolic process 
-##                                          27 
-## purine-containing compound catabolic pro... 
-##                                          36 
-##                       GTP metabolic process 
-##                                          38 
-##         purine nucleotide metabolic process 
-##                                          41 
-## regulation of nucleoside metabolic proce... 
-##                                          42 
-##           regulation of Ras GTPase activity 
-##                                          51 
-## guanosine-containing compound metabolic ... 
-##                                          53 
-## positive regulation of Rab GTPase activi... 
-##                                          55 
-## regulation of purine nucleotide metaboli... 
-##                                          66 
-## 
-## $`Cluster 4`
-## small GTPase mediated signal transductio... 
-##                                           6 
-##                 regulation of ion transport 
-##                                           8 
-##           regulation of signal transduction 
-##                                          16 
-##     regulation of muscle tissue development 
-##                                          32 
-##               regulation of anion transport 
-##                                          50 
-##                     regulation of signaling 
-##                                          68 
-## 
-## $`Cluster 5`
-## establishment of protein localization 
-##                                     9 
-##                     protein transport 
-##                                    20 
-##            macromolecule localization 
-##                                    21 
-##              protein complex assembly 
-##                                    40 
-##            protein complex biogenesis 
-##                                    45 
-##               protein oligomerization 
-##                                    46 
-##        detection of external stimulus 
-##                                    49 
-##               intracellular transport 
-##                                    57 
-## 
-## $`Cluster 6`
-##                       muscle system process 
-##                                          12 
-##                          limb morphogenesis 
-##                                          17 
-##                    renal tubule development 
-##                                          24 
-##                     muscle cell development 
-##                                          26 
-##                            limb development 
-##                                          28 
-##                 skeletal system development 
-##                                          34 
-##        multicellular organismal homeostasis 
-##                                          47 
-##                          photomorphogenesis 
-##                                          52 
-##                          embryo development 
-##                                          54 
-## sensory perception of mechanical stimulu... 
-##                                          56 
-## 
-## $`Cluster 7`
-## regulation of phosphate metabolic proces... 
-##                                          15 
-## regulation of phosphorus metabolic proce... 
-##                                          30 
-## posttranscriptional regulation of gene e... 
-##                                          35 
-##      regulation of translational initiation 
-##                                          37 
-##             regulation of catabolic process 
-##                                          48 
-## regulation of cellular protein metabolic... 
-##                                          58 
-##    regulation of cellular catabolic process 
-##                                          60
-```
-
-GO enrichment for *A. carolinensis* **Bimodal** genes.
-
-
-```r
 # Ar 'Bim' genes
 Ar.geneList.bim <- rep(0, length = length(Ap.geneList))
 names(Ar.geneList.bim) <- names(Ap.geneList)
 Ar.geneList.bim[(which(names(Ar.geneList.bim) %in% Ar.bim.transcripts))] <- 1
 Ar.bim.gsea <- gsea(genelist = Ar.geneList.bim, geneID2GO = geneID2GO)
-```
 
-Clustering of enriched GO terms for *A. carolinensis* **Bimodal** genes.
-
-
-```r
-# similarity among enriched GO terms
-Ar.bim.gsea.term.sim <- termSim(Ar.bim.gsea$GO.ID, Ar.bim.gsea$GO.ID, ont = "BP", organism = 'fly')
-# replace GO IDs with terms
-rownames(Ar.bim.gsea.term.sim) <- Ar.bim.gsea$Term
-colnames(Ar.bim.gsea.term.sim) <- Ar.bim.gsea$Term
-# distance matrix
-Ar.bim.gsea.term.sim.hclust <- hclust(dist((Ar.bim.gsea.term.sim)))
-plot((Ar.bim.gsea.term.sim.hclust))
-```
-
-![plot of chunk gsea_Ar_bim_cluster](figure/gsea_Ar_bim_cluster.png) 
-
-```r
-# report items in each cluster at height 1.8
-GSEAReportClusters(Ar.bim.gsea.term.sim.hclust, h = 1)
-```
-
-```
-## $`Cluster 1`
-## hemolymph coagulation 
-##                     1 
-## 
-## $`Cluster 2`
-## outflow tract morphogenesis 
-##                           2 
-## 
-## $`Cluster 3`
-## cellular aromatic compound metabolic pro... 
-##                                           3 
-##    cellular macromolecule metabolic process 
-##                                           6 
-## 
-## $`Cluster 4`
-## pyrimidine nucleoside monophosphate bios... 
-##                                           4 
-## nucleobase-containing compound metabolic... 
-##                                           5 
-## 
-## $`Cluster 5`
-##      cellular potassium ion transport 
-##                                     7 
-## potassium ion transmembrane transport 
-##                                     9 
-## 
-## $`Cluster 6`
-## organic cyclic compound metabolic proces... 
-##                                           8 
-##             macromolecule metabolic process 
-##                                          10
-```
-
-GO enrichment for *A. carolinensis* **Intermediate** genes.
-
-
-```r
 # Ar 'Int' genes
 Ar.geneList.int <- rep(0, length = length(Ap.geneList))
 names(Ar.geneList.int) <- names(Ap.geneList)
@@ -3928,138 +2388,7 @@ Ar.geneList.int[(which(names(Ar.geneList.int) %in% Ar.int.transcripts))] <- 1
 Ar.int.gsea <- gsea(genelist = Ar.geneList.int, geneID2GO = geneID2GO)
 ```
 
-Clustering of enriched GO terms for *A. carolinensis* **Intermediate** genes.
-
-
-```r
-# similarity among enriched GO terms
-Ar.int.gsea.term.sim <- termSim(Ar.int.gsea$GO.ID, Ar.int.gsea$GO.ID, ont = "BP", organism = 'fly')
-# replace GO IDs with terms
-rownames(Ar.int.gsea.term.sim) <- Ar.int.gsea$Term
-colnames(Ar.int.gsea.term.sim) <- Ar.int.gsea$Term
-# distance matrix
-Ar.int.gsea.term.sim.hclust <- hclust(dist((Ar.int.gsea.term.sim)))
-plot((Ar.int.gsea.term.sim.hclust))
-```
-
-![plot of chunk gsea_Ar_int_cluster](figure/gsea_Ar_int_cluster.png) 
-
-```r
-# report items in each cluster
-GSEAReportClusters(Ar.int.gsea.term.sim.hclust, h = 1.8)
-```
-
-```
-## $`Cluster 1`
-##       cellular protein metabolic process 
-##                                        1 
-##                protein metabolic process 
-##                                        2 
-##                            glycosylation 
-##                                        3 
-##                    protein glycosylation 
-##                                        4 
-##        glycoprotein biosynthetic process 
-##                                        6 
-##          macromolecule metabolic process 
-##                                        7 
-##               macromolecule modification 
-##                                       10 
-##           glycoprotein metabolic process 
-##                                       11 
-##              macromolecule glycosylation 
-##                                       19 
-## cellular macromolecule metabolic process 
-##                                       24 
-##             protein modification process 
-##                                       40 
-##   regulation of translational initiation 
-##                                       49 
-## 
-## $`Cluster 2`
-##         glycolipid metabolic process respiratory electron transport chain 
-##                                    5                                   15 
-##       phospholipid metabolic process             electron transport chain 
-##                                   17                                   30 
-##       sphingolipid metabolic process     membrane lipid metabolic process 
-##                                   32                                   34 
-##                     membrane docking      glycolipid biosynthetic process 
-##                                   35                                   37 
-##  membrane lipid biosynthetic process              lipid metabolic process 
-##                                   47                                   51 
-## 
-## $`Cluster 3`
-##                       GTP catabolic process 
-##                                           8 
-## guanosine-containing compound catabolic ... 
-##                                          12 
-##                       GTP metabolic process 
-##                                          16 
-## guanosine-containing compound metabolic ... 
-##                                          23 
-## regulation of purine nucleotide metaboli... 
-##                                          28 
-## regulation of purine nucleotide cataboli... 
-##                                          33 
-## regulation of nucleotide catabolic proce... 
-##                                          42 
-##      positive regulation of GTPase activity 
-##                                          43 
-## 
-## $`Cluster 4`
-## small GTPase mediated signal transductio... 
-##                                           9 
-##      single-organism organelle organization 
-##                                          13 
-##                      organelle organization 
-##                                          14 
-## regulation of actin cytoskeleton organiz... 
-##                                          22 
-## regulation of actin filament-based proce... 
-##                                          27 
-## 
-## $`Cluster 5`
-##               response to organic substance 
-##                                          18 
-##                  vesicle-mediated transport 
-##                                          20 
-## cellular component organization or bioge... 
-##                                          21 
-##                       cellular localization 
-##                                          36 
-##                     intracellular transport 
-##                                          39 
-##       establishment of localization in cell 
-##                                          44 
-## 
-## $`Cluster 6`
-##                  nucleosome organization 
-##                                       25 
-## protein-DNA complex subunit organization 
-##                                       29 
-##     regulation of protein polymerization 
-##                                       48 
-## 
-## $`Cluster 7`
-##                                RNA splicing 
-##                                          26 
-## tRNA splicing, via endonucleolytic cleav... 
-##                                          31 
-##                          chromatin assembly 
-##                                          38 
-##               regulation of mRNA processing 
-##                                          41 
-##                         nucleosome assembly 
-##                                          50 
-## 
-## $`Cluster 8`
-##         glycosaminoglycan catabolic process 
-##                                          45 
-## positive regulation of hydrolase activit... 
-##                                          46
-```
-
-Combine gene set enrichment analysis for each species and category into single table.
+Combined gene set enrichment analysis for each species and category into single table.
 
 
 ```r
@@ -4079,105 +2408,16 @@ Ar.gsea <- rbind(Ar.high.gsea, Ar.low.gsea, Ar.int.gsea, Ar.bim.gsea)
 Ar.gsea$Species <- "AcNC"
 
 # combine
-Ap.gsea.union <- rbind(A22.gsea, Ar.gsea)
+Ap.gsea.by.species <- rbind(A22.gsea, Ar.gsea)
 # reorder
-Ap.gsea.union <- Ap.gsea.union[,c("Species", "Type", "GO.ID", "Term", "Annotated", "Significant", "Expected", "parentchild")]
-colnames(Ap.gsea.union)[8] <- "P"
+Ap.gsea.by.species <- Ap.gsea.by.species[,c("Species", "Type", "GO.ID", "Term", "Annotated", "Significant", "Expected", "parentchild")]
+colnames(Ap.gsea.by.species)[8] <- "P"
 
-write.csv(Ap.gsea.union, file = paste(resultsdir, "Ap_gsea_union", Sys.Date(), ".csv", sep = ""), row.names = FALSE)
+write.csv(Ap.gsea.by.species, file = paste(resultsdir, "Ap_gsea_by_species", Sys.Date(), ".csv", sep = ""), row.names = FALSE)
 ```
 
 
 
-## Visualize responsive transcripts
-
-Plots for all genes expressed at *High* temps in GO category "GO:0006950: response to stress"
-
-![plot of chunk plot_GOstress](figure/plot_GOstress1.png) ![plot of chunk plot_GOstress](figure/plot_GOstress2.png) 
-
-Make plots for all genes expressed at *Low* temps in GO category "GO:0006950: response to stress"
-
-![plot of chunk plot_GOstress_low](figure/plot_GOstress_low1.png) ![plot of chunk plot_GOstress_low](figure/plot_GOstress_low2.png) 
-
-
-
-```r
-trp_A22_high <- ggplot(resp.TPM.dt.sub[A22.high.transcripts][1:220,], aes(x=val, y=TPM.scaled, group=Transcript)) +
-  geom_smooth(method = "lm", formula = y ~ poly(x, 2)) + 
-  facet_grid(. ~ colony2) + 
-  scale_y_continuous(name="Expression (scaled)") +
-  scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
-print(trp_A22_high)
-```
-
-![plot of chunk ggplot_high](figure/ggplot_high1.png) 
-
-```r
-### predicted values
-resp.TPM.dt.sub.pred[,pTPM.scaled:=scale(pTPM), by = Transcript]
-```
-
-```
-##                          Transcript    TPM  val colony pTPM pTPM.scaled
-##      1: 100008|*|comp137625_c0_seq2 0.0000  0.0    A22 1.01      -0.609
-##      2: 100008|*|comp137625_c0_seq2 0.0000  3.5    A22 1.01      -0.639
-##      3: 100008|*|comp137625_c0_seq2 0.0741 10.5    A22 1.01      -0.662
-##      4: 100008|*|comp137625_c0_seq2 0.0000 14.0    A22 1.01      -0.655
-##      5: 100008|*|comp137625_c0_seq2 0.0000 17.5    A22 1.01      -0.635
-##     ---                                                                
-## 199140:      9|*|comp147140_c0_seq1 0.6310 24.5     Ar 1.67      -0.510
-## 199141:      9|*|comp147140_c0_seq1 0.5952 28.0     Ar 1.63      -0.643
-## 199142:      9|*|comp147140_c0_seq1 0.7302 31.5     Ar 1.59      -0.822
-## 199143:      9|*|comp147140_c0_seq1 0.4534 35.0     Ar 1.53      -1.042
-## 199144:      9|*|comp147140_c0_seq1 0.4528 38.5     Ar 1.47      -1.300
-```
-
-```r
-setkey(resp.TPM.dt.sub.pred, "Transcript")
-
-pred_A22_high <- ggplot(resp.TPM.dt.sub.pred[A22.high.transcripts][1:220,], aes(x=val, y=pTPM.scaled, group=Transcript)) +
-  geom_line() + 
-  facet_grid(. ~ colony) + 
-  scale_y_continuous(name="Expression (scaled)") +
-  scale_x_continuous(name=expression(paste("Temperature ", degree, "C")))
-print(pred_A22_high)
-```
-
-![plot of chunk ggplot_high](figure/ggplot_high2.png) 
-
-```r
-png("RxN_example.png")
-ggplot(resp.TPM.dt.sub.pred["100348|*|comp3450455_c0_seq1"], aes(x=val, y=pTPM.scaled, group=Transcript, color = Transcript)) +
-  geom_line() + 
-  facet_grid(. ~ colony) +
-  labs(y = "Expression (scaled)", x = expression("Temperature ", degree, "C")) +
-  theme(legend.position = "none")
-dev.off()
-```
-
-```
-## pdf 
-##   2
-```
-
-## Shiny interactive web-app
-
-To assist visualization of specific transcripts, I made a interactive web-app using the [shiny](http://www.rstudio.com/shiny/) package. The scripts for this app are in the sub-directory `.\ApRxN-shinyapp`.
-
-Export data for interactive shiny app. 
-
-
-
-
-
-```
-## Error: objects 'chi3', 'chi4', 'chi5', 'tt2', 'mh_plot', 'md' not found
-```
-
-```
-## Error: objects 'chi3', 'chi4', 'chi5', 'chi6', 'tt2', 'mh_plot', 'md' not
-## found
-```
 
 
 ## Session information
@@ -4188,7 +2428,8 @@ save.image()
 ```
 
 ```
-## Warning: 'package:R.utils' may not be available when loading
+## Warning in save(list = names(.GlobalEnv), file = outfile, version = version, :
+## 'package:R.utils' may not be available when loading
 ```
 
 ```r
@@ -4196,93 +2437,84 @@ sessionInfo()
 ```
 
 ```
-## R version 3.1.1 (2014-07-10)
-## Platform: x86_64-pc-linux-gnu (64-bit)
+## R version 3.2.2 (2015-08-14)
+## Platform: x86_64-apple-darwin13.4.0 (64-bit)
+## Running under: OS X 10.10.5 (Yosemite)
 ## 
 ## locale:
-##  [1] LC_CTYPE=en_US.UTF-8 LC_NUMERIC=C         LC_TIME=C           
-##  [4] LC_COLLATE=C         LC_MONETARY=C        LC_MESSAGES=C       
-##  [7] LC_PAPER=C           LC_NAME=C            LC_ADDRESS=C        
-## [10] LC_TELEPHONE=C       LC_MEASUREMENT=C     LC_IDENTIFICATION=C 
+## [1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
 ## 
 ## attached base packages:
-## [1] grid      parallel  stats     graphics  grDevices utils     datasets 
-## [8] methods   base     
+##  [1] stats4    parallel  grid      stats     graphics  grDevices utils    
+##  [8] datasets  methods   base     
 ## 
 ## other attached packages:
-##  [1] GOSemSim_1.22.0      Rcpp_0.11.2          Rgraphviz_2.8.1     
-##  [4] topGO_2.16.0         SparseM_1.05         GO.db_2.14.0        
-##  [7] RSQLite_0.11.4       DBI_0.3.0            AnnotationDbi_1.26.0
-## [10] GenomeInfoDb_1.0.2   Biobase_2.24.0       BiocGenerics_0.10.0 
-## [13] graph_1.42.0         RColorBrewer_1.0-5   reshape2_1.4        
-## [16] xtable_1.7-3         MASS_7.3-34          plyr_1.8.1          
-## [19] RCurl_1.95-4.3       bitops_1.0-6         data.table_1.9.2    
-## [22] stringr_0.6.2        pander_0.3.8         knitcitations_1.0-1 
-## [25] ggplot2_1.0.0        R.utils_1.33.0       R.oo_1.18.0         
-## [28] R.methodsS3_1.6.1    knitr_1.6           
+##  [1] GOSemSim_1.24.1      Rgraphviz_2.10.0     topGO_2.20.0        
+##  [4] SparseM_1.6          GO.db_3.1.2          AnnotationDbi_1.30.1
+##  [7] GenomeInfoDb_1.2.5   IRanges_2.0.1        S4Vectors_0.4.0     
+## [10] Biobase_2.26.0       graph_1.44.1         BiocGenerics_0.14.0 
+## [13] gridExtra_0.9.1      coin_1.0-24          survival_2.38-3     
+## [16] RColorBrewer_1.1-2   reshape2_1.4.1       xtable_1.7-4        
+## [19] MASS_7.3-43          plyr_1.8.1           RCurl_1.95-4.6      
+## [22] bitops_1.0-6         data.table_1.9.4     stringr_0.6.2       
+## [25] pander_0.5.1         knitcitations_1.0.6  knitr_1.9           
+## [28] ggplot2_1.0.1        R.utils_2.0.0        R.oo_1.19.0         
+## [31] R.methodsS3_1.7.0    RSQLite_1.0.0        DBI_0.3.1           
 ## 
 ## loaded via a namespace (and not attached):
-##  [1] IRanges_1.22.10   RJSONIO_1.3-0     RefManageR_0.8.34
-##  [4] XML_3.98-1.1      bibtex_0.3-6      codetools_0.2-8  
-##  [7] colorspace_1.2-4  digest_0.6.4      evaluate_0.5.5   
-## [10] formatR_1.0       gtable_0.1.2      httr_0.5         
-## [13] labeling_0.3      lattice_0.20-29   lubridate_1.3.3  
-## [16] memoise_0.2.1     munsell_0.4.2     proto_0.3-10     
-## [19] scales_0.2.4      stats4_3.1.1      tools_3.1.1
+##  [1] modeltools_0.2-21 splines_3.2.2     lattice_0.20-33   colorspace_1.2-6 
+##  [5] htmltools_0.2.6   yaml_2.1.13       chron_2.3-45      XML_3.98-1.1     
+##  [9] munsell_0.4.2     gtable_0.1.2      mvtnorm_1.0-2     codetools_0.2-14 
+## [13] evaluate_0.6      memoise_0.2.1     labeling_0.3      proto_0.3-10     
+## [17] Rcpp_0.11.5       scales_0.2.4      formatR_1.1       digest_0.6.8     
+## [21] RJSONIO_1.3-0     bibtex_0.4.0      tools_3.2.2       RefManageR_0.8.45
+## [25] lubridate_1.3.3   rmarkdown_0.5.1   httr_0.6.1
 ```
 
 ## References
 
 [1] S. Anders, D. J. McCarthy, Y. Chen, et al. "Count-based
-differential expression analysis of RNA sequencing data using R
-and Bioconductor". In: _Nature Protocols_ 8.9 (Aug. 2013), pp.
-1765-1786. DOI: 10.1038/nprot.2013.099. <URL:
+differential expression analysis of RNA sequencing data using R and
+Bioconductor". In: _Nat Protoc_ 8.9 (Aug. 2013), pp. 1765-1786. DOI:
+10.1038/nprot.2013.099. <URL:
 http://dx.doi.org/10.1038/nprot.2013.099>.
 
 [2] J. H. Bullard, E. Purdom, K. D. Hansen, et al. "Evaluation of
-statistical methods for normalization and differential expression
-in mRNA-Seq experiments". In: _BMC Bioinformatics_ 11.1 (2010), p.
-94. DOI: 10.1186/1471-2105-11-94. <URL:
+statistical methods for normalization and differential expression in
+mRNA-Seq experiments". In: _BMC Bioinformatics_ 11.1 (2010), p. 94.
+DOI: 10.1186/1471-2105-11-94. <URL:
 http://dx.doi.org/10.1186/1471-2105-11-94>.
 
 [3] M. G. Grabherr, B. J. Haas, M. Yassour, et al. "Full-length
-transcriptome assembly from RNA-Seq data without a reference
-genome". In: _Nat Biotechnol_ 29.7 (May. 2011), pp. 644-652. DOI:
+transcriptome assembly from RNA-Seq data without a reference genome".
+In: _Nat Biotechnol_ 29.7 (May. 2011), pp. 644-652. DOI:
 10.1038/nbt.1883. <URL: http://dx.doi.org/10.1038/nbt.1883>.
 
 [4] X. Huang. "CAP3: A DNA Sequence Assembly Program". In: _Genome
-Research_ 9.9 (Sep. 1999), pp. 868-877. DOI: 10.1101/gr.9.9.868.
-<URL: http://dx.doi.org/10.1101/gr.9.9.868>.
+Research_ 9.9 (Sep. 1999), pp. 868-877. DOI: 10.1101/gr.9.9.868. <URL:
+http://dx.doi.org/10.1101/gr.9.9.868>.
 
-[5] B. Li, V. Ruotti, R. M. Stewart, et al. "RNA-Seq gene
-expression estimation with read mapping uncertainty". In:
-_Bioinformatics_ 26.4 (Dec. 2009), pp. 493-500. DOI:
-10.1093/bioinformatics/btp692. <URL:
+[5] B. Li, V. Ruotti, R. M. Stewart, et al. "RNA-Seq gene expression
+estimation with read mapping uncertainty". In: _Bioinformatics_ 26.4
+(Dec. 2009), pp. 493-500. DOI: 10.1093/bioinformatics/btp692. <URL:
 http://dx.doi.org/10.1093/bioinformatics/btp692>.
 
-[6] M. Lohse, A. M. Bolger, A. Nagel, et al. "RobiNA: a
-user-friendly, integrated software solution for RNA-Seq-based
-transcriptomics". In: _Nucleic Acids Research_ 40.W1 (Jun. 2012),
-pp. W622-W627. DOI: 10.1093/nar/gks540. <URL:
-http://dx.doi.org/10.1093/nar/gks540>.
+[6] M. Lohse, A. M. Bolger, A. Nagel, et al. "RobiNA: a user-friendly,
+integrated software solution for RNA-Seq-based transcriptomics". In:
+_Nucleic Acids Research_ 40.W1 (Jun. 2012), pp. W622-W627. DOI:
+10.1093/nar/gks540. <URL: http://dx.doi.org/10.1093/nar/gks540>.
 
-[7] D. Lubertazzi. " The Biology and Natural History of
-Aphaenogaster rudis ". In: _Psyche: A Journal of Entomology_ 2012
-(2012), pp. 1-11. DOI: 10.1155/2012/752815. <URL:
-http://dx.doi.org/10.1155/2012/752815>.
+[7] D. Lubertazzi. " The Biology and Natural History of Aphaenogaster
+rudis ". In: _Psyche: A Journal of Entomology_ 2012 (2012), pp. 1-11.
+DOI: 10.1155/2012/752815. <URL: http://dx.doi.org/10.1155/2012/752815>.
 
-[8] C. J. Murren, H. J. Maclean, S. E. Diamond, et al.
-"Evolutionary Change in Continuous Reaction Norms". In: _The
-American Naturalist_ 183.4 (Apr. 2014), pp. 453-467. DOI:
-10.1086/675302. <URL: http://dx.doi.org/10.1086/675302>.
-
-[9] Y. Yang and S. A. Smith. "Optimizing de novo assembly of
-short-read RNA-seq data for phylogenomics". In: _BMC Genomics_
-14.1 (2013), p. 328. DOI: 10.1186/1471-2164-14-328. <URL:
+[8] Y. Yang and S. A. Smith. "Optimizing de novo assembly of short-read
+RNA-seq data for phylogenomics". In: _BMC Genomics_ 14.1 (2013), p.
+328. DOI: 10.1186/1471-2164-14-328. <URL:
 http://dx.doi.org/10.1186/1471-2164-14-328>.
 
-[10] G. Yu, F. Li, Y. Qin, et al. "GOSemSim: an R package for
-measuring semantic similarity among GO terms and gene products".
-In: _Bioinformatics_ 26.7 (Feb. 2010), pp. 976-978. DOI:
+[9] G. Yu, F. Li, Y. Qin, et al. "GOSemSim: an R package for measuring
+semantic similarity among GO terms and gene products". In:
+_Bioinformatics_ 26.7 (Feb. 2010), pp. 976-978. DOI:
 10.1093/bioinformatics/btq064. <URL:
 http://dx.doi.org/10.1093/bioinformatics/btq064>.
