@@ -3,8 +3,7 @@ title: Technical Report for **Thermal reactionomes reveal divergent responses to
   extremes in warm and cool-climate ant species**
 author: '[John Stanton-Geddes](john.stantongeddes.research@gmail.com)'
 output:
-  html_document:
-    keep_md: yes
+  word_document: default
   pdf_document:
     fig_caption: yes
     includes:
@@ -13,7 +12,8 @@ output:
     latex_engine: xelatex
     number_sections: no
     toc_depth: 2
-  word_document: default
+  html_document:
+    keep_md: yes
 ---
 
 ```{r setup, echo=FALSE, results='hide', message = FALSE, warning=FALSE}
@@ -469,6 +469,7 @@ Ar.type.table <- table(sig.response.type$Ar.type)
 
 # table
 (Ap.type.table <- rbind(A22.type.table, Ar.type.table))
+rownames(Ap.type.table) <- list("A. picea", "A. carolinensis")
 
 # proportion
 Ap.type.table.prop <- round(Ap.type.table / (sum(Ap.type.table)/2) * 100)
@@ -1550,7 +1551,7 @@ write.csv(Ap.gsea.by.species, file = paste(resultsdir, "Ap_gsea_by_species", Sys
 save(Ap.type.table, annotation.table, annotation.table.responsive, Ap.type.table.prop, 
      chi1, chi2, chi3, chi4, chi5, chi6, D, mh.test, pre.signif.transcripts,  
      responsive_transcripts_w_BLAST, sigtable, signif.transcripts, T_on.low.ttest, 
-     T_on.high.ttest, T_off.int.high.ttest, T_off.int.low.ttest, w3, 
+     T_on.high.ttest, T_off.int.high.ttest, T_off.int.low.ttest, w3, tt2,
      file = paste("doc/ms_", Sys.Date(), ".RData", sep = ""))
 ```
 
