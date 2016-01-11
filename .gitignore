@@ -8,11 +8,14 @@ cache
 figure
 planning
 comments
+doc/wc10
+scripts/BUSCO_v1.1b1
 
 # Ignore these file types
 *.Rproj
 *.Rproj.user
 *.RData
+*.Rda
 *.Rhistory
 *.html
 *.pdf
