@@ -22,3 +22,5 @@ ggplot(d1long, aes(x = x, y = Expression, group = time)) +
   facet_wrap(~ time) +
   theme(legend.position = "none") +
   scale_colour_brewer(palette="Set1")
+
+ggsave(filename = "../results/expression_types_Fig1.png")
