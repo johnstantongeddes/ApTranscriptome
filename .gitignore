@@ -10,6 +10,7 @@ planning
 comments
 doc/wc10
 scripts/BUSCO_v1.1b1
+ApTranscriptome_TR_cache/
 
 # Ignore these file types
 *.Rproj

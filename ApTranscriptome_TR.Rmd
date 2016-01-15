@@ -69,7 +69,7 @@ We quantified the relative importance of each of these mechanisms to thermal ada
 
 ## Data ##
 
-The raw Illumina fastq files are available from the NCBI short read archive [link tbd]. The assembled transcriptome, annotation and expression values are available from the Harvard Forest Archives, HF-113 [http://harvardforest.fas.harvard.edu/data-archive] datasets [hf113-36](http://harvardforest.fas.harvard.edu/data/p11/hf113/hf113-36-ap-ann-table.csv), [hf113-40](http://harvardforest.fas.harvard.edu/data/p11/hf113/hf113-40-ap-trans.tar) and [hf113-41](http://harvardforest.fas.harvard.edu/data/p11/hf113/hf113-41-ap-gene-exp-quant.tgz). These processed files are used for this analysis due to the computational demands of re-generating the files, but the exact commands for each of these steps are documented below.
+The raw Illumina fastq files are available from the NCBI short read archive [link tbd]. The assembled transcriptome, annotation and expression values are available from the Harvard Forest Archives, HF-113 [http://harvardforest.fas.harvard.edu/data-archive] datasets [hf113-38](http://harvardforest.fas.harvard.edu/data/p11/hf113/hf113-38-ap-ann-table.txt), [hf113-41](http://harvardforest.fas.harvard.edu/data/p11/hf113/hf113-41-ap-trans.tar) and [hf113-42](http://harvardforest.fas.harvard.edu/data/p11/hf113/hf113-42-ap-gene-exp-quant.tgz). These processed files are used for this analysis due to the computational demands of re-generating the files, but the exact commands for each of these steps are documented below.
 
 
 ## Sample description ##

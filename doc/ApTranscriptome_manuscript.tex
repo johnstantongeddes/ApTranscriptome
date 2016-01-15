@@ -1,0 +1,1572 @@
+\documentclass[]{article}
+\usepackage{lmodern}
+\usepackage{amssymb,amsmath}
+\usepackage{ifxetex,ifluatex}
+\usepackage{fixltx2e} % provides \textsubscript
+\ifnum 0\ifxetex 1\fi\ifluatex 1\fi=0 % if pdftex
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+\else % if luatex or xelatex
+  \ifxetex
+    \usepackage{mathspec}
+    \usepackage{xltxtra,xunicode}
+  \else
+    \usepackage{fontspec}
+  \fi
+  \defaultfontfeatures{Mapping=tex-text,Scale=MatchLowercase}
+  \newcommand{\euro}{€}
+\fi
+% use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+% use microtype if available
+\IfFileExists{microtype.sty}{%
+\usepackage{microtype}
+\UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\usepackage[margin=1in]{geometry}
+\usepackage{longtable,booktabs}
+\usepackage{graphicx}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+\ifxetex
+  \usepackage[setpagesize=false, % page size defined by xetex
+              unicode=false, % unicode breaks when used with xetex
+              xetex]{hyperref}
+\else
+  \usepackage[unicode=true]{hyperref}
+\fi
+\hypersetup{breaklinks=true,
+            bookmarks=true,
+            pdfauthor={},
+            pdftitle={Thermal reactionomes reveal divergent responses to thermal extremes in warm and cool-climate ant species},
+            colorlinks=true,
+            citecolor=blue,
+            urlcolor=blue,
+            linkcolor=magenta,
+            pdfborder={0 0 0}}
+\urlstyle{same}  % don't use monospace font for urls
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt plus 2pt minus 1pt}
+\setlength{\emergencystretch}{3em}  % prevent overfull lines
+\setcounter{secnumdepth}{0}
+
+%%% Use protect on footnotes to avoid problems with footnotes in titles
+\let\rmarkdownfootnote\footnote%
+\def\footnote{\protect\rmarkdownfootnote}
+
+%%% Change title format to be more compact
+\usepackage{titling}
+
+% Create subtitle command for use in maketitle
+\newcommand{\subtitle}[1]{
+  \posttitle{
+    \begin{center}\large#1\end{center}
+    }
+}
+
+\setlength{\droptitle}{-2em}
+  \title{Thermal reactionomes reveal divergent responses to thermal extremes in
+warm and cool-climate ant species}
+  \pretitle{\vspace{\droptitle}\centering\huge}
+  \posttitle{\par}
+  \author{}
+  \preauthor{}\postauthor{}
+  \date{}
+  \predate{}\postdate{}
+
+\usepackage{lipsum}
+\usepackage[colorinlistoftodos,
+textsize=footnotesize,textwidth=0.90\marginparwidth]{todonotes}
+\usepackage{lineno}
+\usepackage{setspace}
+\usepackage[parfill]{parskip}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% new command for inserting initialed comments
+\newcommand{\njg}[1]{\todo[color=blue!20]{\textbf{njg}: #1}} 
+
+% new command for inserting needed references
+\newcommand{\addref}[1]{\todo[color=red!40]{\textsc{add ref}: \\ #1}}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%add the following to the YAML of the markdown document. Some of this is created in Rstudio, but other lines are not:
+
+%csl: ecology.csl
+%output:
+%  pdf_document:
+%    latex_engine: xelatex
+%    number_sections: yes
+%    toc_depth: 3
+%    keep_tex: true
+%    includes:
+%      in_header: header.tex
+%bibliography: eco-centennial-paper.bib   
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% common commands to use in the .Rmd file with these packages
+
+% \lipsum[1-5] 
+%for 5 paragraphs of text filler
+
+% \doublespacing 
+%for double-spaced manuscript
+
+%\setlength{\parindent}{0cm}
+%for indenting of paragraphs
+
+%\setlength{\parskip}{2ex plus4mm minus3mm}
+%for amount of spacing between paragraphs
+
+%to start line numbering
+\linenumbers
+
+%\listoftodos
+%for generating a list of all the notes
+
+
+\begin{document}
+
+\maketitle
+
+
+\linenumbers
+
+\newpage
+
+\textbf{Authors}
+
+John Stanton-Geddes \textsuperscript{1}, Andrew Nguyen
+\textsuperscript{1}, Lacy Chick \textsuperscript{2}, James Vincent
+\textsuperscript{3}, Mahesh Vangala \textsuperscript{3}, Robert R. Dunn
+\textsuperscript{4}, Aaron M. Ellison \textsuperscript{5}, Nathan J.
+Sanders \textsuperscript{2,6}, Nicholas J. Gotelli \textsuperscript{1},
+Sara Helms Cahan \textsuperscript{1}
+
+\vspace{10 mm}
+
+\textbf{Affiliations}
+
+\textsuperscript{1} Department of Biology, University of Vermont,
+Burlington, Vermont 05405 \newline
+
+\textsuperscript{2} Department of Ecology and Evolutionary Biology,
+University of Tennessee, Knoxville, Tenessee 37996 \newline
+
+\textsuperscript{3} Vermont Genetics Network, University of Vermont,
+Burlington, Vermont 05405 \newline
+
+\textsuperscript{4} Department of Biological Sciences, North Carolina
+State University, Raleigh, North Carolina 27695 \newline
+
+\textsuperscript{5} Harvard Forest, Harvard University, Petersham,
+Massachusetts 01336 \newline
+
+\textsuperscript{6} Center for Macroecology, Evolution and Climate,
+University of Copenhagen, Universitetsparken 15, DK-2100 Copenhagen
+
+\textbf{Corresponding author}
+
+John Stanton-Geddes, Data Scientist
+
+Dealer.com, 1 Howard St, Burlington, VT 05401
+
+Phone: 802-656-2922
+
+Email:
+\href{mailto:john.stantongeddes.research@google.com}{\nolinkurl{john.stantongeddes.research@google.com}}
+
+\newpage
+
+\section{Abstract}\label{abstract}
+
+\textbf{Background} The distributions of species and their responses to
+climate change are in part determined by their thermal tolerances.
+However, little is known about how thermal tolerance evolves. To test
+whether evolutionary extension of thermal limits is accomplished through
+enhanced cellular stress response (\emph{enhanced response}),
+constitutively elevated expression of protective genes (\emph{genetic
+assimilation}) or a shift from damage resistance to passive mechanisms
+of thermal stability (\emph{tolerance}), we conducted an analysis of the
+\emph{reactionome}: the reaction norm for all genes in an organism's
+transcriptome measured across an experimental gradient. We characterized
+thermal reactionomes of two common ant species in the eastern U.S, the
+northern cool-climate \emph{Aphaenogaster picea} and the southern
+warm-climate \emph{Aphaenogaster carolinensis}, across 12 temperatures
+that spanned their entire thermal breadth.
+
+\textbf{Results} We found that at least 2\% of all genes changed
+expression with temperature. The majority of upregulation was specific
+to exposure to low temperatures. The cool-adapted \emph{A. picea}
+induced expression of more genes in response to extreme temperatures
+than did \emph{A. carolinensis}, consistent with the \emph{enhanced
+response} hypothesis. In contrast, under high temperatures the
+warm-adapted \emph{A. carolinensis} downregulated many of the genes
+upregulated in \emph{A. picea}, and required more extreme temperatures
+to induce down-regulation in gene expression, consistent with the
+\emph{tolerance} hypothesis. We found no evidence for a trade-off
+between constitutive and inducible gene expression as predicted by the
+\emph{genetic assimilation hypothesis}.
+
+\textbf{Conclusions} These results suggest that increases in upper
+thermal limits may require an evolutionary shift in response mechanism
+away from damage repair toward tolerance and prevention.
+
+\textbf{Keywords}
+
+\emph{Aphaenogaster}, gene expression, plasticity, reactionome,
+transcriptome
+
+\section{Background}\label{background}
+
+Temperature regulates biological activity and shapes diversity from
+molecular to macroecological scales {[}1, 2{]}. Many species, especially
+small-bodied arthropods, live at temperatures close to their thermal
+limits and are at risk from current increases in temperature {[}3--5{]}.
+Thermal tolerance, the ability of individuals to maintain function and
+survive thermal extremes, depends on a complex interplay between the
+structural integrity of cellular components and activation of
+physiological response mechanisms to prevent and/or repair damage {[}6,
+7{]}. Thermal defense strategies are shaped by the environmental regime
+organisms experience {[}8{]} and thermal limits vary considerably among
+species and populations {[}3, 4, 9, 10{]}. These differences in thermal
+tolerance are largely genetic {[}11, 12{]} with a highly polygenic basis
+{[}13--16{]}. Outside of candidate genes {[}13{]}, little is known about
+the evolution of thermal tolerance or the link between short-term
+physiological acclimation and longer-term adaptation to novel
+temperature regimes. This information is critical for understanding the
+adaptive potential of species to future climates {[}17{]}.
+
+To address this gap of knowledge, we need information on the extent to
+which selection has acted upon the diversity and plasticity of genes
+involved in thermal tolerance {[}17, 18{]}. In recent years,
+whole-organism gene expression approaches (e.g.~transcriptomics) using
+high-throughput RNA sequencing (RNAseq) technology have been widely
+applied to identify genes involved in thermal tolerance {[}19--22{]} and
+other traits. Such studies typically use an ANOVA-type experimental or
+sampling design, with only a few environmental levels, and often find
+only a few dozen to hundred genes with differential expression in
+different thermal regimes. However, temperature and other environmental
+factors vary continuously in nature. As a result, such categorical
+comparisons (e.g.~high vs.~low temperatures) are likely to miss key
+differences that are due not just to whether it is hot, but rather how
+hot it is. Continuous variation is better characterized with a reaction
+norm approach, which describes variation in the phenotype of a single
+genotype across an environmental gradient {[}23{]}. Reaction norms
+differ not only in mean values, but also in their shapes {[}10, 24{]},
+and differences in the shape of reaction norms are often larger than
+differences in mean values at both the species and the population level
+{[}24{]}.
+
+In this study, we extend the reaction norm approach to RNAseq analysis
+and introduce the \emph{reactionome}, which we define as a
+characterization of the reaction norm for all genes in an organism's
+transcriptome across an environmental gradient. Although temporal
+patterns of transcriptional activity (e.g.~fast- vs.~slow- responding
+genes) are also important components of an organism's transcriptional
+response to environmental conditions {[}25{]}, we focus here on the
+response of transcripts across conditions at the same time point.
+
+We used the reactionome method to identify genes that are thermally
+responsive in two closely-related eastern North American ant species,
+\emph{Aphaenogaster carolinensis} and \emph{A. picea} {[}26, 27{]}.
+\emph{Aphaenogaster} are some of the most common ants in eastern North
+America {[}28{]} where they are keystone seed dispersers {[}29--31{]}.
+Ants, and ectotherms in general, have little or no thermal safety margin
+{[}5{]} and thus are highly susceptible to climate change {[}4, 32{]},
+putting at risk important ecosystem services {[}33{]}. Growth chamber
+studies have demonstrated that reproduction of \emph{Aphaenogaster} will
+be compromised by increased tempreatures {[}34{]}, while field studies
+{[}32{]} and simulations {[}35{]} indicate that ant species persistence
+will depend on combinations of physiology and species interactions.
+\emph{Aphaenogaster carolinensis} experiences a higher mean annual
+temperature (MAT) (14.6°C) and less seasonal temperature variation
+(temperature seasonality = 7,678°) than does \emph{A. picea} (MAT =
+4.6°C, seasonality = 10,008°; {[}36{]}) at their respective collection
+sites. In controlled laboratory experiments, these warm- and
+cold-climate species exhibit corresponding differences in their critical
+maximum (44.7°C for \emph{A. carolinensis} versus 41.3°C for \emph{A.
+picea}; see Methods) and minimum temperatures (6.1°C for \emph{A.
+carolinensis} versus -0.1°C for \emph{A. picea}). These differences
+between species in their thermal environments and physiological
+tolerances allowed us to investigate adaptation to both lower and upper
+thermal extremes in this system.
+
+To characterize the thermal reactionome, we measured the reaction norm
+for each gene using a regression-based statistical approach to identify
+temperature-dependent patterns of change in gene expression. We used
+these response patterns to quantitatively test three mechanistic
+hypotheses of thermal adaptation. First, the \emph{enhanced response
+hypothesis} {[}37--39{]} proposes that species extend their thermal
+limits through a stronger induced response to provide greater protection
+from more frequently encountered stressors. This hypothesis would
+predict that the cool-adapted \emph{A. picea} would activate more genes,
+and induce them more strongly, in response to low temperatures than
+would the warm-adapted \emph{A. carolinensis}, which would show greater
+induction in response to high temperatures.
+
+Second, the \emph{tolerance hypothesis} {[}9, 40{]} proposes that
+existing inducible stress responses become insufficient or prohibitively
+costly as environmental stressors increase in frequency, resulting in a
+shift away from an induced response in favor of structural changes
+{[}41{]} or behavioral adaptations {[}5, 42{]}. This hypothesis predicts
+adaptation to stress should be associated with lower transcriptional
+responsiveness and less sensitivity to temperature perturbation, as well
+as a shift to an alternate suite of tolerance genes and pathways {[}43,
+44{]}.
+
+Finally, the \emph{genetic assimilation hypothesis} {[}45, 46{]}
+proposes that exposure to more extreme stressors selects for a shift
+from inducible to constitutive expression of stress-response genes. This
+hypothesis predicts that transcripts responsive to high temperatures in
+\emph{A. picea} will have higher constitutive expression in \emph{A.
+carolinensis}, whereas transcripts responsive to low temperatures in
+\emph{A. carolinensis} will have higher constitutive expression in
+\emph{A. picea}.
+
+To summarise, in this project we generated the transcriptomes of two
+closely-related temperate ant species, and quantified their gene
+expression across a wide range of thermal conditions. We then evaluated
+three non-mutually exclusive hypotheses (enhanced response, tolerance
+and genetic assimilation) of the evolution of thermal adaptation by
+comparing the number and expression patterns of transcripts between
+species in response to extreme low and extreme high temperatures.
+Finally, we used gene ontology information to determine which gene
+products and pathways are involved in thermal adaptation in the two
+species.
+
+\section{Results}\label{results}
+
+\subsection{Reaction norms of thermally-responsive
+transcripts}\label{reaction-norms-of-thermally-responsive-transcripts}
+
+The combined \emph{Aphaenogaster} transcriptome assembly contained
+99,861 transcripts. About half of these (51,246) transcripts had a
+signficant BLAST hit, of which 50\% (25,797) had a top hit to Insecta
+and 37\% (18,854) had a top hit to Formicidae. We performed a BUSCO
+analysis {[}47{]} to assess the quality of the transcriptome assembly
+against the arthropod Benchmarking Universal Single-Copy Orthologs
+(BUSCOs). This analysis revealed that transcriptome is largely complete,
+as we recovered 1,426 complete single-copy BUSCOs (62\%) and an
+additional 435 fragmented BUSCOs (16\%), which is in line with results
+of Simao et al. {[}47{]} for transcriptomes of other non-model species.
+Moreover, only 8\% of the BUSCOs were found to be duplicated in the
+transcriptome, which indicates that the steps (see Methods) we took to
+collapse homologs in the combined transcriptome of the two species were
+successful.
+
+We quantified gene expression using the program \texttt{Sailfish}
+{[}48{]}, and fitted polynomial regression models to the expression
+values of each transcript to identify those that had a linear or
+quadratic relationship (Fig. 1). To account for multiple tests, we both
+applied a False Discovery Rate (FDR) correction, and performed a
+resampling analysis to determine the number of transcripts that would be
+expected to have a significant relationship by chance alone. We retained
+the 2,509 (2.5\% of total) transcripts that exceeded the null
+expectation from the resampling analysis as true positive transcripts
+for further analyses (Table S1). Of these transcripts, 75\% (1,553) had
+a non-linear relationship with temperature that would likely have been
+missed with a standard differential expression experiment (e.g.~high
+vs.~low temperature). The proportion of responsive transcripts is
+similar if we focus only on those transcript with a BLAST hit (725
+significant transcripts out of 51,246, 1.4). However, as with all
+\emph{de novo} transcriptome assemblies, this assembly is fragmented due
+to partial contigs and alternative transcripts {[}49{]} so this estimate
+is likely a lower bound for the true proportion of transcripts that are
+thermally responsive.
+
+We used the predicted transcript expression levels to partition
+transcripts for each species into five expression categories (Fig. 1)
+which were defined \emph{a priori} to allow us to test predictions
+derived from three thermal adaptation hypotheses of relative response
+severity in the two species: \textbf{High} transcripts had greatest
+expression at temperatures \textgreater{} 31°C, \textbf{Low} transcripts
+had greatest expression at temperatures \textless{} 10°C,
+\textbf{Intermediate} transcripts had greatest expression between 10 to
+30°C, \textbf{Bimodal} transcripts had increased expression at both high
+and low temperatures, while \textbf{NotResp} transcripts were those that
+were not thermally responsive in the focal species but did respond in
+the other.
+
+\subsection{Expression response to thermal extremes differs between
+species}\label{expression-response-to-thermal-extremes-differs-between-species}
+
+Although the total number of thermally-responsive transcripts did not
+differ between species (\(\chi^2\)\textsubscript{1} = 0.08, \emph{P} =
+0.77), the two species differed in the number of transcripts in each
+expression category (Table 1, \(\chi^2\)\textsubscript{4} = 302.896,
+\emph{P} \textless{} 0.001). \emph{Aphaenogaster picea} induced
+significantly more transcripts in response to both temperature extremes
+(\textbf{Bimodal} transcripts in Table 1; \(\chi^2\)\textsubscript{1} =
+71.617, \emph{P} \textless{} 0.001) than did \emph{A. carolinensis},
+which downregulated more transcripts under these conditions
+(\textbf{Intermediate} transcripts in Table 1;
+\(\chi^2\)\textsubscript{1} = 256.329, \emph{P} \textless{} 0.001).
+Consistent with the \emph{enhanced response} hypothesis, the
+cool-climate \emph{A. picea} induced 273 (\textasciitilde{}50\%) more
+transcripts in response to low temperatures than the warm-climate
+\emph{A. carolinensis} (\textbf{Low} transcripts in Table 1;
+\(\chi^2\)\textsubscript{1} = 71.227, \emph{P} \textless{} 0.001).
+However, there was no difference among species in the number of
+transcripts upregulated at high temperatures (\textbf{High} transcripts
+in Table 1; \(\chi^2\)\textsubscript{1} = 0.53, \emph{P} = 0.47).
+
+In addition, we also examined the specific patterns of shifts from one
+expression category to another between species. As transcripts may
+change expression between species due to neutral drift alone, we used
+the Stuart-Maxwell test of marginal homogeneity to test if the number of
+responsive transcripts in each expression category differed between the
+species when controlling for overall differences in the number of
+responsive transcripts. We found that the expression categories of
+individual transcripts between the two species were not randomly
+distributed (Stuart-Maxwell test of marginal homogeneity
+\(\chi^2\)\textsubscript{4} = 319, P \textless{} 0.001, Fig. S1).
+Specifically, the two species differed significantly in expression
+pattern, which captures differences in slope as well as category, for
+1,553 (62\%) of the thermally responsive transcripts.
+
+The \emph{enhanced response} and \emph{tolerance} hypotheses make
+opposing predictions concerning the overlap in response patterns between
+the two species (Fig. 2). The \emph{enhanced response hypothesis} posits
+that temperature adaptation uses existing mechanisms for thermal
+resistance, which should result in significant overlap in response and
+fewer transcripts shifting expression categories than expected by chance
+(Fig. 2, left). In contrast, the \emph{tolerance hypothesis} predicts
+that transcripts involved in active defense will become non-responsive
+or shift to other expression categories in the better-adapted species
+(Fig. 2, right). We tested these predictions by examining if the
+transcripts upregulated in response to the temperature extreme
+experienced less frequently by a species (cool temperatures for the
+warm-climate \emph{A. carolinensis}, and warm temperatures for the
+cool-climate \emph{A. picea}) displayed the same response profile in the
+other species that more frequently experiences those conditions.
+
+Transcripts upregulated at low temperatures in \emph{A. carolinensis}
+(\textbf{Low} and \textbf{Bimodal} transcripts) were significantly
+biased toward this same category and away from other expression
+categories in \emph{A. picea} (Fig. 3A), suggesting shared response
+pathways as predicted by the \emph{enhanced response} hypothesis. In
+contrast, transcripts upregulated in response to high temperatures in
+\emph{A. picea} (\textbf{High} and \textbf{Bimodal}) shifted expression
+categories in \emph{A. carolinensis} (Fig. 3B), primarily to the
+\textbf{Intermediate} category (Fig. 3B). These transcripts are less
+likely to be upregulated in any context, consistent with the
+\emph{tolerance hypothesis}.
+
+\subsection{Molecular processes suggest a generalized stress response
+mechanism}\label{molecular-processes-suggest-a-generalized-stress-response-mechanism}
+
+The gene set enrichment analysis revealed a number of gene groups
+enriched in each expression category (Table S2). Across both species,
+there were 9 terms enriched in the \textbf{Bimodal} category, including
+terms involved in stress response (regulation of cellular response to
+stress, signal transduction by p53 class mediator), cell death
+(apoptotic signaling pathway) and cellular organization (e.g.~protein
+complex localization). The 6 terms enriched in the \textbf{Low} category
+suggest that proteins undergo structural (e.g protein acylation) and
+organizational (single-organism organelle organization) changes to
+tolerate colder temperatures, possibly to maintain membrane fluidity
+{[}50{]}. The \textbf{High} category included only a single enriched GO
+term, ``nicotinamide metabolic process'', while the
+\textbf{Intermediate} category had 5 terms including DNA packaging and
+metabolic process terms.
+
+\subsection{\emph{A. carolinensis} has greater inertia of expression
+change to increases in temperature than does \emph{A.
+picea}}\label{a.-carolinensis-has-greater-inertia-of-expression-change-to-increases-in-temperature-than-does-a.-picea}
+
+As an additional test of the \emph{tolerance hypothesis}, we examined
+the critical temperature of gene induction in response to increasing and
+decreasing temperatures. We compared between species the mean
+temperatures of transcript upregulation, defined as the temperature at
+which the transcript showed the greatest positive change in expression.
+In support of the \emph{enhanced response} but not the \emph{tolerance
+hypothesis}, the temperature of induction at low temperatures was
+significantly higher for the cool-climate \emph{A. picea} than for
+\emph{A. carolinensis} (12.4°C) than \emph{A. picea} (13.1°C;
+\emph{t}\textsubscript{1308} = -3.1, \emph{P} \textless{} 0.002; Fig.
+4A), though the temperature of induction did not differ between species
+for high temperatures (\emph{t}\textsubscript{567} = 0.8, \emph{P}
+\textless{} 0.403).
+
+Similarly, for down-regulated (\textbf{Intermediate}) transcripts, we
+compared the mean temperatures of downregulation of transcript
+expression between species at both high (\textgreater{} 20°C) and low
+(\textless{} 20°C) temperatures. Consistent with the \emph{tolerance
+hypothesis}, \emph{A. carolinensis} had greater inertia of gene
+expression in response to increasing temperatures. The temperature of
+downregulation for \textbf{Intermediate} transcripts was 28.6°C for
+\emph{A. carolinensis} compared to 27.2 for \emph{A. picea}
+(\emph{t}\textsubscript{294} = 3.8, \emph{P} \textless{} 0.001). The
+difference between species was not significant with decreasing
+temperatures (\emph{t}\textsubscript{251} = 0.5, \emph{P} = 0.584, Fig.
+4B).
+
+\subsection{No evidence for \emph{genetic
+assimilation}}\label{no-evidence-for-genetic-assimilation}
+
+We tested the \emph{genetic assimilation hypothesis} by comparing the
+log ratios of relative inducibility to relative baseline expression at
+the rearing temperature (25°C). If stress-response transcripts have
+shifted between species from inducible to constitutive expression, there
+should be a negative relationship between the two. We found no evidence
+of such a relationship for either temperature extreme: transcripts more
+upregulated at high temperatures in the cool-climate \emph{A. picea}
+were not expressed at higher baseline levels in the warm-climate
+\emph{A. carolinensis} (Fig. 5A). Similarly, transcripts more
+upregulated at low temperatures in \emph{A. carolinensis} did not show
+higher baseline levels in \emph{A. picea} (Fig. 5B). In fact, for both
+comparisons we found a weakly positive relationship between relative
+inducibility and baseline expression between the two species
+(\(\beta_1\) = 0.31, \emph{P} \textless{} 0.001 and (\(\beta_1\) = 0.21,
+\emph{P} \textless{} 0.001). In addition, the thermally responsive
+transcripts in \emph{A. carolinensis}, regardless of expression pattern,
+had higher baseline expression than those in \emph{A. picea}, including
+those with \textbf{Intermediate} expression profiles in both species
+(Wilcoxon V = 68842, \emph{P} \textless{} 0.001). An important exception
+to this pattern is the set of transcripts that had \textbf{High} or
+\textbf{Bimodal} expression in \emph{A. picea} but were not thermally
+responsive in \emph{A. carolinensis} (top-row of Fig. 3B). These
+transcripts are less likely to be upregulated in any context, consistent
+with the \emph{tolerance hypothesis}.
+
+\section{Discussion}\label{discussion}
+
+The potential for many species to persist in face of climate change will
+depend in part upon their thermal tolerances. However, for most species
+little is known about how plasticity or adaptive changes in gene
+expression underlie thermal tolerance. By using a \emph{reactionome}
+approach, we were able to quantitatively describe plasticity in
+transcript expression across a thermal gradient, and identify putative
+changes in gene expression associated with shifts in thermal tolerance
+between the ant species \emph{Aphaenogaster picea} and \emph{A.
+carolinensis}. We found non-linear patterns of gene expression changes
+in response to temperature, with both quantitative and qualitative
+differences between species, consistent with different mechanisms of
+thermal adaptation to low and high temperature extremes.
+
+Under the \emph{enhanced response} hypothesis, stress-adapted species
+are hypothesized to induce a stronger and earlier response to extreme
+conditions. We found evidence for this hypothesis at low temperatures:
+although the lower thermal limit for \emph{A. picea} is substantially
+lower than \emph{A. carolinensis}, \emph{A. picea} upregulated
+responsive transcripts at slightly less extreme temperatures (Fig. 4A).
+Moreover, the transcripts upregulated in \emph{A. picea} included about
+half (55\%) those upregulated in \emph{A. carolinensis} as well as an
+additional set of 261 transcripts (Table 1), enriched for metabolism,
+organization and translation processes (Table S2). Two non-mutually
+exclusive hypotheses may explain this pattern. First, surviving
+prolonged low temperatures, such as would be experienced during
+overwintering, generally requires advance production of specialized
+cryoprotectants {[}43{]} and a suite of preparatory physiological
+modifications {[}51{]}. The northern species \emph{A. picea} may induce
+a greater response to survive the longer winter period. Alternatively,
+the response to low temperatures may reflect countergradient expression
+to counteract reduction in enzyme efficiency, and maintain activity as
+temperature declines {[}41{]}. This requirement may be under stronger
+selection in \emph{A. picea} given the shorter growing season that would
+necessitate foraging under a broader range of temperatures.
+
+In contrast to cold tolerance, the enhanced upper thermal limit in
+\emph{A. carolinensis} is best explained by the \emph{tolerance}
+hypothesis. High temperatures were associated with significantly fewer
+upregulated transcripts in \emph{A. carolinensis} (Table 1), and a large
+proportion (25\%) of the transcripts upregulated at high temperatures in
+\emph{A. picea} were either downregulated or expressed at negligible
+levels overall in \emph{A. carolinensis}. These results suggest that
+mechanisms other than the heat shock response are acting to maintain
+protein stability in face of temperature increases. Such mechanisms may
+include novel constitutive defenses {[}19, 21, 22{]}, enhanced proteome
+stability {[}52{]} or behavioral quiescence {[}5{]} to tolerate thermal
+stress. These differences are in line with expectations that \emph{A.
+carolinensis}, with a growing season over twice the length of its
+northern congener, may be better able to afford to restrain from
+foraging in suboptimal conditions. Indeed, quiescence under stressful
+conditions by the red harvester ant \emph{Pogonomyrmex barbatus} has
+been shown to increase colony fitness {[}42{]}.
+
+The one hypothesis that did not receive support was the \emph{genetic
+assimilation hypothesis}, which predicts that exposure to more frequent
+stressors will select for a shift from inducible to constitutive
+expression of stress-response transcripts. This constrasts with other
+recent studies on adaptation in field populations to thermal stress
+{[}21{]}. However, in a short-term selection experiment for heat
+tolerance, Sikkink et al. {[}46{]} also found no evidence for genetic
+assimilation at the expression level after 10 generations of selection
+for heat tolerance in \emph{Caenorhabditis remanei}, even though there
+was a substantial increase in heat tolerance. Both the genetic
+assimilation and tolerance routes to increasing thermal limits are
+functionally similar in that they emphasize damage prevention rather
+than repair. Whether a particular taxon evolves one strategy over
+another may be related to availability of alternative mechanisms as well
+as the intensity, frequency and duration of temperature stress in a
+given environment.
+
+Given the differences in the patterns of thermal responsiveness between
+species (Fig. 3), it is worth noting a number of similarities. In both
+species, there were 2 -- 3 times more transcripts upregulated at low
+than high temperatures (Table 1). The degree of upregulation at low
+temperatures is surprising given previous studies {[}53, 54{]} that
+found little transcriptional activity at low temperatures. However,
+these studies exposed organisms to a few extreme (-10 -- 0°C)
+temperatures. At these extremes, we also found few upregulated
+transcripts (Fig. 4A), whereas the peak of low-temperature
+transcriptional activation occurred near 10°C (Fig. 4). A potential
+explanation for this pattern is that increased gene expression functions
+to support elevated metabolism at moderately cold temperatures, as
+suggested by the metabolic cold adaptation hypothesis {[}55{]}. The
+observation that more transcripts were upregulated at low than high
+temperatures could also be due to stronger selection on upper than lower
+thermal limits, thereby reducing both genetic variation and gene
+expression plasticity at high temperatures {[}4, 56{]}. This explanation
+is consistent with the observation in \emph{Aphaenogaster rudis}
+{[}57{]} and other ectotherms {[}10, 58{]} that critical maximum
+temperatures vary less among taxa than do critical minimum temperatures.
+
+Critical maximum and minimum temperatures are hypothesized to be
+genetically correlated {[}10, 58{]}, but this was not evident in terms
+of gene expression in this study. Only \textasciitilde{}10\% of
+transcripts upregulated in response to temperature were bimodal, and for
+both activation and down-regulation, thresholds differed between species
+at only one temperature extreme (Fig. 4). This suggests that species do
+not face a fundamental trade-off between these two limits and may be
+able to shift upper and lower thermal limits independently to match
+requirements of more seasonally variable environments. A major
+contribution of this study is the construction of a reactionome for gene
+expression data. Similar approaches have been used in other species
+{[}59, 60{]}, but to our knowledge, none have applied a regression
+approach to identify a complete list of responsive transcript across an
+environmental gradient. This approach revealed quantitative patterns of
+temperature response not captured in categorical comparisons. For
+example, the degree of upregulation at cool (\textasciitilde{}10°C) but
+not extreme cold temperatures was missed in previous studies that
+focused on extreme cold limits, as discussed above. Further, a number of
+issues have hampered RNA-seq studies to date. Namely, lists of
+differentially expressed transcripts are prone to false positives
+{[}61{]}, depend on the genetic background of the organism {[}62{]} and
+are prone to ``storytelling'' interpretations {[}63{]}. Our findings are
+robust to these issues as we focus on the average change in the shape of
+the reaction norms across many hundreds of responsive transcripts in
+each species. Although we use gene ontology information to interpret our
+results, the key findings about differential plasticity of expression
+between species do not depend on functional annotation.
+
+Moreover, by characterizing responses across thousands of transcripts,
+the reactionome approach can help to distinguish selection from neutral
+drift in gene expression {[}64--66{]}. Although we cannot rule out drift
+as a source of variation for individual transcripts, we would not expect
+to see systematic differences in expression type categories or critical
+temperature thresholds as we do here (Fig. 3, Fig. S1). Thus, our method
+provides an example of how focusing on transcriptome-wide changes in
+gene expression -- as opposed to identifying lists of
+differentially-expressed transcripts -- can provide meaningful insight
+on the process of evolution. It should be noted, however, that although
+including non-linear relationships between expression and temperature
+captured a significantly larger range of biologically-relevant
+responses, it also led to a substantial increase in false positives.
+Empirical estimation of these rates via randomization tests, combined
+with robust sampling designs, can help to minimize this bias and focus
+results on biologically-meaningful gene sets.
+
+A number of caveats do apply to our work. First, species may differ in
+gene expression along axes which we have not measured here, especially
+temporal patterns of gene expression {[}25{]}, which could be studied in
+further work. Second, the \emph{de novo} transcriptome assembly is
+highly fragmented, given that all sequenced ant genomes to date have
+only about 18,000 genes {[}67{]}. Although we took steps to remove
+contaminants and redundant transcripts, some likely remain, in addition
+to partially assembled transcripts. A genome assembly, in progress, will
+help to reduce fragmentation. Third, the quality of the annotation for a
+non-model system such as \emph{Aphaenogaster} is not as good as it would
+be for model arthropods such as \emph{Drosophila} and \emph{Apis}.
+Finally, the mapping of changes in gene expression to organismal fitness
+is far from direct {[}68{]}, and large differences in patterns of gene
+expression may have only small effects on fitness. In particular,
+functional protein levels cannot be expected to be fully linked to mRNA
+abundance due to post-transcriptional modification, regulation, mRNA
+fluctuations and protein stability {[}68{]}.
+
+Our results are congruent with evidence from other systems {[}21{]} that
+thermally-stressful habitats select for investment in tolerance, whereas
+organisms from less stressful environments rely on plastically-induced
+resistance. Although the heat-shock response is one of the most
+conserved across living organisms {[}39{]}, it is energetically
+expensive, particularly under chronic stress conditions {[}69{]}. Under
+such circumstances, it may be advantageous to proactively prevent
+thermal damage even at the cost of reduced metabolic efficiency, either
+by maintaining a higher constitutive level of chaperone proteins
+{[}11{]} or by increasing the thermal stability of proteins at the
+expense of catalytic activity {[}70{]}. Thus, although in the short term
+increasing temperature stress leads to a quantitatively stronger induced
+response, adapting to such stress over evolutionary time appears to
+require a qualitative shift in mechanism of resistance that can alter
+not only the magnitude, but the sign of gene expression change in
+response to temperature. Whether such a shift would be possible in the
+compressed time frame of projected climate change, particularly for
+long-lived organisms such as ants, is likely to be critical in
+determining the capacity of populations to adapt to more frequent and
+long-lasting stressors.
+
+\subsection{Conclusions}\label{conclusions}
+
+In this work, we have brought reaction norms to the genomic era by
+characterizing the thermal reactionomes of two temperate ant species,
+\emph{Aphaenogaster picea} and \emph{A. carolinensis}. At least 2\% of
+their transcriptomes are thermally responsive. Our results indicate that
+these two ant species have different responses to thermal extremes.
+\emph{A. picea} responds by increasing expression of transcripts related
+to metabolism, stress response and other protective molecules, whereas
+\emph{A. carolinensis} decreases expression of transcripts related to
+metabolism and likely relies on other mechanisms for thermal tolerance.
+The thermal reactionomes of these two species provide key insights into
+the genetic basis of thermal tolerance, and a resource for the future
+study of ecological adaptation in ant species. Finally, the reactionome
+itself illustrates a new direction for characterizing acclimation and
+adaptation in a changing climate.
+
+\section{Methods}\label{methods}
+
+\subsection{Samples}\label{samples}
+
+Ants of the genus \emph{Aphaenogaster} are some of the most abundant in
+eastern North America {[}71{]}, and species as well as populations
+within species differ in critical maximum and minimum temperatures
+{[}57{]}. Temperature is a potentially strong selective force for
+ground-nesting ant populations, which must tolerate seasonally freezing
+winters and hot summers. On shorter time scales, individual workers can
+experience extreme thermal environments when they leave the thermally
+buffered ant nest to forage for food {[}32{]}.
+
+In fall 2012, we collected a single colony of \emph{Aphaenogaster picea}
+from Molly Bog, Vermont (University of Vermont Natural Areas; 44.508° N,
+-72.702° W) and a single colony of \emph{Aphaenogaster carolinensis},
+part of the \emph{A. rudis} species complex {[}26{]}, from Durham, North
+Carolina (36.037° N -78.874° W). These sites are centrally located
+within each species' geographic range. Along the East Coast of the
+United State, the distribution of \emph{A. picea} ranges from central
+Maine south to northern Pennsylvania, while \emph{A. carolinensis} is
+found from Pennsylvania to the Carolinas. Species identity was confirmed
+with morphological characters (Bernice DeMarco, Michigan State
+University). Colonies of both species were maintained in common
+conditions at 25°C for 6 months prior to experimentation. Due to colony
+size limitations, we were unable to determine the critical thermal
+limits of these particular colonies. In summer 2013 we collected
+additional colonies of \emph{Aphaenogaster} from Molly Bog, VT and North
+Carolina (Duke Forest, 36.036° N, 79.077° W). We tested the upper and
+lower critical thermal limits for 5 ants from each of these colonies
+using a ramp of 1° C per minute, starting at 30° C, and recorded the
+temperature at which the ants were no longer able to right themselves,
+following the protocol of Warren \& Chick {[}57{]}.
+
+\subsection{Common Garden Design}\label{common-garden-design}
+
+Ideally, genetically-based variation in gene expression profiles would
+be identified by comparing individuals completely reared under
+common-garden conditions to eliminate environmental variation
+experienced either as adults or during development. However,
+\emph{Aphaenogaster} colonies are long-lived, cannot be bred under
+laboratory conditions, and do not achieve complete turnover of the
+workforce for at least a year or longer. Thus, as is commonly done with
+other long-lived organisms {[}21, 65{]}, we exposed both colonies to
+common-garden rearing conditions for six months to fully acclimate adult
+workers to common temperatures. Over this time, roughly 1-2 cohorts of
+new workers are expected to join each colony (\textasciitilde{}1/3 of
+the total), such that the workers sampled for thermal traits and gene
+expression are likely to have included a mix of adult-acclimated and
+fully lab-reared individuals.
+
+Unlike ANOVA-based experimental designs, which derive statistical power
+from replication within each experimental treatment level, regression
+designs have greater power when sampling additional values across the
+range of the continuous predictor variable {[}72{]}. Ideally, the
+treatments should be replicated at each level of the predictor variable
+{[}73{]}. However, even with no replication, the regression design is
+still more powerful than an ANOVA design with comparable replication,
+and provides an unbiased estimator of the slope {[}72{]}. For these
+reasons, we focused our sequencing efforts on maximizing the number of
+temperatures at which the transcriptome was profiled, rather than on
+replication at each temperature.
+
+To limit differences in gene expression not related to the experimental
+treatment (e.g.~circadian rhythm), on 12 different days we haphazardly
+collected three ants from each 2012 colony at the same time of day to
+minimize variation due to circadian oscillations. We measured response
+to temperature with a one-hour static temperature application, which is
+ecologically relevant for workers that leave the thermally-buffered nest
+and are immediately exposed to ambient temperatures while foraging
+{[}71{]}. Each day, the ants were placed in glass tubes immersed in a
+water bath maintained at one of 12 randomly-assigned temperatures (0° to
+38.5°C, in 3.5° increments) for one hour. The minimum and maximum
+temperatures were selected based on previous work showing that these
+temperatures are close to the critical minimum (\textasciitilde{}0°C)
+and maximum (\textasciitilde{}43°C) temperatures for
+\emph{Aphaenogaster} {[}57{]}, and these treatments did not cause
+mortality. At the end of the hour, the ants were flash frozen in liquid
+nitrogen and stored at -80°C. Thus, our reactionome characterized early,
+but not late, responding genes. We extracted mRNA by homogenizing the
+three pooled ants in 500 uL of RNAzol buffer with zirconium silicate
+beads in a Bullet Blender (Next Advance; Averill Park, NY), followed by
+RNAzol extraction (Molecular Research Center Inc; Cincinnati, OH) and
+then an RNeasy micro extraction (Qiagen Inc; Valencia, CA) following the
+manufacturer's instructions.
+
+\subsection{Sequencing, assembly and
+annotation}\label{sequencing-assembly-and-annotation}
+
+For each species, the 12 samples were barcoded and sequenced in a single
+lane of 2 x 100bp paired-end reads on an Illumina HiSeq 1500 yielding
+200 and 160 million reads for the \emph{A. picea} and \emph{A.
+carolinensis} samples respectively. Reads were filtered to remove
+Illumina adapter sequences and low quality bases using the program
+Trimmomatic {[}74{]}.
+
+We assembled the sequenced reads into the full set of mRNA transcripts,
+the transcriptome, for the combined data set from both species using the
+Trinity \emph{de novo} transcriptome assembly program {[}75{]}. \emph{De
+novo} transcriptome assembly is prone to falsely identifying alternative
+transcripts and identifying inaccurate transcripts that are chimeric
+(e.g.~regions of two separate transcripts that assemble into a false, or
+chimeric, third transcript) {[}76{]}. We removed potentially false
+transcripts by first running the program \texttt{CAP3} {[}77{]} to
+cluster sequences with greater than 90\% similarity and merge
+transcripts with overlaps longer than 100 bp and 98\% similar in length.
+Second, we ran the program \texttt{uclust} which clusters sequences
+completely contained within longer sequences at greater than 90\%
+similarity (see Supplementary Methods). We used liberal values (90\%
+similarity) to merge orthologous transcripts in the two species that may
+not have assembled together in the initial \emph{de novo} transcriptome
+assembly. To identify contaminant sequences, we screened our full
+transcriptome using the program \texttt{DeconSeq} {[}78{]} with the
+provided bacteria, virus, archaen and human databases of contaminants.
+
+The Trinity \emph{de novo} transcriptome assembly for both species
+assembled together included 126,172 transcripts with a total length of
+100 million bp. Filtering to remove redundant or chimeric reads resulted
+in an assembly with 105,536 transcripts. The total length was 63 million
+bp with an N\textsubscript{50} length of 895 bp and a mean transcript
+size of 593 bp. Of the 105,536 filtered transcripts, 55,432 had hits to
+the NCBI-nr database. Of these, 38,711 transcripts mapped to GO terms,
+1,659 transcripts were identified to an enzyme and 18,935 transcripts
+mapped to a domain with \textgreater{}50\% coverage. We removed 5,675
+transcripts identified as known contaminants, leaving 99,861 clean
+transcripts.
+
+We assessed the quality of the transcriptome assembly using the BUSCO
+program {[}47{]} available from (\url{http://busco.ezlab.org/}). BUSCO
+asseses transcriptome completeness by measuring the number of
+near-universal single-copy orthologs selected from OrthoDB, using the
+Arthropod database.
+
+To determine the putative function of the transcripts, we used
+functional annotation of the transcriptome assembly using the web-based
+tool \texttt{FastAnnotator} {[}79{]} which annotates and classifies
+transcripts by Gene Ontology (GO) term assignment, enzyme identification
+and domain identification.
+
+\subsection{Identification of thermally-responsive
+transcripts}\label{identification-of-thermally-responsive-transcripts}
+
+We quantified expression of each transcript using the program
+\texttt{Sailfish} {[}48{]} and used the bias-corrected transcripts per
+million (TPM) {[}80{]} as our measure of transcript expression. We
+included the contaminant transcripts identified by \texttt{DeconSeq} at
+the quantification stage to avoid incorrectly assigning reads to other
+transcripts, but removed these from further analyses. Because
+preliminary examination of the data (Supplementary Methods) indicated
+that the 7°C samples may have been mis-labeled, we omitted these data
+from the analysis. The expression values were highly correlated between
+species at each temperature treatment (r\textsuperscript{2}
+\textgreater{} 0.98) indicating that assembling the transcriptome with
+data from both species was justified (Supplementary Methods).
+
+To identify transcripts that had significant changes in expression
+across the thermal gradient, we fit to each transcript an ordinary
+least-squares polynomial regression model
+
+\[ log(TPM + 1) = \beta_0 + \beta_1(species) + \beta_2(temperature) + \beta_3(temperature^2) + \beta_4(species * temperature) + \beta_5(species * temperature^2) + \epsilon \]
+
+Temperature and species were both fixed effects, with a quadratic term
+included for temperature. We used \(log(TPM + 1)\) as the response to
+control for skew in the expression data. For a continuous predictor such
+as temperature, this regression approach is preferred to an ANOVA
+approach as it can reveal non-linear responses such as hump-shaped or
+threshold effects {[}72{]}. This method is robust to over-dispersion
+because we expect errors in the read count distribution {[}81{]} to be
+independent with respect to temperature.
+
+To evaluate the statistical significance of the patterns, we computed
+parametric \emph{P}-values for each model and adjusted these
+\emph{P}-values using the False Discovery Rate (FDR) approach of
+Benjamini and Hochberg {[}82{]}. As a more stringent filter for false
+positives, we then randomly re-assigned each transcript within a species
+to a different temperature, fit the polynomial models as above, and
+again calculated \emph{P}-values and FDR. Ideally, these randomized data
+sets should not yield any significant associations. We repeated this
+resampling approach 100 times, and used the 95th quantile of false
+significant transcripts as the null expectation for retaining
+transcripts from the true data.
+
+Of these overall significant transcripts, we identified
+thermally-responsive transcripts as the subset that had significant
+\(\beta_2(temp)\), \(\beta_3(temp^2)\), \(\beta_4(species * temp)\) or
+\(\beta_5(species * temp^2)\) terms after step-wise model selection by
+AIC. For each thermally-responsive transcript, we predicted expression
+levels using the final linear model for each species across the tested
+thermal range. We used the predicted transcript expression levels to
+partition transcripts for each species into the five \emph{a priori}
+defined expression categories: \textbf{High} transcripts had greatest
+expression at temperatures \textgreater{} 31°C, \textbf{Low} transcripts
+had greatest expression at temperatures \textless{} 10°C,
+\textbf{Intermediate} transcripts had greatest expression between 10 to
+30°C, \textbf{Bimodal} transcripts had increased expression at both high
+and low temperatures, while \textbf{NotResp} transcripts were those that
+were not thermally responsive in the focal species but did respond in
+the other. For the \textbf{Bimodal} group, we required that expression
+at both low and high temperatures was at least one standard deviation
+greater than the expression at the rearing temperature of 25°C. Because
+expression category was defined by the temperature of maximal
+expression, both \textbf{Low} and \textbf{High} categories were biased
+toward transcripts up-regulated at that temperature extreme, but also
+likely included some transcripts down-regulated at the opposing extreme.
+The two categories which could unambiguously distinguish up- from
+down-regulation are \emph{Bimodal} (up at both extremes) and
+\emph{Intermediate} (down at both extremes).
+
+\subsection{Statistical analyses}\label{statistical-analyses}
+
+We used \(\chi^2\) tests to determine if the total number of responsive
+transcripts, and the number of transcripts in each expression category
+differed between species. To evaluate if shifts from one expression
+category to another between the two species were randomly distributed,
+we used the Stuart-Maxwell test of marginal homogeneity from the
+\texttt{coin} package {[}83{]} in R {[}84{]} which tests if the row and
+column marginal proportions are in equity.
+
+To test whether the temperature at which thermally-responsive
+transcripts were activated differs between species, we identified the
+temperature at which there was the greatest change in expression for
+each transcript in each species, using only the transcripts with a
+significant species x temperature interaction. For upregulated
+transcripts, we grouped the \textbf{High} transcripts along with the
+high temperature end of the \textbf{Bimodal} transcripts, and did the
+same for \textbf{Low} transcripts. We then performed a \emph{t}-test to
+determine if the mean temperature of transcript activation differed
+between the two species for each group. For downregulated transcripts
+(i.e. \textbf{Intermediate}), we identified the greatest change in
+expression for each transcript in response to both increasing
+(\textgreater{} 20°C) and decreasing (\textless{} 20°C) temperatures,
+and used a \emph{t}-test to compare the mean temperature of
+down-regulation between species.
+
+To test for a tradeoff between induciblity and constitutive baseline
+expression between species, we fit ordinary least squares regressions
+with the log ratio of relative constitutive expression as the response
+variable and the log ratio of relative inducibility as the predictor
+variable for \textbf{High} transcripts in \emph{A. picea} and for
+\textbf{Low} transcripts in \emph{A. carolinensis}. Constitutive
+expression was defined as predicted expression at 25°C, whereas
+inducibility of each transcript was defined as \emph{((maximum TPM -
+minimum TPM) / minimum TPM) x 100}. In addition, we used a Mann-Whitney
+test to compare the baseline constitutive expression between species for
+all responsive transcripts.
+
+\subsection{Gene set enrichment
+analysis}\label{gene-set-enrichment-analysis}
+
+To describe the molecular processes involved in thermal adaptation, we
+performed gene set enrichment analysis (GSEA) using the
+\texttt{parentChild} algorithm {[}85{]} from the package \texttt{topGO}
+{[}86{]} in R {[}84{]}. Briefly, this approach identifies GO terms that
+are overrepresented in the significant transcripts relative to all GO
+terms in the transcriptome, after accounting for dependencies among the
+GO terms.
+
+All analyses were performed with R 3.2 {[}84{]} and are fully
+reproducible (Supplementary Methods).
+
+\subsection{Availability of supporting
+data}\label{availability-of-supporting-data}
+
+Table S1 provides the annotation, \emph{P}-value, r\textsuperscript{2},
+adjusted \emph{P}-value, and expression type for the
+thermally-responsive transcripts in each species.
+
+Table S2 provides the results of the gene set enrichment analysis,
+showing the enriched gene ontology terms for each species in each
+thermal response category.
+
+The Supplementary Methods contain the detailed information on the
+analysis. The reproducible and version-controlled scripts underlying the
+analysis are available on GitHub
+(\url{https://github.com/johnstantongeddes/ApTranscriptome}).
+
+The Illumina short-read sequence data supporting the results of this
+article are available in the NCBI Short Read Archive BioProject
+repository, PRJNA260626
+\url{http://www.ncbi.nlm.nih.gov/bioproject/PRJNA260626/}.
+
+The Trinity transcriptome assembly, FastAnnotator annotation file and
+Sailfish gene expression quantification files supporting the results of
+this article are available from the LTER data portal, datasets hf113-38,
+hf113-41, and hf113-42
+(\url{http://dx.doi.org/10.6073/pasta/05ea6464df30efa2f1e2c7439366bf47}).
+
+\subsection{Competing interests}\label{competing-interests}
+
+The authors declare they have no competing interests.
+
+\subsection{Authors' contributions}\label{authors-contributions}
+
+JSG, NG and SHC designed research. JSG, ADN and LC performed research.
+JSG, JV, MV and SCH analyzed data and wrote the paper. ADN and LC
+performed research. JV and MV analyzed data. JSG, RD, AE, NS, NG and SHC
+wrote the paper.
+
+\section{Acknowledgements}\label{acknowledgements}
+
+Support made possible by NSF DEB Award \#1136644 and the Vermont
+Genetics Network through Grant Number 8P20GM103449 from the INBRE
+Program of the National Institute of General Medical Sciences (NIGMS) of
+the National Institutes of Health (NIH). Its contents are solely the
+responsibility of the authors and do not necessarily represent the
+official views of NIGMS or NIH.
+
+\section{Figure Legends}\label{figure-legends}
+
+\textbf{Figure 1}. Illustration of the patterns against temperature for
+each of the four expression categories, \textbf{Bimodal}, \textbf{High},
+\textbf{Intermediate} and \textbf{Low}. The fifth category of
+\textbf{Not Responsive} is not shown.
+
+\textbf{Figure 2}. Illustrations of the expected thermal response
+patterns in the two species under alternative mechanistic hypotheses of
+temperature adaptation. Although both temperature extremes were
+investigated in a similar way, for simplicity only the response to low
+temperatures is illustrated here. Each column indicates the distribution
+across all response categories in \emph{A. picea}, which has a lower
+CT\textsubscript{min} and is therefore better adapted to low
+temperatures, for the set of transcripts identified as cold-induced
+(either \textbf{High} or \textbf{Bimodal} categories) in the species
+with higher CT\textsubscript{min}, \emph{A. carolinensis}, relative to
+the null hypothesis of equal marginal frequencies. The dashed boxes
+highlight cells that would indicate matched responses in the two
+species, and the color of each cell (blue = excess, orange = deficit)
+represents the deviation of the observed from expected number of
+transcripts. The (A) \emph{enhanced response} hypothesis proposes that
+the increase in cold tolerance in \emph{A. picea} is achieved by
+amplifying existing molecular mechanisms, and thus there should be an
+excess of shared response types between species. In contrast, the (B)
+\emph{tolerance hypothesis} predicts that \emph{A. picea} is less
+reliant on induced responses to confer cold-tolerance than \emph{A.
+carolinensis}, leading to an excess of shifts from induction in \emph{A.
+carolinensis} to the \textbf{Not Responsive} or down-regulation
+categories in \emph{A. picea}.
+
+\textbf{Figure 3}. Results of analysis of thermal response patterns in
+the two species. The color of each cell (blue = excess, orange =
+deficit) represents the deviation of the observed from the expected
+number of transcripts based on hypothetical equivalence of the marginal
+frequencies. The units are number of transcripts. For each temperature
+extreme, the species expected to be less well adapated to that extreme
+is displayed on the x-axis for the two response categories corresponding
+to upregulation (\textbf{Bimodal} and \textbf{Low} for the low
+temperatures, or \textbf{Bimodal} and \textbf{High} for high
+temperatures). The distribution of response categories for those
+transcripts in the better-adapted species is arrayed along the y-axis.
+The dashed boxes indicate the matched responses (e.g. \textbf{High} -
+\textbf{High}). (A) Low temperature extreme: there is an excess of
+shared \textbf{Low} and \textbf{Bimodal} expression types and a bias
+away from all other categories in \emph{A. picea}, consistent with the
+\emph{enhanced response} hypothesis (Fig. 2). (B) High temperature
+extreme: in addition to an excess of matched categories, there is an
+excess of \textbf{High} and \textbf{Bimodal} transcripts in \emph{A.
+picea} that are not upregulated in \emph{A. carolinensis}
+(\textbf{Intermediate} and \textbf{Not Responsive}), partially
+consistent with the \emph{tolerance} hypothesis. The complete set of
+matched observations is shown in Fig. S1. Expression types are defined
+in Table 1.
+
+\textbf{Figure 4}. Histogram with smooth density estimate of temperature
+of maximum rate of change in expression for transcripts that have (A)
+increased expression at \textbf{Low} and \textbf{High} temperatures and
+(B) decreased expression at \textbf{Low} and \textbf{High} temperatures.
+Red bars and lines are for \emph{A. carolinensis} while blue bars and
+lines are for \emph{A. picea}.
+
+\textbf{Figure 5}. Scatterplots of log ratios of relative inducibility
+to relative constitutive expression, defined as expression level at the
+common rearing temperature (25°C) for (A) \textbf{High} transcripts in
+\emph{A. picea} (\emph{P} \textless{} 0.001, r\textsuperscript{2} =
+0.07) and (B) \textbf{Low} transcripts in \emph{A. carolinensis}
+(\emph{P} \textless{} 0.001, r\textsuperscript{2} = 0.1). Blue lines and
+confidence intervals are from ordinary least squares regressions.
+
+\textbf{Figure S1.} Deviations from expected numbers of transcripts in
+matched observations of transcript expression type between species
+(\emph{A. carolinensis} on rows, \emph{A. picea} on columns). The color
+of each cell represents the deviation of the observed from the expected
+number of transcripts based on hypothetical equivalence of the marginal
+frequencies (blue = excess, orange = deficit). The expression types are
+\textbf{Low} transcripts that had greatest expression temperatures
+\textless{} 10°C, \textbf{Intermediate} transcripts with greatest
+expression between 10 and 30°C, \textbf{High} transcripts that had
+greatest expression at temperatures \textgreater{} 31°, \textbf{Bimodal}
+transcripts with increased expression at both high and low temperatures,
+and \textbf{Not Responsive} transcripts that were not thermally
+responsive in that species.
+
+\newpage
+
+\section{Tables}\label{tables}
+
+\begin{longtable}[c]{@{}cccccc@{}}
+\caption{Table of the number of thermally-responsive transcripts by
+expression type for \emph{A. carolinensis} and \emph{A. picea}.
+\textbf{Low} are transcripts with increased expression at low
+temperatures (\textless{} 10°C), \textbf{Intermediate} are transcripts
+with maximum expression between 10 - 30°C, \textbf{High} are transcripts
+with increased expression at high temperatures (\textgreater{} 31°C),
+\textbf{Bimodal} are transcripts with increased expression at both low
+and high temperatures, while \textbf{NotResp} are transcripts that are
+not thermally responsive in one species but are in the other
+species.}\tabularnewline
+\toprule
+~ & Low & Intermediate & High & Bimodal & NotResp\tabularnewline
+\midrule
+\endfirsthead
+\toprule
+~ & Low & Intermediate & High & Bimodal & NotResp\tabularnewline
+\midrule
+\endhead
+\textbf{A. picea} & 1,193 & 249 & 248 & 278 & 110\tabularnewline
+\textbf{A. carolinensis} & 920 & 680 & 232 & 117 & 129\tabularnewline
+\bottomrule
+\end{longtable}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics{../results/expression_types_Fig1.png}
+\caption{Fig. 1}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics{../results/predictions_Fig2.png}
+\caption{Fig. 2}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics{../results/matched_observations_Fig3.png}
+\caption{Fig. 3}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics{../results/crit_temp_regulation_Fig4.png}
+\caption{Fig. 4}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics{../results/genetic_assimilation_Fig5.png}
+\caption{Fig. 5}
+\end{figure}
+
+\newpage
+
+\section*{References}\label{references}
+\addcontentsline{toc}{section}{References}
+
+1. Brown JH, Gillooly JF, Allen AP, Savage VM, West GB: \textbf{Toward a
+metabolic theory of ecology}. \emph{Ecology} 2004,
+\textbf{85}:1771--1789.
+
+2. Kingsolver JG: \textbf{The well-temperatured biologist}.
+\emph{American Naturalist} 2009, \textbf{174}:755--768.
+
+3. Deutsch CA, Tewksbury JJ, Huey RB, Sheldon KS, Ghalambor CK, Haak DC,
+Martin PR: \textbf{Impacts of climate warming on terrestrial ectotherms
+across latitude}. \emph{Proceedings of the National Academy of Sciences}
+2008, \textbf{105}:6668--6672.
+
+4. Kingsolver JG, Diamond SE, Buckley LB: \textbf{Heat stress and the
+fitness consequences of climate change for terrestrial ectotherms}.
+\emph{Functional Ecology} 2013, \textbf{27}:1415--1423.
+
+5. Sunday JM, Bates AE, Kearney MR, Colwell RK, Dulvy NK, Longino JT,
+Huey RB: \textbf{Thermal-safety margins and the necessity of
+thermoregulatory behavior across latitude and elevation}.
+\emph{Proceedings of the National Academy of Sciences} 2014:201316145.
+
+6. Huey RB, Kingsolver JG: \textbf{Evolution of thermal sensitivity of
+ectotherm performance}. \emph{Trends in Ecology \& Evolution} 1989,
+\textbf{4}:131--135.
+
+7. Richter K, Haslbeck M, Buchner J: \textbf{The heat shock response:
+Life on the verge of death}. \emph{Molecular Cell} 2010,
+\textbf{40}:253--266.
+
+8. Angilletta MJ, Wilson RS, Navas CA, James RS: \textbf{Tradeoffs and
+the evolution of thermal reaction norms}. \emph{Trends in Ecology \&
+Evolution} 2003, \textbf{18}:234--240.
+
+9. Cowles RB: \textbf{Possible implications of reptilian thermal
+tolerance}. \emph{Science} 1939, \textbf{90}:465--466.
+
+10. Hoffmann AA, Chown SL, Clusella-Trullas S: \textbf{Upper thermal
+limits in terrestrial ectotherms: How constrained are they?}
+\emph{Functional Ecology} 2013, \textbf{27}:934--949.
+
+11. Krebs R, Loeschcke V: \textbf{Estimating heritability in a threshold
+trait: Heat-shock tolerance in drosophila buzzatii}. \emph{Heredity}
+1997, \textbf{79}:252--259.
+
+12. Kellermann V, Overgaard J, Hoffmann AA, Fl{ø}jgaard C, Svenning J-C,
+Loeschcke V: \textbf{Upper thermal limits of \emph{drosophila} are
+linked to species distributions and strongly constrained
+phylogenetically}. \emph{Proceedings of the National Academy of
+Sciences} 2012, \textbf{109}:16228--16233.
+
+13. Krebs RA, Feder ME, Lee J: \textbf{Heritability of expression of the
+70KD heat-shock protein in \emph{drosophila melanogaster} and its
+relevance to the evolution of thermotolerance}. \emph{Evolution} 1998,
+\textbf{52}:841--847.
+
+14. Williams BR, Van Heerwaarden B, Dowling DK, Sgr{ò} CM: \textbf{A
+multivariate test of evolutionary constraints for thermal tolerance in
+\emph{drosophila melanogaster}}. \emph{Journal of Evolutionary Biology}
+2012, \textbf{25}:1415--1426.
+
+15. Morgan TJ, Mackay TFC: \textbf{Quantitative trait loci for
+thermotolerance phenotypes in \emph{drosophila melanogaster}}.
+\emph{Heredity} 2006, \textbf{96}:232--242.
+
+16. Takahashi KH, Okada Y, Teramura K: \textbf{Genome-wide deficiency
+screen for the genomic regions responsible for heat resistance in
+\emph{drosophila melanogaster}}. \emph{BMC Genetics} 2011,
+\textbf{12}:57.
+
+17. Hoffmann AA, Willi Y: \textbf{Detecting genetic responses to
+environmental change}. \emph{Nature Reviews Genetics} 2008,
+\textbf{9}:421--432.
+
+18. Somero GN: \textbf{Comparative physiology: A ``crystal ball'' for
+predicting consequences of global change}. \emph{American Journal of
+Physiology - Regulatory, Integrative and Comparative Physiology} 2011,
+\textbf{301}:R1--R14.
+
+19. Meyer E, Aglyamova GV, Matz MV: \textbf{Profiling gene expression
+responses of coral larvae (\emph{acropora millepora}) to elevated
+temperature and settlement inducers using a novel RNA-seq procedure}.
+\emph{Molecular Ecology} 2011, \textbf{20}:3599--616.
+
+20. Teets NM, Peyton JT, Colinet H, Renault D, Kelley JL, Kawarasaki Y,
+Lee RE, Denlinger DL: \textbf{Gene expression changes governing extreme
+dehydration tolerance in an antarctic insect}. \emph{Proceedings of the
+National Academy of Sciences} 2012, \textbf{109}:20744--9.
+
+21. Barshis DJ, Ladner JT, Oliver TA, Seneca FO, Traylor-Knowles N,
+Palumbi SR: \textbf{Genomic basis for coral resilience to climate
+change}. \emph{Proceedings of the National Academy of Sciences} 2013,
+\textbf{110}:1387--1392.
+
+22. O'Neil ST, Dzurisin JDK, Williams CM, Lobo NF, Higgins JK, Deines
+JM, Carmichael RD, Zeng E, Tan JC, Wu GC, Emrich SJ, Hellmann JJ:
+\textbf{Gene expression in closely related species mirrors local
+adaptation: Consequences for responses to a warming world}.
+\emph{Molecular Ecology} 2014, \textbf{23}:2686--2698.
+
+23. Gomulkiewicz R, Kirkpatrick M: \textbf{Quantitative genetics and the
+evolution of reaction norms}. \emph{Evolution} 1992,
+\textbf{46}:390--411.
+
+24. Murren CJ, Maclean HJ, Diamond SE, Steiner UK, Heskel MA, Handelsman
+CA, Ghalambor CK, Auld JR, Callahan HS, Pfennig DW, Relyea RA,
+Schlichting Carl D., Kingsolver J: \textbf{Evolutionary change in
+continuous reaction norms.} \emph{The American Naturalist} 2014,
+\textbf{183}:453--467.
+
+25. S{ø}rensen JG, Nielsen MM, Kruh{ø}ffer M, Justesen J, Loeschcke V:
+\textbf{Full genome gene expression analysis of the heat stress response
+in \emph{drosophila melanogaster}}. \emph{Cell Stress \& Chaperones}
+2005, \textbf{10}:312--328.
+
+26. Umphrey G: \textbf{Morphometric discrimination among sibling species
+in the \emph{fulva - rudis - texana} complex of the ant genus
+aphaenogaster}. \emph{Canadian Journal of Zoology} 1996,
+\textbf{74}:528--559.
+
+27. DeMarco B, Cognato A: \textbf{A multiple-gene phylogeny reveals
+polyphyly among eastern north american \emph{aphaenogaster} species}.
+\emph{Zoologica} 2015, \textbf{doi:10.1111/zsc.12168}.
+
+28. King JR, Warren RJ, Bradford MA: \textbf{Social insects dominate
+eastern US temperate hardwood forest macroinvertebrate communities in
+warmer regions}. \emph{PLoS ONE} 2013, \textbf{8}:e75843.
+
+29. Ness JH, Morin DF, Giladi I: \textbf{Uncommon specialization in a
+mutualism between a temperate herbaceous plant guild and an ant: Are
+\emph{aphaenogaster} ants keystone mutualists?} \emph{Oikos} 2009,
+\textbf{118}:1793--1804.
+
+30. Zelikova TJ, Sanders NJ, Dunn RR: \textbf{The mixed effects of
+experimental ant removal on seedling distribution, belowground
+invertebrates, and soil nutrients}. \emph{Ecosphere} 2011,
+\textbf{2}:art63.
+
+31. Rodriguez-Cabal MA, Stuble KL, Gu{é}nard B, Dunn RR, Sanders NJ:
+\textbf{Disruption of ant-seed dispersal mutualisms by the invasive
+asian needle ant (\emph{pachycondyla chinensis})}. \emph{Biological
+Invasions} 2012, \textbf{14}:557--565.
+
+32. Diamond SE, Nichols LM, McCoy N, Hirsch C, Pelini SL, Sanders NJ,
+Ellison AM, Gotelli NJ, Dunn RR: \textbf{A physiological trait-based
+approach to predicting the responses of species to experimental climate
+warming}. \emph{Ecology} 2012, \textbf{93}:2305--2312.
+
+33. Toro ID, Ribbons RR, Pelini SL: \textbf{The little things that run
+the world revisited: A review of ant-mediated ecosystem services and
+disservices (hymenoptera: Formicidae)}. \emph{Myrmecological News} 2012,
+\textbf{17}:133--146.
+
+34. Pelini SL, Diamond SE, Maclean HJ, Ellison AM, Gotelli NJ, Sanders
+NJ, Dunn RR: \textbf{Common garden experiments reveal uncommon responses
+across temperatures, locations, and species of ants}. \emph{Ecology and
+Evolution} 2012, \textbf{2}:3009--15.
+
+35. Sharon B, Stuble KL, Lessard J-P, Dunn RR, Adler FR, Sanders NJ:
+\textbf{Predicting future coexistence in a north american ant
+community}. \emph{Ecology and Evolution} 2014, \textbf{4}:1804--1819.
+
+36. Hijmans R, Cameron S, Parra J, Jones P, Jarvis A: \textbf{Very high
+resolution interpolated climate surfaces of global land areas}.
+\emph{International Journal of Climatology} 2005,
+\textbf{25}:1965--1978.
+
+37. Hofmann GE, Somero GN: \textbf{Interspecific variation in thermal
+denaturation of proteins in the congeneric mussels mytilus trossulus and
+m. galloprovincialis: Evidence from the heat-shock response and protein
+ubiquitination}. \emph{Marine Biology} 1996, \textbf{126}:65--75.
+
+38. Feder ME, Hofmann GE: \textbf{Heat-shock proteins, molecular
+chaperones, and the stress response: Evolutionary and ecological
+physiology}. \emph{Annual Review of Physiology} 1999,
+\textbf{61}:243--282.
+
+39. K{ü}ltz D: \textbf{Molecular and evolutionary basis of the cellular
+stress response}. \emph{Annual Review of Physiology} 2005,
+\textbf{67}:225--257.
+
+40. Fields PA: \textbf{Protein function at thermal extremes: Balancing
+stability and flexibility}. \emph{Comparative Biochemistry and
+Physiology Part A: Molecular \& Integrative Physiology} 2001,
+\textbf{129}:417--431.
+
+41. Lockwood BL, Somero GN: \textbf{Functional determinants of
+temperature adaptation in enzymes of cold- versus warm-adapted mussels
+(genus \emph{mytilus})}. \emph{Molecular Biology and Evolution} 2012,
+\textbf{29}:3061--3070.
+
+42. Gordon DM: \textbf{The rewards of restraint in the collective
+regulation of foraging by harvester ant colonies}. \emph{Nature} 2013,
+\textbf{498}:91--93.
+
+43. Neelakanta G, Hudson AM, Sultana H, Cooley L, Fikrig E:
+\textbf{Expression of \emph{ixodes scapularis} antifreeze glycoprotein
+enhances cold tolerance in \emph{drosophila melanogaster}}. \emph{PLoS
+ONE} 2012, \textbf{7}:e33447.
+
+44. Franssen SU, Bergmann N, Winters G, Klostermeier UC, Rosenstiel P,
+Bornberg-Bauer E, Reusch TBH: \textbf{Transcriptomic resilience to
+global warming in the seagrass zostera marina, a marine foundation
+species}. \emph{Proceedings of the National Academy of Sciences} 2011,
+\textbf{108}:19276--19281.
+
+45. Waddington C: \textbf{Genetic assimilation of an acquired
+character}. \emph{Evolution} 1953, \textbf{7}:118--126.
+
+46. Sikkink KL, Reynolds RM, Ituarte CM, Cresko WA, Phillips PC:
+\textbf{Rapid evolution of phenotypic plasticity and shifting thresholds
+of genetic assimilation in the nematode
+\textless{}i\textgreater{}Caenorhabditis
+remanei\textless{}i\textgreater{}}. \emph{G3: Genes Genomes Genetics}
+2014, \textbf{4}:1103--1112.
+
+47. Simao FA, Waterhouse RM, Ioannidis P, Kriventseva EV: \textbf{BUSCO:
+Assessing genome assembly and annotation completeness with single-copy
+orthologs}. \emph{Bioinformatics} 2015,
+\textbf{10.1093/bioinformatics/btv351}.
+
+48. Patro R, Mount SM, Kingsford C: \textbf{Sailfish enables
+alignment-free isoform quantification from RNA-seq reads using
+lightweight algorithms}. \emph{Nature Biotechnology} 2014,
+\textbf{32}:462--464.
+
+49. Vijay N, Poelstra JW, K{ü}nstner A, Wolf JBW: \textbf{Challenges and
+strategies in transcriptome assembly and differential gene expression
+quantification. a comprehensive in silico assessment of RNA-seq
+experiments}. \emph{Molecular Ecology} 2013, \textbf{22}:620--634.
+
+50. Ohtsu T, Kimura MT, Katagiri C: \textbf{How \emph{drosophila}
+species acquire cold tolerance}. \emph{Eur J Biochem} 1998,
+\textbf{252}:608--611.
+
+51. Denlinger DL: \textbf{Regulation of diapause}. \emph{Annual Review
+of Entomology} 2002, \textbf{47}:93--122.
+
+52. Ghosh K, Dill K: \textbf{Cellular proteomes have broad distributions
+of protein stability}. \emph{Biophysical Journal} 2010,
+\textbf{99}:3996--4002.
+
+53. Teets NM, Peyton JT, Ragland GJ, Colinet H, Renault D, Hahn DA,
+Denlinger DL: \textbf{Combined transcriptomic and metabolomic approach
+uncovers molecular mechanisms of cold tolerance in a temperate flesh
+fly}. \emph{Physiological Genomics} 2012, \textbf{44}:764--777.
+
+54. Vesala L, Salminen T, Laiho A, Hoikkala A, Kankare M: \textbf{Cold
+tolerance and cold-induced modulation of gene expression in two
+\emph{drosophila virilis} group species with different distributions:
+Cold-induced changes in gene expression}. \emph{Insect Molecular
+Biology} 2012, \textbf{21}:107--118.
+
+55. Addo-Bediako A, Chown SL, Gaston KJ: \textbf{Metabolic cold
+adaptation in insects: A large-scale perspective}. \emph{Functional
+Ecology} 2002, \textbf{16}:332--338.
+
+56. Kelly MW, Grosberg Richard K., Sanford E: \textbf{Trade-offs,
+geography, and limits to thermal adaptation in a tide pool copepod.}
+\emph{The American Naturalist} 2013, \textbf{181}:846--854.
+
+57. Warren RJ, Chick L: \textbf{Upward ant distribution shift
+corresponds with minimum, not maximum, temperature tolerance}.
+\emph{Global Change Biology} 2013, \textbf{19}:2082--2088.
+
+58. Addo-Bediako A, Chown SL, Gaston KJ: \textbf{Thermal tolerance,
+climatic variability and latitude}. \emph{Proceedings of The Royal
+Society B: Biological Sciences} 2000, \textbf{267}:739--745.
+
+59. Hodgins-Davis A, Adomas AB, Warringer J, Townsend JP:
+\textbf{Abundant gene-by-environment interactions in gene expression
+reaction norms to copper within \emph{saccharomyces cerevisiae}}.
+\emph{Genome Biology and Evolution} 2012, \textbf{4}:1061--1079.
+
+60. Aubin-Horth N, Renn SCP: \textbf{Genomic reaction norms: Using
+integrative biology to understand molecular mechanisms of phenotypic
+plasticity}. \emph{Molecular Ecology} 2009, \textbf{18}:3763--3780.
+
+61. Gonz{á}lez E, Joly S: \textbf{Impact of RNA-seq attributes on false
+positive rates in differential expression analysis of de novo assembled
+transcriptomes}. \emph{BMC Research Notes} 2013, \textbf{6}:503.
+
+62. Sarup P, S{ø}rensen JG, Kristensen TN, Hoffmann AA, Loeschcke V,
+Paige KN, S{ø}rensen P: \textbf{Candidate genes detected in
+transcriptome studies are strongly dependent on genetic background}.
+\emph{PLoS ONE} 2011, \textbf{6}:e15644.
+
+63. Pavlidis P, Jensen JD, Stephan W, Stamatakis A: \textbf{A critical
+assessment of storytelling: Gene ontology categories and the importance
+of validating genomic scans}. \emph{Molecular Biology and Evolution}
+2012, \textbf{29}:3237--3248.
+
+64. Khaitovich P, Weiss G, Lachmann M, Hellmann I, Enard W, Muetzel B,
+Wirkner U, Ansorge W, P{ä}{ä}bo S: \textbf{A neutral model of
+transcriptome evolution.} \emph{PLoS Biology} 2004, \textbf{2}:E132.
+
+65. Whitehead A, Crawford DL: \textbf{Neutral and adaptive variation in
+gene expression}. \emph{Proceedings of the National Academy of Sciences}
+2006, \textbf{103}:5425--5430.
+
+66. Ogasawara O, Okubo K: \textbf{On theoretical models of gene
+expression evolution with random genetic drift and natural selection.}
+\emph{PLoS ONE} 2009, \textbf{4}:e7943.
+
+67. Gadau J, Helmkampf M, Nygaard S, Roux J, Simola DF, Smith CR, Suen
+G, Wurm Y, Smith CD: \textbf{The genomic impact of 100 million years of
+social evolution in seven ant species.} \emph{Trends in Genetics} 2012,
+\textbf{28}:14--21.
+
+68. Feder ME, Walser J-C: \textbf{The biological limitations of
+transcriptomics in elucidating stress and stress responses}.
+\emph{Journal of Evolutionary Biology} 2005, \textbf{18}:901--910.
+
+69. Hoekstra LA, Montooth KL: \textbf{Inducing extra copies of the hsp70
+gene in \emph{drosophila melanogaster} increases energetic demand}.
+\emph{BMC Evolutionary Biology} 2013, \textbf{13}:1--11.
+
+70. Arnold FH, Wintrode PL, Miyazaki K, Gershenson A: \textbf{How
+enzymes adapt: Lessons from directed evolution}. \emph{Trends in
+Biochemical Sciences} 2001, \textbf{26}:100--106.
+
+71. Lubertazzi D: \textbf{The biology and natural history of
+\emph{aphaenogaster rudis}}. \emph{Psyche: A Journal of Entomology}
+2012, \textbf{2012}:1--11.
+
+72. Gotelli NJ, Ellison AM: \emph{A Primer of Ecological Statistics}.
+2nd edition. Sunderland, MA: Sinauer Associates, Inc; 2012.
+
+73. Cottingham KL, Lennon JT, Brown BL: \textbf{Knowing when to draw the
+line: Designing more informative ecological experiments}.
+\emph{Frontiers in Ecology and the Environment} 2005,
+\textbf{3}:145--152.
+
+74. Lohse M, Bolger AM, Nagel A, Fernie AR, Lunn JE, Stitt M, Usadel B:
+\textbf{RobiNA: A user-friendly, integrated software solution for
+RNA-seq-based transcriptomics}. \emph{Nucleic Acids Research} 2012,
+\textbf{40}:W622--W627.
+
+75. Grabherr MG, Haas BJ, Yassour M, Levin JZ, Thompson D a, Amit I,
+Adiconis X, Fan L, Raychowdhury R, Zeng Q, Chen Z, Mauceli E, Hacohen N,
+Gnirke A, Rhind N, Palma F di, Birren BW, Nusbaum C, Lindblad-Toh K,
+Friedman N, Regev A: \textbf{Full-length transcriptome assembly from
+RNA-seq data without a reference genome.} \emph{Nature Biotechnology}
+2011, \textbf{29}:644--52.
+
+76. Yang Y, Smith SA: \textbf{Optimizing de novo assembly of short-read
+RNA-seq data for phylogenomics}. \emph{BMC Genomics} 2013,
+\textbf{14}:328.
+
+77. Huang X, Madan A: \textbf{CAP3: A DNA sequence assembly program}.
+\emph{Genome Research} 1999, \textbf{9}:868--877.
+
+78. Schmieder R, Edwards R: \textbf{Fast identification and removal of
+sequence contamination from genomic and metagenomic datasets}.
+\emph{PLoS ONE} 2011, \textbf{6}:e17288.
+
+79. Chen T-W, Gan R-CR, Wu TH, Huang P-J, Lee C-Y, Chen Y-YM, Chen C-C,
+Tang P: \textbf{FastAnnotator- an efficient transcript annotation web
+tool}. \emph{BMC Genomics} 2012, \textbf{13}(Suppl 7):S9.
+
+80. Wagner GP, Kin K, Lynch VJ: \textbf{Measurement of mRNA abundance
+using RNA-seq data: RPKM measure is inconsistent among samples}.
+\emph{Theory in Biosciences} 2012, \textbf{131}:281--285.
+
+81. Anders S, Huber W: \textbf{Differential expression analysis for
+sequence count data}. \emph{Genome Biology} 2010, \textbf{11}:R106.
+
+82. Benjamini Y, Hochberg Y: \textbf{Controlling the false discovery
+rate: A practical and powerful approach to multiple testing}.
+\emph{Journal of the Royal Statistical Society Series B
+(Methodological)} 1995, \textbf{57}:289--300.
+
+83. Hothorn T, Hornik K, Mark van de Wiel, Zeileis A:
+\textbf{Implementing a class of permutation tests: The coin package}.
+\emph{Journal of Statistical Software} 2008, \textbf{28}:1--23.
+
+84. R Core Team: \textbf{R: A language and environment for statistical
+computing}. 2013.
+
+85. Grossmann S, Bauer S, Robinson PN, Vingron M: \textbf{Improved
+detection of overrepresentation of gene-ontology annotations with
+parent--child analysis}. \emph{Bioinformatics} 2007,
+\textbf{23}:3024--3031.
+
+86. Alexa A, Rahnenf{ü}hrer J, Lengauer T: \textbf{Improved scoring of
+functional groups from gene expression data by decorrelating GO graph
+structure}. \emph{Bioinformatics} 2006, \textbf{22}:1600--1607.
+
+\end{document}
