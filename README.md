@@ -1,30 +1,5 @@
-*Aphaenogaster* transcriptome assembly
-=======================================
+Technical Report for *Thermal reactionomes reveal divergent responses to thermal extremes in warm and cool-climate ant species* in press at BMC Genomics
 
-*Forked* from [github.com/johnstantongeddes/climate-cascade/projects/ApTranscriptome]
+This repository contains all the code necessary to recreate the analysis and manuscript. The analysis is detailed in the "ApTranscriptome_TR.Rmd" Rmarkdown file, while the manuscript is contained within the `doc/` directory. 
 
-Initial development of assembly in that repository, but decided that 
-each analysis should be it's own repo, housed within each users account
-and forked by the overall `organization` (maybe GotelliLab or Climate-Cascade)
-
-Repository contains scripts for assembly of the *Aphaenogaster* 
-transcriptome and identification of thermally-responsonsive genes.
-
-**Data**
-  
-  - 2 lanes of Illumina HiSeq 2x100bp paired-end reads
-  - 1 lane for each of 2 colonies
-  - 12 treatments per lane
-    * heat shock every 3.5C from 0 to 38C
-
-**Analysis**
-
-  - QC
-  - Assembly with Trinity
-  - Reduce transcript redundancy and chimeric transcripts
-  - Map reads for each sample (treatment by colony) to transcriptome
-  - Functional annotation
-  - Identification of responsive genes
-
-
-[![DOI](https://zenodo.org/badge/4669/johnstantongeddes/ApTranscriptome.png)](http://dx.doi.org/10.5281/zenodo.12295)
+[![DOI](https://zenodo.org/badge/doi/10.5281/zenodo.46416.svg)](https://zenodo.org/badge/doi/10.5281/zenodo.46416.svg)
